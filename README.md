@@ -14,6 +14,10 @@ works fully offline, and built with zero dependencies (plain HTML/CSS/ES modules
 - **🛖 Cards Against the Cabin** *(normal)* — the same fill-in-the-blank engine with a tamer
   (still very adult) deck: dark, absurd, relatable humor with a lake-house lean.
   **80 prompts + 86 response cards.**
+
+  > Both card games offer a pre-game **Card mode**: *Digital* (the app deals hands on the device
+  > and passes around) or *Physical cards* (you play with real cards — the app shows each prompt,
+  > runs the Card Czar rotation, and keeps score; just tap the round winner).
 - **🚨 Emergency Meeting** — a secret-ballot voting game. Each round the group gets a
   *"who's most likely to…"* prompt; everyone votes by passing the device around, the
   most-voted crewmate is **ejected**, and a running *sus-o-meter* crowns the Sussiest Baka.

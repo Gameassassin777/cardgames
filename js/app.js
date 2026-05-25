@@ -14,7 +14,7 @@ const monkeys = makeCardGame({
   winnerTitle: "Goon Commander",
   blurb: "A chronically-online party game. One player is the <b>Card Czar</b> each round; everyone else fills in the blank with their funniest card. The Czar picks the winner. Pass the device around — hands stay secret.",
   footer: "18+ brain-rot humor. Best with friends who can take a joke.",
-  saveKey: "cam.game.v1", namesKey: "cam.names.v1", targetKey: "cam.target",
+  saveKey: "cam.game.v1", namesKey: "cam.names.v1", targetKey: "cam.target", physicalKey: "cam.physical",
 });
 const cabin = makeCardGame({
   title: "Cards Against the Cabin", icon: "🛖",
@@ -22,7 +22,7 @@ const cabin = makeCardGame({
   winnerTitle: "Cabin Champion",
   blurb: "The same fill-in-the-blank game with a tamer (still very adult) deck — dark, absurd, lake-house humor. Card Czar each round; pass the device, hands stay secret.",
   footer: "A more normal deck. Still an adult party game.",
-  saveKey: "cabin.game.v1", namesKey: "cabin.names.v1", targetKey: "cabin.target",
+  saveKey: "cabin.game.v1", namesKey: "cabin.names.v1", targetKey: "cabin.target", physicalKey: "cabin.physical",
 });
 const rizzRoulette = makeDeck({ title: "Rizz Roulette", source: RIZZ_ROULETTE });
 const wouldYouRather = makeDeck({ title: "Would You Rather", source: WOULD_YOU_RATHER });

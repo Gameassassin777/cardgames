@@ -92,6 +92,23 @@ function renderSetup() {
     el("span", { className: "muted", text: "points to win", style: "margin-left:6px" }),
   ]);
 
+  // Card mode: digital (deal hands on device) vs physical (play with real cards).
+  let physical = store.get(cfg.physicalKey, false);
+  const digitalBtn = el("button", { className: "btn", text: "📱 Digital" });
+  const physicalBtn = el("button", { className: "btn ghost", text: "🃏 Physical cards" });
+  const modeDesc = el("p", { className: "muted", style: "margin:8px 0 0" });
+  function setMode(p) {
+    physical = p;
+    digitalBtn.className = p ? "btn ghost" : "btn";
+    physicalBtn.className = p ? "btn" : "btn ghost";
+    modeDesc.textContent = p
+      ? "You play with real cards. The app shows each prompt, runs the Card Czar, and keeps score — tap the winner each round."
+      : "The app deals everyone a hand on this device and passes around to play. No physical cards needed.";
+  }
+  digitalBtn.onclick = () => setMode(false);
+  physicalBtn.onclick = () => setMode(true);
+  setMode(physical);
+
   mount(
     topbar(cfg.title),
     el("div", { className: "panel" }, [
@@ -108,13 +125,17 @@ function renderSetup() {
       el("hr", { className: "divider" }),
       el("label", { text: "Score to win" }),
       stepper,
+      el("hr", { className: "divider" }),
+      el("label", { text: "Card mode" }),
+      el("div", { className: "btn-row" }, [digitalBtn, physicalBtn]),
+      modeDesc,
     ]),
-    el("button", { className: "btn", text: `Start game ${cfg.icon}`, onClick: () => beginGame(names, target) }),
+    el("button", { className: "btn", text: `Start game ${cfg.icon}`, onClick: () => beginGame(names, target, physical) }),
     el("div", { className: "footer-note", text: cfg.footer })
   );
 }
 
-function beginGame(rawNames, target) {
+function beginGame(rawNames, target, physical) {
   const players = rawNames.map((n) => n.trim()).filter(Boolean);
   if (players.length < 3) { toast("Add at least 3 player names."); return; }
   if (new Set(players.map((p) => p.toLowerCase())).size !== players.length) {
@@ -122,13 +143,15 @@ function beginGame(rawNames, target) {
   }
   store.set(cfg.namesKey, players);
   store.set(cfg.targetKey, target);
+  store.set(cfg.physicalKey, !!physical);
 
   state = {
     players: players.map((name) => ({ name, score: 0 })),
     target,
+    physical: !!physical,
     czar: 0,
     round: 1,
-    deck: shuffle(cfg.responses),
+    deck: physical ? [] : shuffle(cfg.responses),
     discard: [],
     promptDeck: shuffle(cfg.prompts.map((_, i) => i)),
     promptUsed: [],
@@ -142,8 +165,8 @@ function beginGame(rawNames, target) {
     chosen: null,
     phase: "intro",
   };
-  // Deal opening hands.
-  state.hands = state.players.map(() => drawCards(HAND_SIZE));
+  // Deal opening hands (digital only).
+  if (!physical) state.hands = state.players.map(() => drawCards(HAND_SIZE));
   dealPrompt();
   render();
 }
@@ -178,7 +201,8 @@ function save() { store.set(cfg.saveKey, state); }
 function render() {
   save();
   switch (state.phase) {
-    case "intro": return renderRoundIntro();
+    case "intro": return state.physical ? renderPhysicalIntro() : renderRoundIntro();
+    case "pick": return renderPhysicalPick();
     case "handoff": return renderHandoff();
     case "submit": return renderSubmit();
     case "czar-handoff": return renderCzarHandoff();
@@ -186,6 +210,56 @@ function render() {
     case "result": return renderResult();
     case "over": return renderGameOver();
   }
+}
+
+/* ---------------- Physical-cards mode ---------------- */
+function renderPhysicalIntro() {
+  const promptCard = el("div", { className: "play-card prompt" }, [
+    fillPrompt(state.prompt.text, BLANK, []),
+    el("div", { className: "corner", text: state.prompt.pick === 2 ? "Pick 2" : "Pick 1" }),
+  ]);
+  mount(
+    topbar(`Round ${state.round}`),
+    el("div", { className: "panel center" }, [
+      el("p", { className: "muted", text: "This round's Card Czar is" }),
+      el("div", { className: "handoff", style: "padding:6px" }, [
+        el("div", { className: "who", text: czarName() }),
+        el("span", { className: "pill czar-pill", text: "👑 Card Czar" }),
+      ]),
+    ]),
+    el("p", { className: "muted center", text: "Read this prompt aloud. Everyone else plays their physical card(s) to the Czar." }),
+    promptCard,
+    el("div", { className: "spacer" }),
+    el("button", { className: "btn", text: "Everyone's in — pick the winner →", onClick: () => { state.phase = "pick"; render(); } }),
+    scoreboardEl()
+  );
+}
+
+function renderPhysicalPick() {
+  const grid = el("div", { className: "menu" });
+  state.players.forEach((p, i) => {
+    if (i === state.czar) return;
+    grid.appendChild(el("button", { className: "tile", onClick: () => awardPhysical(i) }, [
+      el("div", { className: "icon", text: "🃏" }),
+      el("div", { className: "meta" }, [el("h3", { text: p.name })]),
+    ]));
+  });
+  mount(
+    topbar(`${czarName()} chooses`),
+    el("div", { className: "play-card prompt" }, [
+      fillPrompt(state.prompt.text, BLANK, []),
+      el("div", { className: "corner", text: "The prompt" }),
+    ]),
+    el("p", { className: "muted center", text: `${czarName()} picks the funniest card in real life — tap whose card won:` }),
+    grid
+  );
+}
+
+function awardPhysical(playerIdx) {
+  state.players[playerIdx].score++;
+  state.winner = { player: playerIdx, cards: null };
+  state.phase = "result";
+  render();
 }
 
 function czarName() { return state.players[state.czar].name; }
@@ -374,7 +448,7 @@ function renderResult() {
       el("div", { className: "big-emoji", text: "🏆" }),
       el("h2", { text: `${winnerName} wins the round!` }),
       el("div", { className: "play-card prompt", style: "text-align:left" }, [
-        fillPrompt(state.prompt.text, BLANK, w.cards),
+        fillPrompt(state.prompt.text, BLANK, w.cards || []),
       ]),
     ]),
     scoreboardEl(),
@@ -386,11 +460,13 @@ function renderResult() {
 }
 
 function nextRound() {
-  // Replenish submitters' hands back to full.
-  state.queue.forEach((pIdx) => {
-    const need = HAND_SIZE - state.hands[pIdx].length;
-    if (need > 0) state.hands[pIdx].push(...drawCards(need));
-  });
+  // Replenish submitters' hands back to full (digital only).
+  if (!state.physical) {
+    state.queue.forEach((pIdx) => {
+      const need = HAND_SIZE - state.hands[pIdx].length;
+      if (need > 0) state.hands[pIdx].push(...drawCards(need));
+    });
+  }
   state.czar = (state.czar + 1) % state.players.length;
   state.round++;
   state.submissions = [];
@@ -417,7 +493,7 @@ function renderGameOver() {
     ]),
     finalBoard(ranked),
     el("div", { className: "spacer" }),
-    el("button", { className: "btn", text: "Play again", onClick: () => beginGame(state.players.map((p) => p.name), state.target) }),
+    el("button", { className: "btn", text: "Play again", onClick: () => beginGame(state.players.map((p) => p.name), state.target, state.physical) }),
     el("div", { className: "spacer" }),
     el("button", { className: "btn ghost", text: "Back to lobby", onClick: goHome })
   );
