@@ -27,6 +27,13 @@ html, body {
   min-height: 100%;
 }
 
+/* Always reserve the scrollbar so content doesn't shift horizontally when
+   navigating between short and tall screens (keeps everything centered). */
+html {
+  overflow-y: scroll;
+  scrollbar-gutter: stable;
+}
+
 body {
   font-family: "Trebuchet MS", "Segoe UI", system-ui, -apple-system, sans-serif;
   color: var(--cream);
