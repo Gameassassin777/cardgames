@@ -28,21 +28,34 @@ html, body {
 }
 
 /* Always reserve the scrollbar so content doesn't shift horizontally when
-   navigating between short and tall screens (keeps everything centered). */
+   navigating between short and tall screens (keeps everything centered).
+   Solid fallback color so no white shows behind/around the fixed background
+   layer (e.g. iOS overscroll bounce). */
 html {
   overflow-y: scroll;
   scrollbar-gutter: stable;
+  background-color: #0a3a44;
 }
 
 body {
   font-family: "Trebuchet MS", "Segoe UI", system-ui, -apple-system, sans-serif;
   color: var(--cream);
+  background: transparent;
+  min-height: 100dvh;
+  overflow-x: hidden;
+}
+
+/* Fixed full-viewport background layer. Using a position:fixed element instead
+   of `background-attachment: fixed` (which iOS ignores) keeps the scene from
+   scrolling and prevents a white bar at the bottom of the page. */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
   background:
     radial-gradient(120% 80% at 50% -10%, #f6c27a 0%, #ea9a59 22%, #c7693f 38%, transparent 60%),
     linear-gradient(180deg, #1a7a8c 0%, #126072 30%, #0d4f5c 55%, #0a3a44 100%);
-  background-attachment: fixed;
-  min-height: 100dvh;
-  overflow-x: hidden;
 }
 
 /* gentle water shimmer at the bottom */
