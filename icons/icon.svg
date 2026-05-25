@@ -1,0 +1,120 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#0e1f3a"/>
+      <stop offset="0.32" stop-color="#1b466a"/>
+      <stop offset="0.55" stop-color="#3f7f8f"/>
+      <stop offset="0.74" stop-color="#e7894f"/>
+      <stop offset="0.86" stop-color="#f6bd76"/>
+    </linearGradient>
+    <linearGradient id="water" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#2f93a4"/>
+      <stop offset="0.5" stop-color="#11586a"/>
+      <stop offset="1" stop-color="#07303b"/>
+    </linearGradient>
+    <radialGradient id="moonGlow" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#fff6d8" stop-opacity="0.85"/>
+      <stop offset="0.4" stop-color="#ffe9a8" stop-opacity="0.35"/>
+      <stop offset="1" stop-color="#ffe9a8" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="winGlow" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#ffd98a" stop-opacity="0.9"/>
+      <stop offset="1" stop-color="#ffd98a" stop-opacity="0"/>
+    </radialGradient>
+    <clipPath id="round"><rect x="0" y="0" width="512" height="512" rx="104"/></clipPath>
+  </defs>
+
+  <g clip-path="url(#round)">
+    <rect width="512" height="512" fill="url(#sky)"/>
+
+    <!-- stars -->
+    <g fill="#fdfaf0">
+      <circle cx="360" cy="56" r="2.6" opacity="0.9"/>
+      <circle cx="404" cy="92" r="1.8" opacity="0.7"/>
+      <circle cx="452" cy="60" r="2.2" opacity="0.85"/>
+      <circle cx="312" cy="40" r="1.6" opacity="0.6"/>
+      <circle cx="430" cy="140" r="1.6" opacity="0.55"/>
+      <circle cx="248" cy="64" r="1.5" opacity="0.55"/>
+      <circle cx="476" cy="116" r="2" opacity="0.7"/>
+      <circle cx="384" cy="170" r="1.4" opacity="0.45"/>
+    </g>
+
+    <!-- moon + glow -->
+    <circle cx="150" cy="120" r="120" fill="url(#moonGlow)"/>
+    <circle cx="150" cy="120" r="46" fill="#fdf3cf"/>
+    <circle cx="166" cy="108" r="46" fill="url(#sky)" opacity="0.0"/>
+    <g fill="#efe3b6" opacity="0.55">
+      <circle cx="138" cy="110" r="7"/>
+      <circle cx="162" cy="132" r="5"/>
+      <circle cx="156" cy="100" r="4"/>
+    </g>
+
+    <!-- far mountains -->
+    <path d="M0 300 L70 232 L132 286 L200 214 L286 296 L356 240 L430 300 L512 250 L512 320 L0 320 Z" fill="#2b3f63" opacity="0.85"/>
+    <!-- near hills -->
+    <path d="M0 322 Q120 270 250 308 Q380 268 512 312 L512 332 L0 332 Z" fill="#20304e"/>
+
+    <!-- water -->
+    <rect x="0" y="320" width="512" height="200" fill="url(#water)"/>
+
+    <!-- moon reflection -->
+    <g fill="#fdf3cf" opacity="0.5">
+      <rect x="128" y="330" width="44" height="7" rx="3.5"/>
+      <rect x="120" y="346" width="60" height="6" rx="3"/>
+      <rect x="132" y="362" width="36" height="6" rx="3"/>
+      <rect x="124" y="380" width="52" height="5" rx="2.5"/>
+    </g>
+
+    <!-- pine trees (left shore) -->
+    <g fill="#152a1d">
+      <path d="M70 318 l26 -64 l26 64 Z"/>
+      <path d="M76 290 l20 -50 l20 50 Z"/>
+      <path d="M82 264 l14 -40 l14 40 Z"/>
+      <rect x="92" y="316" width="8" height="10"/>
+    </g>
+
+    <!-- cabin (right shore) -->
+    <g>
+      <ellipse cx="345" cy="262" rx="64" ry="40" fill="url(#winGlow)" opacity="0.7"/>
+      <rect x="306" y="244" width="104" height="74" fill="#5e3b22"/>
+      <rect x="306" y="244" width="104" height="74" fill="#000" opacity="0.0"/>
+      <path d="M296 246 L358 200 L420 246 Z" fill="#8a3a26"/>
+      <path d="M358 200 L420 246 L416 246 L358 208 Z" fill="#6f2d1d"/>
+      <rect x="346" y="276" width="30" height="42" fill="#2c1a0f"/>
+      <rect x="384" y="262" width="20" height="20" fill="#ffd98a"/>
+      <rect x="314" y="262" width="20" height="20" fill="#ffd98a"/>
+      <!-- chimney -->
+      <rect x="398" y="212" width="14" height="26" fill="#4a2f1c"/>
+    </g>
+    <!-- pine right of cabin -->
+    <g fill="#16291c">
+      <path d="M438 320 l22 -52 l22 52 Z"/>
+      <path d="M444 296 l16 -40 l16 40 Z"/>
+    </g>
+
+    <!-- cabin light reflections in water -->
+    <g fill="#ffd98a" opacity="0.45">
+      <rect x="316" y="330" width="16" height="8" rx="3"/>
+      <rect x="386" y="330" width="16" height="8" rx="3"/>
+      <rect x="318" y="346" width="12" height="6" rx="3"/>
+      <rect x="388" y="346" width="12" height="6" rx="3"/>
+    </g>
+
+    <!-- ripple lines -->
+    <g stroke="#bfeef4" stroke-width="3" stroke-linecap="round" opacity="0.18">
+      <line x1="40" y1="410" x2="120" y2="410"/>
+      <line x1="220" y1="430" x2="320" y2="430"/>
+      <line x1="380" y1="404" x2="460" y2="404"/>
+      <line x1="150" y1="452" x2="250" y2="452"/>
+    </g>
+
+    <!-- canoe + paddler silhouette -->
+    <path d="M196 446 q60 28 132 0 q-66 18 -132 0 Z" fill="#caa15e"/>
+    <path d="M196 446 q60 30 132 0" fill="none" stroke="#7a5a2c" stroke-width="5" stroke-linecap="round"/>
+    <g fill="#26333f">
+      <rect x="252" y="420" width="9" height="26" rx="3"/>
+      <circle cx="256" cy="414" r="8"/>
+      <line x1="238" y1="424" x2="284" y2="408" stroke="#26333f" stroke-width="5" stroke-linecap="round"/>
+    </g>
+  </g>
+</svg>
