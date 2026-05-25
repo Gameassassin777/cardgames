@@ -1,3 +1,4 @@
 // Single source of truth for the app version shown in the UI.
-// When you ship changes, bump this AND the CACHE version in sw.js (keep them matched).
-export const APP_VERSION = "2.0.0";
+// Simple whole-number versions (3, 4, 5, …). Bump this AND the CACHE version
+// in sw.js (keep them matched) whenever you ship changes.
+export const APP_VERSION = "4";

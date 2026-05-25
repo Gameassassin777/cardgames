@@ -1,22 +1,26 @@
-// Cards Against Monkeys — local pass-and-play party game.
+// Pass-and-play "fill in the blank" party game (Cards Against Humanity style).
+// One engine, configured per deck via makeGame() — e.g. Monkeys (sussy) and Cabin (normal).
 import { el, mount, shuffle, toast, store, fillPrompt } from "./ui.js";
-import { PROMPTS, RESPONSES, BLANK } from "./data.js";
+import { BLANK } from "./data.js";
 
 const HAND_SIZE = 10;
-const SAVE_KEY = "cam.game.v1";
-const NAMES_KEY = "cam.names.v1";
 
 let goHome = () => {};
 let state = null;
+let cfg = null;
 
-export function start(home) {
-  goHome = home;
-  const saved = store.get(SAVE_KEY, null);
-  if (saved && saved.phase && saved.phase !== "over") {
-    renderResume(saved);
-  } else {
-    renderSetup();
-  }
+// cfg: { title, icon, prompts, responses, winnerTitle, blurb, footer, saveKey, namesKey, targetKey }
+export function makeGame(config) {
+  return function start(home) {
+    goHome = home;
+    cfg = config;
+    const saved = store.get(cfg.saveKey, null);
+    if (saved && saved.phase && saved.phase !== "over") {
+      renderResume(saved);
+    } else {
+      renderSetup();
+    }
+  };
 }
 
 function topbar(title) {
@@ -35,24 +39,24 @@ function confirmQuit() {
 /* ---------------- Resume ---------------- */
 function renderResume(saved) {
   mount(
-    topbar("Cards Against Monkeys"),
+    topbar(cfg.title),
     el("div", { className: "panel center" }, [
-      el("div", { className: "big-emoji", text: "🐒" }),
+      el("div", { className: "big-emoji", text: cfg.icon }),
       el("h2", { text: "Game in progress" }),
       el("p", { className: "muted", text: `Round ${saved.round} • ${saved.players.length} players. Pick up where you left off?` }),
       el("div", { className: "spacer" }),
       el("button", { className: "btn", text: "Resume game", onClick: () => { state = saved; render(); } }),
       el("div", { className: "spacer" }),
-      el("button", { className: "btn ghost", text: "Start a new game", onClick: () => { store.del(SAVE_KEY); renderSetup(); } }),
+      el("button", { className: "btn ghost", text: "Start a new game", onClick: () => { store.del(cfg.saveKey); renderSetup(); } }),
     ])
   );
 }
 
 /* ---------------- Setup ---------------- */
 function renderSetup() {
-  const savedNames = store.get(NAMES_KEY, ["", "", ""]);
+  const savedNames = store.get(cfg.namesKey, ["", "", ""]);
   let names = savedNames.length >= 3 ? savedNames.slice() : ["", "", ""];
-  let target = store.get("cam.target", 5);
+  let target = store.get(cfg.targetKey, 5);
 
   const listWrap = el("div", { id: "playerList" });
 
@@ -89,9 +93,9 @@ function renderSetup() {
   ]);
 
   mount(
-    topbar("Cards Against Monkeys"),
+    topbar(cfg.title),
     el("div", { className: "panel" }, [
-      el("p", { className: "muted", html: "A chronically-online party game. One player is the <b>Card Czar</b> each round; everyone else fills in the blank with their funniest card. The Czar picks the winner. Pass the device around — hands stay secret." }),
+      el("p", { className: "muted", html: cfg.blurb }),
     ]),
     el("div", { className: "panel" }, [
       el("label", { text: "Players (3+)" }),
@@ -105,8 +109,8 @@ function renderSetup() {
       el("label", { text: "Score to win" }),
       stepper,
     ]),
-    el("button", { className: "btn", text: "Start game 🐒", onClick: () => beginGame(names, target) }),
-    el("div", { className: "footer-note", text: "18+ humor. Best with friends who can take a joke." })
+    el("button", { className: "btn", text: `Start game ${cfg.icon}`, onClick: () => beginGame(names, target) }),
+    el("div", { className: "footer-note", text: cfg.footer })
   );
 }
 
@@ -116,17 +120,17 @@ function beginGame(rawNames, target) {
   if (new Set(players.map((p) => p.toLowerCase())).size !== players.length) {
     toast("Player names must be unique."); return;
   }
-  store.set(NAMES_KEY, players);
-  store.set("cam.target", target);
+  store.set(cfg.namesKey, players);
+  store.set(cfg.targetKey, target);
 
   state = {
     players: players.map((name) => ({ name, score: 0 })),
     target,
     czar: 0,
     round: 1,
-    deck: shuffle(RESPONSES),
+    deck: shuffle(cfg.responses),
     discard: [],
-    promptDeck: shuffle(PROMPTS.map((_, i) => i)),
+    promptDeck: shuffle(cfg.prompts.map((_, i) => i)),
     promptUsed: [],
     hands: players.map(() => []),
     prompt: null,
@@ -165,10 +169,10 @@ function dealPrompt() {
   }
   const idx = state.promptDeck.pop();
   state.promptUsed.push(idx);
-  state.prompt = PROMPTS[idx];
+  state.prompt = cfg.prompts[idx];
 }
 
-function save() { store.set(SAVE_KEY, state); }
+function save() { store.set(cfg.saveKey, state); }
 
 /* ---------------- Render dispatcher ---------------- */
 function render() {
@@ -400,15 +404,15 @@ function nextRound() {
 
 /* ---------------- Game over ---------------- */
 function renderGameOver() {
-  store.del(SAVE_KEY);
+  store.del(cfg.saveKey);
   const ranked = state.players.map((p) => p).sort((a, b) => b.score - a.score);
   const champ = ranked[0];
 
   mount(
     topbar("Game over"),
     el("div", { className: "panel center" }, [
-      el("div", { className: "big-emoji", text: "🐒👑" }),
-      el("h2", { text: `${champ.name} is the Goon Commander!` }),
+      el("div", { className: "big-emoji", text: `${cfg.icon}👑` }),
+      el("h2", { text: `${champ.name} is the ${cfg.winnerTitle}!` }),
       el("p", { className: "muted", text: `${champ.score} points` }),
     ]),
     finalBoard(ranked),
