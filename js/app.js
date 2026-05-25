@@ -1,23 +1,44 @@
 // Lake House Card Games — app shell, home menu, routing, PWA wiring.
 import { el, mount, toast } from "./ui.js";
 import { APP_VERSION } from "./version.js";
-import * as cam from "./cam.js";
+import { makeGame as makeCardGame } from "./cam.js";
 import * as meeting from "./meeting.js";
-import { makeGame } from "./deckgame.js";
-import { LAKE_TRUTHS, WOULD_YOU_RATHER, RED_GREEN, RIZZ_ROULETTE } from "./data.js";
+import { makeGame as makeDeck } from "./deckgame.js";
+import { PROMPTS, RESPONSES, NORMAL_PROMPTS, NORMAL_RESPONSES, LAKE_TRUTHS, WOULD_YOU_RATHER, RED_GREEN, RIZZ_ROULETTE } from "./data.js";
 
 let deferredInstall = null;
 
-const rizzRoulette = makeGame({ title: "Rizz Roulette", source: RIZZ_ROULETTE });
-const wouldYouRather = makeGame({ title: "Would You Rather", source: WOULD_YOU_RATHER });
-const redGreen = makeGame({ title: "Red Flag / Green Flag", source: RED_GREEN });
-const lakeTruths = makeGame({ title: "Lake House Truths", source: LAKE_TRUTHS });
+const monkeys = makeCardGame({
+  title: "Cards Against Monkeys", icon: "🐒",
+  prompts: PROMPTS, responses: RESPONSES,
+  winnerTitle: "Goon Commander",
+  blurb: "A chronically-online party game. One player is the <b>Card Czar</b> each round; everyone else fills in the blank with their funniest card. The Czar picks the winner. Pass the device around — hands stay secret.",
+  footer: "18+ brain-rot humor. Best with friends who can take a joke.",
+  saveKey: "cam.game.v1", namesKey: "cam.names.v1", targetKey: "cam.target",
+});
+const cabin = makeCardGame({
+  title: "Cards Against the Cabin", icon: "🛖",
+  prompts: NORMAL_PROMPTS, responses: NORMAL_RESPONSES,
+  winnerTitle: "Cabin Champion",
+  blurb: "The same fill-in-the-blank game with a tamer (still very adult) deck — dark, absurd, lake-house humor. Card Czar each round; pass the device, hands stay secret.",
+  footer: "A more normal deck. Still an adult party game.",
+  saveKey: "cabin.game.v1", namesKey: "cabin.names.v1", targetKey: "cabin.target",
+});
+const rizzRoulette = makeDeck({ title: "Rizz Roulette", source: RIZZ_ROULETTE });
+const wouldYouRather = makeDeck({ title: "Would You Rather", source: WOULD_YOU_RATHER });
+const redGreen = makeDeck({ title: "Red Flag / Green Flag", source: RED_GREEN });
+const lakeTruths = makeDeck({ title: "Lake House Truths", source: LAKE_TRUTHS });
 
 const GAMES = [
   {
     id: "cam", icon: "🐒", title: "Cards Against Monkeys", badge: "18+",
-    blurb: "Chronically-online party game. Fill in the blanks, crown the funniest. 3+ players.",
-    start: cam.start,
+    blurb: "Max-sus, chronically-online deck. Fill in the blanks, crown the funniest. 3+ players.",
+    start: monkeys,
+  },
+  {
+    id: "cabin", icon: "🛖", title: "Cards Against the Cabin", badge: "normal",
+    blurb: "Same game, tamer deck — dark/absurd lake-house humor. Fill the blanks, crown the funniest. 3+ players.",
+    start: cabin,
   },
   {
     id: "meeting", icon: "🚨", title: "Emergency Meeting", badge: "sus",
@@ -72,7 +93,7 @@ function home() {
 
   if (deferredInstall) nodes.push(installBanner());
 
-  nodes.push(el("div", { className: "footer-note", html: `6 games • works offline • add to your home screen 🏕️ &nbsp;·&nbsp; v${APP_VERSION}` }));
+  nodes.push(el("div", { className: "footer-note", html: `7 games • works offline • add to your home screen 🏕️ &nbsp;·&nbsp; v${APP_VERSION}` }));
 
   mount(...nodes);
 }
