@@ -9,11 +9,14 @@ works fully offline, and built with zero dependencies (plain HTML/CSS/ES modules
   *Cards Against Humanity* style. One player is the **Card Czar** each round; everyone else
   fills in the blank from their hand, and the Czar crowns the funniest answer. Local
   **pass-and-play** for 3–12 players, with secret-hand handoff screens, score tracking,
-  Pick-1 / Pick-2 prompts, and a configurable score-to-win. **38 prompts + 168 response cards.**
+  Pick-1 / Pick-2 prompts, and a configurable score-to-win. **118 prompts + 208 response cards.**
   Games auto-save and can be resumed.
 - **🚨 Emergency Meeting** — a secret-ballot voting game. Each round the group gets a
   *"who's most likely to…"* prompt; everyone votes by passing the device around, the
   most-voted crewmate is **ejected**, and a running *sus-o-meter* crowns the Sussiest Baka.
+- **😏 Rizz Roulette** *(spicy)* — the unhinged party mode. Draw a card and do the thing:
+  deliver a rizz line straight-faced, spill a confession, commit to a dare, or defend an
+  unhinged hot take.
 - **🤔 Would You Rather (Unhinged)** — impossible, chronically-online dilemmas to argue over.
 - **🚩 Red Flag / Green Flag** — judge the most cursed personality traits and shout the verdict.
 - **🛶 Lake House Truths** — a relaxed draw-a-card deck of would-you-rather, truth, dare,

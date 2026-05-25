@@ -9,6 +9,9 @@ const TAG_EMOJI = {
   "Dare": "🔥",
   "Most Likely To": "👉",
   "Red or Green?": "🚩",
+  "Rizz Challenge": "😏",
+  "Confession": "🫣",
+  "Hot Take": "🌶️",
 };
 
 export function makeGame({ title, source }) {

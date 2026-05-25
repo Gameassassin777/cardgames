@@ -4,10 +4,11 @@ import { APP_VERSION } from "./version.js";
 import * as cam from "./cam.js";
 import * as meeting from "./meeting.js";
 import { makeGame } from "./deckgame.js";
-import { LAKE_TRUTHS, WOULD_YOU_RATHER, RED_GREEN } from "./data.js";
+import { LAKE_TRUTHS, WOULD_YOU_RATHER, RED_GREEN, RIZZ_ROULETTE } from "./data.js";
 
 let deferredInstall = null;
 
+const rizzRoulette = makeGame({ title: "Rizz Roulette", source: RIZZ_ROULETTE });
 const wouldYouRather = makeGame({ title: "Would You Rather", source: WOULD_YOU_RATHER });
 const redGreen = makeGame({ title: "Red Flag / Green Flag", source: RED_GREEN });
 const lakeTruths = makeGame({ title: "Lake House Truths", source: LAKE_TRUTHS });
@@ -22,6 +23,11 @@ const GAMES = [
     id: "meeting", icon: "🚨", title: "Emergency Meeting", badge: "sus",
     blurb: "Vote on who's most likely to… then eject the sussiest baka. 3+ players.",
     start: meeting.start,
+  },
+  {
+    id: "rizz", icon: "😏", title: "Rizz Roulette", badge: "spicy",
+    blurb: "Draw and do it: deliver the rizz, spill the confession, take the dare, defend the hot take.",
+    start: rizzRoulette,
   },
   {
     id: "wyr", icon: "🤔", title: "Would You Rather", badge: "unhinged",
@@ -66,7 +72,7 @@ function home() {
 
   if (deferredInstall) nodes.push(installBanner());
 
-  nodes.push(el("div", { className: "footer-note", html: `5 games • works offline • add to your home screen 🏕️ &nbsp;·&nbsp; v${APP_VERSION}` }));
+  nodes.push(el("div", { className: "footer-note", html: `6 games • works offline • add to your home screen 🏕️ &nbsp;·&nbsp; v${APP_VERSION}` }));
 
   mount(...nodes);
 }
