@@ -860,3 +860,226 @@ hr.divider {
 .settings-section input[type="range"]::-webkit-slider-thumb:hover {
   transform: scale(1.15);
 }
+
+/* ==========================================================================
+   Lobby Graphic Banners
+   ========================================================================== */
+.tile.has-banner {
+  flex-direction: column;
+  align-items: stretch;
+  padding: 0 !important;
+  overflow: hidden;
+  gap: 0 !important;
+  background: rgba(18, 25, 38, 0.45) !important;
+}
+
+.tile-banner {
+  width: 100%;
+  height: 140px;
+  object-fit: cover;
+  border-bottom: 1.5px solid rgba(255, 255, 255, 0.08);
+  transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.tile.has-banner:hover .tile-banner {
+  transform: scale(1.03);
+}
+
+.tile-content {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  padding: 16px 20px;
+  width: 100%;
+}
+
+/* ==========================================================================
+   THEME 1: Spaceship Sci-Fi (Emergency Meeting)
+   ========================================================================== */
+.spaceship-theme {
+  background: radial-gradient(circle at center, #1b2230 0%, #0b0f16 100%) !important;
+  color: #d1d9e6 !important;
+}
+
+.spaceship-theme .spaceship-header {
+  background: rgba(15, 22, 36, 0.7) !important;
+  border-bottom: 1px solid rgba(255, 50, 50, 0.2) !important;
+  box-shadow: 0 4px 20px rgba(255, 50, 50, 0.08) !important;
+}
+
+.spaceship-theme .sci-fi-panel {
+  background: hsla(220, 40%, 8%, 0.65) !important;
+  border: 1px solid rgba(255, 50, 50, 0.15) !important;
+  box-shadow: inset 0 0 12px rgba(255, 50, 50, 0.05), 0 8px 32px rgba(0, 0, 0, 0.5) !important;
+  backdrop-filter: blur(14px) saturate(120%) !important;
+  border-radius: var(--radius) !important;
+  padding: 24px !important;
+  margin-bottom: 16px !important;
+}
+
+.spaceship-theme .sci-fi-card {
+  background: rgba(10, 14, 23, 0.8) !important;
+  border: 1.5px solid rgba(255, 50, 50, 0.25) !important;
+  box-shadow: 0 0 15px rgba(255, 50, 50, 0.1) !important;
+  border-radius: 12px !important;
+}
+
+.spaceship-theme .sci-fi-badge {
+  background: rgba(255, 50, 50, 0.1) !important;
+  border: 1px solid rgba(255, 50, 50, 0.3) !important;
+  color: #ff5252 !important;
+  letter-spacing: 1px;
+}
+
+.spaceship-theme .sci-fi-tile {
+  background: rgba(18, 25, 38, 0.6) !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+}
+.spaceship-theme .sci-fi-tile:hover {
+  border-color: rgba(255, 50, 50, 0.3) !important;
+  background: rgba(255, 50, 50, 0.03) !important;
+}
+
+.spaceship-theme .danger-btn {
+  background: linear-gradient(135deg, #c62828 0%, #b71c1c 100%) !important;
+  border: 1.5px solid #ff5252 !important;
+  box-shadow: 0 0 20px rgba(198, 40, 40, 0.45) !important;
+  color: #fff !important;
+}
+
+.spaceship-theme .danger-btn:hover {
+  background: linear-gradient(135deg, #d32f2f 0%, #c62828 100%) !important;
+  box-shadow: 0 0 30px rgba(211, 47, 47, 0.65) !important;
+}
+
+.spaceship-theme .scoreboard .score-row.leader {
+  background: rgba(255, 50, 50, 0.1) !important;
+  border: 1px solid rgba(255, 50, 50, 0.3) !important;
+}
+
+.spaceship-theme .crew-input input {
+  background: rgba(8, 12, 20, 0.8) !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  color: #fff !important;
+}
+.spaceship-theme .crew-input input:focus {
+  border-color: rgba(255, 50, 50, 0.4) !important;
+}
+
+/* ==========================================================================
+   THEME 2: Cyber-Arcade Game-Show (Catchphrase)
+   ========================================================================== */
+.arcade-theme {
+  background: radial-gradient(circle at center, #1b0f3a 0%, #0a0418 100%) !important;
+}
+
+.arcade-theme .topbar {
+  background: rgba(15, 6, 32, 0.8) !important;
+  border-bottom: 2px solid #b388ff !important;
+  box-shadow: 0 0 20px rgba(179, 136, 255, 0.15) !important;
+}
+
+.arcade-theme .panel {
+  background: rgba(24, 10, 48, 0.65) !important;
+  border: 1.5px solid #b388ff !important;
+  box-shadow: 0 0 25px rgba(179, 136, 255, 0.1) !important;
+  border-radius: 16px !important;
+}
+
+.arcade-theme .play-card {
+  background: rgba(15, 6, 32, 0.9) !important;
+  border: 2px solid #00e5ff !important;
+  box-shadow: 0 0 20px rgba(0, 229, 255, 0.15) !important;
+}
+
+.arcade-theme .btn {
+  background: linear-gradient(135deg, #7c4dff 0%, #651fff 100%) !important;
+  border: 1.5px solid #b388ff !important;
+  box-shadow: 0 0 15px rgba(124, 77, 255, 0.4) !important;
+  text-shadow: 0 1px 4px rgba(0,0,0,0.5) !important;
+}
+.arcade-theme .btn:hover {
+  background: linear-gradient(135deg, #651fff 0%, #6200ea 100%) !important;
+  box-shadow: 0 0 25px rgba(124, 77, 255, 0.6) !important;
+}
+
+.arcade-theme .btn.ghost {
+  background: rgba(124, 77, 255, 0.05) !important;
+  border-color: rgba(179, 136, 255, 0.3) !important;
+  color: #d1c4e9 !important;
+  box-shadow: none !important;
+}
+
+/* ==========================================================================
+   THEME 3: Digital Art Studio (Doodles)
+   ========================================================================== */
+.studio-theme {
+  background: #14171a !important;
+  color: #cfd8dc !important;
+}
+
+.studio-theme .topbar {
+  background: #1c2024 !important;
+  border-bottom: 1.5px solid #37474f !important;
+}
+
+.studio-theme .panel {
+  background: #1c2024 !important;
+  border: 1px solid #37474f !important;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.3) !important;
+  border-radius: 12px !important;
+}
+
+.studio-theme canvas {
+  background: #23282f !important;
+  border: 2px solid #37474f !important;
+  border-radius: 12px !important;
+}
+
+.studio-theme .btn {
+  background: #37474f !important;
+  border: 1px solid #455a64 !important;
+  color: #fff !important;
+}
+.studio-theme .btn:hover {
+  background: #455a64 !important;
+}
+
+/* ==========================================================================
+   THEME 4: Cozy Campfire Night (Campfire Roasts)
+   ========================================================================== */
+.campfire-theme {
+  background: radial-gradient(circle at center, #1b263b 0%, #0d1b2a 100%) !important;
+}
+
+.campfire-theme .panel {
+  background: rgba(13, 27, 42, 0.75) !important;
+  border: 1.5px solid rgba(244, 162, 97, 0.35) !important;
+  box-shadow: inset 0 0 15px rgba(244, 162, 97, 0.05), 0 8px 32px rgba(0,0,0,0.4) !important;
+}
+
+.campfire-theme .play-card {
+  background: #0d1b2a !important;
+  border: 2px solid #f4a261 !important;
+  box-shadow: 0 0 20px rgba(244, 162, 97, 0.15) !important;
+}
+
+.campfire-theme .btn {
+  background: linear-gradient(135deg, #e76f51 0%, #d62828 100%) !important;
+  border: 1.5px solid #f4a261 !important;
+  box-shadow: 0 0 15px rgba(231, 111, 81, 0.4) !important;
+}
+.campfire-theme .btn:hover {
+  background: linear-gradient(135deg, #f4a261 0%, #e76f51 100%) !important;
+}
+
+/* Keyframes & Helpers */
+@keyframes sci-fi-pulse {
+  0% { transform: scale(1); opacity: 0.85; }
+  50% { transform: scale(1.05); opacity: 1; filter: drop-shadow(0 0 8px rgba(255, 82, 82, 0.6)); }
+  100% { transform: scale(1); opacity: 0.85; }
+}
+
+.sci-fi-pulse {
+  animation: sci-fi-pulse 2.5s infinite ease-in-out;
+}

@@ -56,24 +56,28 @@ const GAMES = [
     blurb: "Fill in the blanks with prompt and response cards. Family-friendly edition. 3+ players.",
     start: family,
     familyFriendly: true,
+    banner: "./icons/monkeys_cah_banner.png",
   },
   {
     id: "cam", icon: icons.monkeys, title: "Cards Against Monkeys", badge: "Internet",
     blurb: "Fill in the blanks to complete prompts using response cards. Features internet culture topics. 3+ players.",
     start: monkeys,
     familyFriendly: false,
+    banner: "./icons/monkeys_cah_banner.png",
   },
   {
     id: "cabin", icon: icons.cabin, title: "Cards Against the Cabin", badge: "Adult",
     blurb: "Fill in the blanks using prompt and response cards featuring dry and absurd lake-house humor. 3+ players.",
     start: cabin,
     familyFriendly: false,
+    banner: "./icons/monkeys_cah_banner.png",
   },
   {
     id: "meeting", icon: icons.meeting, title: "Emergency Meeting", badge: "Voting",
     blurb: "Vote on which player is most likely to match a given prompt. 3+ players.",
     start: meeting.start,
     familyFriendly: false,
+    banner: "./icons/emergency_meeting_button.png",
   },
   {
     id: "rizz", icon: icons.rizz, title: "Rizz Roulette", badge: "Social",
@@ -104,18 +108,21 @@ const GAMES = [
     blurb: "Lighthearted group roasts, goofy dares, and funny social dilemmas. Perfect for friends and family alike. 3+ players.",
     start: campfireRoasts,
     familyFriendly: true,
+    banner: "./icons/campfire_roasts_banner.png",
   },
   {
     id: "catchphrase", icon: icons.catchphrase, title: "Lake House Catchphrase", badge: "Word",
     blurb: "Teams compete to guess secret words described by teammates before the ticking round timer runs out. 4+ players.",
     start: catchphrase.start,
     familyFriendly: true,
+    banner: "./icons/catchphrase_timer.png",
   },
   {
     id: "doodles", icon: icons.doodles, title: "Lake House Doodles", badge: "Drawing",
     blurb: "A multiplayer telephone game where players alternate between writing prompts and drawing scenes. 3+ players.",
     start: (home) => gartic.start(home),
     familyFriendly: true,
+    banner: "./icons/doodles_splash.png",
   },
 ];
 
@@ -273,16 +280,23 @@ function home() {
 
   const menu = el("div", { className: "menu" });
   activeGames.forEach((g) => {
-    menu.appendChild(el("button", { className: "tile", onClick: () => g.start(home) }, [
-      el("div", { className: "icon" }, [g.icon()]),
-      el("div", { className: "meta" }, [
-        el("h3", {}, [
-          document.createTextNode(g.title),
-          g.badge ? el("span", { className: "badge", text: g.badge }) : null,
+    const tileChildren = [];
+    if (g.banner) {
+      tileChildren.push(el("img", { className: "tile-banner", src: g.banner, alt: g.title }));
+    }
+    tileChildren.push(
+      el("div", { className: "tile-content" }, [
+        el("div", { className: "icon" }, [g.icon()]),
+        el("div", { className: "meta" }, [
+          el("h3", {}, [
+            document.createTextNode(g.title),
+            g.badge ? el("span", { className: "badge", text: g.badge }) : null,
+          ]),
+          el("p", { text: g.blurb }),
         ]),
-        el("p", { text: g.blurb }),
-      ]),
-    ]));
+      ])
+    );
+    menu.appendChild(el("button", { className: "tile" + (g.banner ? " has-banner" : ""), onClick: () => g.start(home) }, tileChildren));
   });
 
   const settingsPanel = el("div", {

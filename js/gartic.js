@@ -44,7 +44,11 @@ let hostSettings  = { ...DEFAULT_SETTINGS }; // host-local, sent on game start
 
 // ── Entry point ───────────────────────────────────────────────────────────────
 export function start(home) {
-  goHome = home;
+  document.body.classList.add("studio-theme");
+  goHome = () => {
+    document.body.classList.remove("studio-theme");
+    home();
+  };
   resetAll();
   renderSetup();
 }

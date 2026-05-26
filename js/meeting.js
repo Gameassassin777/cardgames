@@ -1,18 +1,23 @@
 // Emergency Meeting — pass-and-play "who's most likely / who's the most sus" voting game.
 import { el, mount, shuffle, toast, store } from "./ui.js";
 import { MOST_LIKELY } from "./data.js";
+import { icons } from "./icons.js";
 
 const NAMES_KEY = "meeting.names.v1";
 let goHome = () => {};
 let s = null;
 
 export function start(home) {
-  goHome = home;
+  document.body.classList.add("spaceship-theme");
+  goHome = () => {
+    document.body.classList.remove("spaceship-theme");
+    home();
+  };
   renderSetup();
 }
 
 function topbar(title) {
-  return el("div", { className: "topbar" }, [
+  return el("div", { className: "topbar spaceship-header" }, [
     el("button", { className: "back", text: "‹ Lobby", onClick: goHome }),
     el("div", { className: "title", text: title }),
     el("span", { style: "width:64px" }),
@@ -28,7 +33,7 @@ function renderSetup() {
   function draw() {
     listWrap.innerHTML = "";
     names.forEach((nm, i) => {
-      listWrap.appendChild(el("div", { className: "player-row" }, [
+      listWrap.appendChild(el("div", { className: "player-row crew-input" }, [
         el("input", {
           type: "text", value: nm, maxlength: "16", placeholder: `Crewmate ${i + 1}`,
           onInput: (e) => { names[i] = e.target.value; },
@@ -44,15 +49,16 @@ function renderSetup() {
 
   mount(
     topbar("Emergency Meeting"),
-    el("div", { className: "panel" }, [
-      el("p", { className: "muted", html: "🚨 Someone's acting sus. Each round, the group gets a <b>“who's most likely to…”</b> prompt. Everyone secretly votes (pass the device around), then the most-voted crewmate gets <b>ejected</b>. Rack up the most votes and you're crowned the sussiest baka alive." }),
+    el("div", { className: "sci-fi-panel center" }, [
+      el("img", { src: "./icons/emergency_meeting_button.png", style: "width:100%; max-height:160px; object-fit:cover; border-radius:12px; margin-bottom:12px; border:1px solid rgba(255,50,50,0.15);" }),
+      el("p", { className: "muted", html: "Someone is acting suspicious. Each round, identify which crewmate is most likely to match a prompt. Pass the device around to vote secretly; the most-voted player gets ejected from the ship." }),
     ]),
-    el("div", { className: "panel" }, [
-      el("label", { text: "Crewmates (3+)" }),
+    el("div", { className: "sci-fi-panel" }, [
+      el("label", { text: "ACTIVE CREWMATES (3+)" }),
       listWrap,
-      el("button", { className: "btn ghost small", text: "+ Add crewmate", onClick: () => { if (names.length < 15) { names.push(""); draw(); } else toast("15 max."); } }),
+      el("button", { className: "btn ghost small", style: "margin-top:10px;", text: "+ Add Crewmate", onClick: () => { if (names.length < 15) { names.push(""); draw(); } else toast("15 max."); } }),
     ]),
-    el("button", { className: "btn", text: "Call the meeting 🚨", onClick: () => begin(names) })
+    el("button", { className: "btn danger-btn pulsing", text: "CALL THE EMERGENCY MEETING 🚨", onClick: () => begin(names) })
   );
 }
 
@@ -90,15 +96,15 @@ function prompt() { return s.deck[s.pos % s.deck.length]; }
 function renderPrompt() {
   mount(
     topbar(`Round ${s.round}`),
-    el("div", { className: "panel center" }, [
-      el("span", { className: "pill", text: "🚨 Who is most likely to…" }),
-      el("div", { className: "play-card prompt", style: "margin-top:14px; font-size:1.3rem; min-height:150px; justify-content:center; text-align:center;" }, [
+    el("div", { className: "sci-fi-panel center" }, [
+      el("span", { className: "pill sci-fi-badge", text: "SUSPECT IDENTIFICATION" }),
+      el("div", { className: "play-card prompt sci-fi-card", style: "margin-top:14px; font-size:1.3rem; min-height:150px; justify-content:center; text-align:center;" }, [
         el("span", { text: prompt() }),
       ]),
     ]),
-    el("p", { className: "muted center", text: "Read it aloud, then pass around to vote secretly." }),
+    el("p", { className: "muted center", text: "Identify the suspect. Read aloud, then pass around to vote secretly." }),
     el("div", { className: "spacer" }),
-    el("button", { className: "btn", text: "Start voting 🗳️", onClick: () => { s.votes = []; s.vi = 0; s.phase = "handoff"; render(); } }),
+    el("button", { className: "btn", text: "INITIATE VOTING PROTOCOL", onClick: () => { s.votes = []; s.vi = 0; s.phase = "handoff"; render(); } }),
     susBoard()
   );
 }
@@ -108,13 +114,13 @@ function renderHandoff() {
   const voter = s.players[s.vi].name;
   mount(
     topbar(`Round ${s.round}`),
-    el("div", { className: "handoff panel" }, [
-      el("div", { className: "big-emoji", text: "🤫" }),
-      el("p", { className: "muted", text: "Secret vote — pass the device to" }),
-      el("div", { className: "who", text: voter }),
-      el("p", { className: "muted", text: `${s.vi + 1} of ${s.players.length} votes` }),
+    el("div", { className: "handoff sci-fi-panel center" }, [
+      el("div", { className: "big-icon sci-fi-pulse", style: "width:64px; height:64px; margin: 0 auto 12px; color: var(--sunset-soft);" }, [icons.eyeOff()]),
+      el("p", { className: "muted", text: "Secret ballot — pass terminal to:" }),
+      el("div", { className: "who", style: "font-size:2rem; font-weight:700; color:var(--cream); margin: 8px 0;", text: voter }),
+      el("p", { className: "muted", text: `${s.vi + 1} of ${s.players.length} transmissions logged` }),
       el("div", { className: "spacer" }),
-      el("button", { className: "btn", text: `I'm ${voter} — let me vote`, onClick: () => { s.phase = "vote"; render(); } }),
+      el("button", { className: "btn pulsing", text: `I am ${voter} — Access Terminal`, onClick: () => { s.phase = "vote"; render(); } }),
     ])
   );
 }
@@ -125,20 +131,20 @@ function renderVote() {
   const grid = el("div", { className: "menu" });
   s.players.forEach((p, i) => {
     if (i === voterIdx) return; // can't vote for yourself
-    grid.appendChild(el("button", { className: "tile", onClick: () => castVote(i) }, [
-      el("div", { className: "icon", text: "👤" }),
+    grid.appendChild(el("button", { className: "tile sci-fi-tile", onClick: () => castVote(i) }, [
+      el("div", { className: "icon", style: "width:36px; height:36px; color:var(--cream);" }, [icons.truths()]),
       el("div", { className: "meta" }, [el("h3", { text: p.name })]),
     ]));
   });
   mount(
     topbar(`${s.players[voterIdx].name} votes`),
-    el("div", { className: "panel center" }, [
-      el("p", { className: "muted", text: "Who is most likely to…" }),
-      el("div", { className: "play-card prompt", style: "font-size:1.05rem; min-height:90px; justify-content:center; text-align:center;" }, [
+    el("div", { className: "sci-fi-panel center" }, [
+      el("p", { className: "muted", text: "WHO IS MOST LIKELY TO:" }),
+      el("div", { className: "play-card prompt sci-fi-card", style: "font-size:1.05rem; min-height:90px; justify-content:center; text-align:center;" }, [
         el("span", { text: prompt() }),
       ]),
     ]),
-    el("p", { className: "muted center", text: "Tap the sussiest crewmate:" }),
+    el("p", { className: "muted center", text: "LOG TRANSMISSION FOR TARGET SUSPECT:" }),
     grid
   );
 }
@@ -166,7 +172,7 @@ function renderReveal() {
   const names = s.ejected.map((i) => s.players[i].name);
   const tie = s.ejected.length > 1;
   const verdict = tie
-    ? `${names.join(" & ")} are equally sus. Nobody was ejected. 🌚`
+    ? `${names.join(" & ")} are equally suspicious. No ejections made.`
     : `${names[0]} was ejected. ${flavor()}`;
 
   const tallies = el("div", { className: "scoreboard" });
@@ -175,34 +181,36 @@ function renderReveal() {
     .sort((a, b) => b.c - a.c)
     .forEach(({ p, c, ej }) => {
       tallies.appendChild(el("div", { className: "score-row" + (ej ? " leader" : "") }, [
-        el("span", { className: "nm", text: `${ej ? "🚪 " : ""}${p.name}` }),
+        el("span", { className: "nm", text: `${ej ? "🛟 " : ""}${p.name}` }),
         el("span", { className: "pts", text: `${c} vote${c === 1 ? "" : "s"}` }),
       ]));
     });
 
   mount(
     topbar(`Round ${s.round}`),
-    el("div", { className: "panel center" }, [
-      el("div", { className: "big-emoji", text: tie ? "🤝" : "🚪🚀" }),
-      el("h2", { text: tie ? "It's a sus standoff!" : `${names[0]}, you're sus.` }),
+    el("div", { className: "sci-fi-panel center" }, [
+      el("div", { style: "width:64px; height:64px; margin:0 auto 12px; color: " + (tie ? "var(--sunset-soft);" : "red;") }, [
+        tie ? icons.shield() : icons.warning()
+      ]),
+      el("h2", { text: tie ? "Suspect Standoff!" : `${names[0]} Ejected.` }),
       el("p", { className: "muted", text: verdict }),
     ]),
-    el("div", { className: "panel" }, [el("label", { text: "This round's votes" }), tallies]),
+    el("div", { className: "sci-fi-panel" }, [el("label", { text: "ROUND VOTE TALLIES" }), tallies]),
     el("div", { className: "spacer" }),
-    el("button", { className: "btn", text: "Next prompt →", onClick: nextRound }),
+    el("button", { className: "btn", text: "CONTINUE MISSION →", onClick: nextRound }),
     el("div", { className: "spacer" }),
-    el("button", { className: "btn ghost", text: "End meeting & crown the baka", onClick: () => { s.phase = "over"; render(); } })
+    el("button", { className: "btn ghost", text: "END MISSION & REVIEW SUSPECT REPORT", onClick: () => { s.phase = "over"; render(); } })
   );
 }
 
 const FLAVORS = [
-  "Out the airlock you go. 🌌",
-  "It was NOT close.",
-  "The group has spoken. Stay zesty.",
-  "Certified sussy baka behavior.",
-  "0.5 impostors remaining...",
+  "Into the deep vacuum of space.",
+  "The vote margin was absolute.",
+  "The transmissions have spoken.",
+  "Certified high-risk anomaly detected.",
+  "0.5 suspicious entities remaining...",
   "Honestly? Deserved.",
-  "The vibes were immaculate. The verdict, less so.",
+  "The diagnostics were clear. The verdict, absolute.",
 ];
 function flavor() { return FLAVORS[Math.floor(Math.random() * FLAVORS.length)]; }
 
@@ -223,22 +231,22 @@ function renderOver() {
   const board = el("div", { className: "scoreboard" });
   ranked.forEach((p, i) => {
     board.appendChild(el("div", { className: "score-row" + (i === 0 ? " leader" : "") }, [
-      el("span", { className: "nm", text: `${["👑", "🥈", "🥉"][i] || "•"} ${p.name}` }),
+      el("span", { className: "nm", text: `${i === 0 ? "★ " : "• "}${p.name}` }),
       el("span", { className: "pts", text: `${p.sus} sus` }),
     ]));
   });
   mount(
-    topbar("Meeting adjourned"),
-    el("div", { className: "panel center" }, [
-      el("div", { className: "big-emoji", text: "🚨👑" }),
-      el("h2", { text: champ.sus > 0 ? `${champ.name} is the Sussiest Baka Alive!` : "Somehow, nobody was sus." }),
-      el("p", { className: "muted", text: champ.sus > 0 ? `Ejected ${champ.sus} time${champ.sus === 1 ? "" : "s"}.` : "A suspiciously clean crew." }),
+    topbar("Report Logged"),
+    el("div", { className: "sci-fi-panel center" }, [
+      el("div", { style: "width:64px; height:64px; margin:0 auto 12px; color:var(--sunset-soft);" }, [icons.warning()]),
+      el("h2", { text: champ.sus > 0 ? `${champ.name} Identified as Suspect Leader!` : "No anomalies detected." }),
+      el("p", { className: "muted", text: champ.sus > 0 ? `Ejected ${champ.sus} time${champ.sus === 1 ? "" : "s"}.` : "A completely verified clean crew." }),
     ]),
-    el("div", { className: "panel" }, [el("label", { text: "Sus-o-meter" }), board]),
+    el("div", { className: "sci-fi-panel" }, [el("label", { text: "FINAL SUS-O-METER" }), board]),
     el("div", { className: "spacer" }),
-    el("button", { className: "btn", text: "Run it back", onClick: () => begin(s.players.map((p) => p.name)) }),
+    el("button", { className: "btn", text: "RE-INITIATE VOYAGE", onClick: () => begin(s.players.map((p) => p.name)) }),
     el("div", { className: "spacer" }),
-    el("button", { className: "btn ghost", text: "Back to lobby", onClick: goHome })
+    el("button", { className: "btn ghost", text: "RETURN TO MAIN TERMINAL", onClick: goHome })
   );
 }
 
@@ -252,5 +260,5 @@ function susBoard() {
       el("span", { className: "pts", text: `${p.sus} sus` }),
     ]));
   });
-  return el("div", { className: "panel" }, [el("label", { text: "Sus-o-meter" }), board]);
+  return el("div", { className: "sci-fi-panel" }, [el("label", { text: "SUSPECT REPORT PROGRESS" }), board]);
 }

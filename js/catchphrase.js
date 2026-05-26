@@ -110,7 +110,11 @@ async function unregisterRoom() {
 }
 
 export function start(homeCallback) {
-  goHome = homeCallback;
+  document.body.classList.add("arcade-theme");
+  goHome = () => {
+    document.body.classList.remove("arcade-theme");
+    homeCallback();
+  };
   resetOnlineState();
   resetGame();
   renderSetup();

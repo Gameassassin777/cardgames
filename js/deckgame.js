@@ -18,6 +18,14 @@ const TAG_ICON = {
 
 export function makeGame({ title, source, saveKey }) {
   return function start(home) {
+    const isCampfire = title === "Campfire Roasts";
+    if (isCampfire) document.body.classList.add("campfire-theme");
+
+    const cleanHome = () => {
+      if (isCampfire) document.body.classList.remove("campfire-theme");
+      home();
+    };
+
     function getFullSource() {
       const customs = saveKey ? store.get(saveKey + ".custom_cards", []) : [];
       const customObjects = customs.map(text => ({
@@ -40,7 +48,7 @@ export function makeGame({ title, source, saveKey }) {
 
       mount(
         el("div", { className: "topbar" }, [
-          el("button", { className: "back", text: "‹ Lobby", onClick: home }),
+          el("button", { className: "back", text: "‹ Lobby", onClick: cleanHome }),
           el("div", { className: "title", text: title }),
           el("span", { style: "width:64px" }),
         ]),
