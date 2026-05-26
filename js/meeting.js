@@ -48,17 +48,16 @@ function renderSetup() {
   draw();
 
   mount(
-    topbar("Emergency Meeting"),
+    topbar("Most Likely To"),
     el("div", { className: "sci-fi-panel center" }, [
-      el("img", { src: "./icons/emergency_meeting_button.png", style: "width:100%; max-height:160px; object-fit:cover; border-radius:12px; margin-bottom:12px; border:1px solid rgba(255,50,50,0.15);" }),
-      el("p", { className: "muted", html: "Someone is acting suspicious. Each round, identify which crewmate is most likely to match a prompt. Pass the device around to vote secretly; the most-voted player gets ejected from the ship." }),
+      el("p", { className: "muted", html: "Each round, read a prompt and vote on which player it describes the most. Pass the device around to vote secretly — the most-voted player is revealed!" }),
     ]),
     el("div", { className: "sci-fi-panel" }, [
-      el("label", { text: "ACTIVE CREWMATES (3+)" }),
+      el("label", { text: "PLAYERS (3+)" }),
       listWrap,
-      el("button", { className: "btn ghost small", style: "margin-top:10px;", text: "+ Add Crewmate", onClick: () => { if (names.length < 15) { names.push(""); draw(); } else toast("15 max."); } }),
+      el("button", { className: "btn ghost small", style: "margin-top:10px;", text: "+ Add Player", onClick: () => { if (names.length < 15) { names.push(""); draw(); } else toast("15 max."); } }),
     ]),
-    el("button", { className: "btn danger-btn pulsing", text: "CALL THE EMERGENCY MEETING 🚨", onClick: () => begin(names) })
+    el("button", { className: "btn danger-btn pulsing", text: "START GAME", onClick: () => begin(names) })
   );
 }
 

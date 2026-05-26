@@ -53,7 +53,7 @@ const campfireRoasts = makeDeck({ title: "Roast Me", source: CAMPFIRE_ROASTS, sa
 const GAMES = [
   {
     id: "family", icon: icons.family, title: "Fill in the Blank",
-    blurb: "Everyone picks the funniest response card to complete a prompt. The judge decides the winner. Family-friendly deck. 3+ players.",
+    blurb: "Everyone picks the funniest response card to complete a prompt. The judge decides the winner. 3+ players.",
     start: family,
     familyFriendly: true,
   },
@@ -65,7 +65,7 @@ const GAMES = [
   },
   {
     id: "cabin", icon: icons.cabin, title: "Fill in the Blank",
-    blurb: "Everyone picks the funniest response card to complete a prompt. The judge decides the winner. Adult deck. 3+ players.",
+    blurb: "Everyone picks the funniest response card to complete a prompt. The judge decides the winner. 3+ players.",
     start: cabin,
     familyFriendly: false,
   },
