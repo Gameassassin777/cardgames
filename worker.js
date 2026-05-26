@@ -155,7 +155,7 @@ export class GlobalStore {
 
     // ── Custom card sync ───────────────────────────────────────────────────────
     if (url.pathname === "/pull-all") {
-      const GAME_IDS = ["family","sibling","roasts","cam","cabin","rizz","wyr","flags","truths","catchphrase"];
+      const GAME_IDS = ["family","roasts","cam","cabin","rizz","wyr","flags","truths","catchphrase"];
       const result = {};
       for (const game of GAME_IDS) {
         const cards   = await this.state.storage.get(`cards_${game}`)   || [];

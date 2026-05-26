@@ -4,7 +4,7 @@ import { APP_VERSION } from "./version.js";
 import { makeGame as makeCardGame } from "./cam.js";
 import * as meeting from "./meeting.js";
 import { makeGame as makeDeck } from "./deckgame.js";
-import { PROMPTS, RESPONSES, NORMAL_PROMPTS, NORMAL_RESPONSES, FAMILY_PROMPTS, FAMILY_RESPONSES, SIBLING_RIVALRY, FAMILY_ROASTS, LAKE_TRUTHS, WOULD_YOU_RATHER, RED_GREEN, RIZZ_ROULETTE } from "./data.js";
+import { PROMPTS, RESPONSES, NORMAL_PROMPTS, NORMAL_RESPONSES, FAMILY_PROMPTS, FAMILY_RESPONSES, CAMPFIRE_ROASTS, LAKE_TRUTHS, WOULD_YOU_RATHER, RED_GREEN, RIZZ_ROULETTE } from "./data.js";
 import { openCustomCardsManager } from "./custom_cards_ui.js";
 import * as catchphrase from "./catchphrase.js";
 import { pullFromCloud } from "./cloud_sync.js";
@@ -48,8 +48,7 @@ const rizzRoulette = makeDeck({ title: "Rizz Roulette", source: RIZZ_ROULETTE, s
 const wouldYouRather = makeDeck({ title: "Would You Rather", source: WOULD_YOU_RATHER, saveKey: "wyr.game.v1" });
 const redGreen = makeDeck({ title: "Red Flag / Green Flag", source: RED_GREEN, saveKey: "flags.game.v1" });
 const lakeTruths = makeDeck({ title: "Lake House Truths", source: LAKE_TRUTHS, saveKey: "truths.game.v1" });
-const siblingRivalry = makeDeck({ title: "Sibling Rivalry", source: SIBLING_RIVALRY, saveKey: "sibling.game.v1" });
-const familyRoasts = makeDeck({ title: "Family Roasts", source: FAMILY_ROASTS, saveKey: "roasts.game.v1" });
+const campfireRoasts = makeDeck({ title: "Campfire Roasts", source: CAMPFIRE_ROASTS, saveKey: "roasts.game.v1" });
 
 const GAMES = [
   {
@@ -101,15 +100,9 @@ const GAMES = [
     familyFriendly: true,
   },
   {
-    id: "sibling", icon: icons.sibling, title: "Sibling Rivalry", badge: "Family",
-    blurb: "Dares, lighthearted roasts, and dilemma prompts designed for siblings and families. 2+ players.",
-    start: siblingRivalry,
-    familyFriendly: true,
-  },
-  {
-    id: "roasts", icon: icons.roasts, title: "Family Roasts", badge: "Family",
-    blurb: "Campfire questions and lighthearted roasts designed for family groups. 3+ players.",
-    start: familyRoasts,
+    id: "roasts", icon: icons.roasts, title: "Campfire Roasts", badge: "Social",
+    blurb: "Lighthearted group roasts, goofy dares, and funny social dilemmas. Perfect for friends and family alike. 3+ players.",
+    start: campfireRoasts,
     familyFriendly: true,
   },
   {

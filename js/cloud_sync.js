@@ -9,7 +9,6 @@ const HTTP_BASE = window.location.hostname === "localhost" || window.location.ho
 // Master game map — id must match what the worker stores under, saveKey is localStorage namespace.
 const GAME_MAP = [
   { id: "family",      saveKey: "family.game.v1",      hasPrompts: true  },
-  { id: "sibling",     saveKey: "sibling.game.v1",     hasPrompts: false },
   { id: "roasts",      saveKey: "roasts.game.v1",      hasPrompts: false },
   { id: "cam",         saveKey: "cam.game.v1",         hasPrompts: true  },
   { id: "cabin",       saveKey: "cabin.game.v1",       hasPrompts: true  },

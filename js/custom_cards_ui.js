@@ -5,8 +5,7 @@ import { icons } from "./icons.js";
 
 const MANAGED_GAMES = [
   { id: "family", name: "Cards Against the Family", iconFn: icons.family, saveKey: "family.game.v1", hasPrompts: true, placeholder: "e.g. mom trying to buy sketchy bootleg fireworks off a guy named Slick", familyFriendly: true },
-  { id: "sibling", name: "Sibling Rivalry", iconFn: icons.sibling, saveKey: "sibling.game.v1", hasPrompts: false, placeholder: "e.g. Do a dramatic reenactment of buying a cursed energy drink behind a sketchy laser tag arena.", familyFriendly: true },
-  { id: "roasts", name: "Family Roasts", iconFn: icons.roasts, saveKey: "roasts.game.v1", hasPrompts: false, placeholder: "e.g. Who in the family is secretly the biggest screen-time addict.", familyFriendly: true },
+  { id: "roasts", name: "Campfire Roasts", iconFn: icons.roasts, saveKey: "roasts.game.v1", hasPrompts: false, placeholder: "e.g. Who at this table is secretly the biggest screen-time addict?", familyFriendly: true },
   { id: "cam", name: "Cards Against Monkeys", iconFn: icons.monkeys, saveKey: "cam.game.v1", hasPrompts: true, placeholder: "e.g. Subway Surfers gameplay during a funeral", familyFriendly: false },
   { id: "cabin", name: "Cards Against the Cabin", iconFn: icons.cabin, saveKey: "cabin.game.v1", hasPrompts: true, placeholder: "e.g. bootleg Elmo in an alleyway surrounded by mysterious cloudy gas", familyFriendly: false },
   { id: "rizz", name: "Rizz Roulette", iconFn: icons.rizz, saveKey: "rizz.game.v1", hasPrompts: false, placeholder: "e.g. Say it with rizz: \"Are you Ohio? Because you make me act crazy.\"", familyFriendly: false },
