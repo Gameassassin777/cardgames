@@ -2,11 +2,11 @@
 import { el, mount, toast, store } from "./ui.js";
 
 const MANAGED_GAMES = [
-  { id: "family", name: "Cards Against the Family", icon: "👨‍👩‍👧‍👦", saveKey: "family.game.v1", hasPrompts: true, placeholder: "e.g. a squirrel wearing tiny sunglasses" },
-  { id: "sibling", name: "Sibling Rivalry", icon: "🥊", saveKey: "sibling.game.v1", hasPrompts: false, placeholder: "e.g. Imitate how your sibling sounds when they are whining." },
+  { id: "family", name: "Cards Against the Family", icon: "👨‍👩‍👧‍👦", saveKey: "family.game.v1", hasPrompts: true, placeholder: "e.g. mom trying to buy sketchy bootleg fireworks off a guy named Slick" },
+  { id: "sibling", name: "Sibling Rivalry", icon: "🥊", saveKey: "sibling.game.v1", hasPrompts: false, placeholder: "e.g. Do a dramatic reenactment of buying a cursed energy drink behind a sketchy laser tag arena." },
   { id: "roasts", name: "Family Roasts", icon: "🔥", saveKey: "roasts.game.v1", hasPrompts: false, placeholder: "e.g. Who in the family is secretly the biggest screen-time addict?" },
   { id: "cam", name: "Cards Against Monkeys", icon: "🐒", saveKey: "cam.game.v1", hasPrompts: true, placeholder: "e.g. Subway Surfers gameplay during a funeral" },
-  { id: "cabin", name: "Cards Against the Cabin", icon: "🛖", saveKey: "cabin.game.v1", hasPrompts: true, placeholder: "e.g. an aggressive beaver defending the dock" },
+  { id: "cabin", name: "Cards Against the Cabin", icon: "🛖", saveKey: "cabin.game.v1", hasPrompts: true, placeholder: "e.g. bootleg Elmo in an alleyway surrounded by mysterious cloudy gas" },
   { id: "rizz", name: "Rizz Roulette", icon: "😏", saveKey: "rizz.game.v1", hasPrompts: false, placeholder: "e.g. Say it with rizz: \"Are you Ohio? Because you make me act crazy.\"" },
   { id: "wyr", name: "Would You Rather", icon: "🤔", saveKey: "wyr.game.v1", hasPrompts: false, placeholder: "e.g. Always step on a wet spot, OR chew on a dry sponge?" },
   { id: "flags", name: "Red Flag / Green Flag", icon: "🚩", saveKey: "flags.game.v1", hasPrompts: false, placeholder: "e.g. They literally have zero internet presence." },
