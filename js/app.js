@@ -273,20 +273,13 @@ function home() {
 
   const menu = el("div", { className: "menu" });
   activeGames.forEach((g) => {
-    const tileChildren = [
-      el("div", { className: "tile-art" }),
-      el("div", { className: "tile-content" }, [
-        el("div", { className: "icon" }, [g.icon()]),
-        el("div", { className: "meta" }, [
-          el("h3", {}, [
-            document.createTextNode(g.title),
-          ]),
-          el("p", { text: g.blurb }),
-        ]),
+    const tile = el("button", { className: "tile", onClick: () => g.start(home) }, [
+      el("div", { className: "icon" }, [g.icon()]),
+      el("div", { className: "meta" }, [
+        el("h3", {}, [document.createTextNode(g.title)]),
+        el("p", { text: g.blurb }),
       ]),
-    ];
-    const tile = el("button", { className: "tile has-art", onClick: () => g.start(home) }, tileChildren);
-    tile.dataset.game = g.id;
+    ]);
     menu.appendChild(tile);
   });
 
