@@ -8,6 +8,9 @@ import { PROMPTS, RESPONSES, NORMAL_PROMPTS, NORMAL_RESPONSES, FAMILY_PROMPTS, F
 import { openCustomCardsManager } from "./custom_cards_ui.js";
 import * as catchphrase from "./catchphrase.js";
 
+// Force wholesome normal mode on every app restart/page load
+localStorage.setItem("lakehouse.weird_unlocked", "false");
+
 let deferredInstall = null;
 
 const monkeys = makeCardGame({
@@ -244,8 +247,11 @@ function home() {
           }
           home(); // Re-render!
         } else {
+          // Reset to wholesome normal mode and re-render instantly
+          localStorage.setItem("lakehouse.weird_unlocked", "false");
           toast("🦆 *The duck stares at you blankly, then starts quacking hysterically!*");
           startQuackStorm();
+          home(); // Re-render instantly to hide everything
         }
       }
     }
@@ -266,9 +272,12 @@ function home() {
       el("div", { className: "logo", html: 'Lake House <span class="em">Card Games</span>' }),
       el("div", { className: "tagline", text: taglineText }),
     ]),
-    menu,
-    settingsPanel
+    menu
   ];
+
+  if (weirdUnlocked) {
+    nodes.push(settingsPanel);
+  }
 
   if (deferredInstall) nodes.push(installBanner());
 
