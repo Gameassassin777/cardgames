@@ -54,6 +54,7 @@ function resetAll() {
   if (autoAdvHandle) { clearTimeout(autoAdvHandle);  autoAdvHandle = null; }
   if (heartbeatInt)  { clearInterval(heartbeatInt);  heartbeatInt = null; }
   if (artBgTimer)    { clearInterval(artBgTimer);    artBgTimer = null; }
+  if (roomBrowserRefresh) { clearInterval(roomBrowserRefresh); roomBrowserRefresh = null; }
   if (artBgEl)       { artBgEl.remove(); artBgEl = null; }
   if (window.speechSynthesis) window.speechSynthesis.cancel();
   roomCode = ""; myName = ""; isHost = false; myIdx = -1;
@@ -478,6 +479,8 @@ function handleRelay(action, sender) {
   if (action.type === "GARTIC_SYNC") { applyState(action.state); return; }
   if (!isHost) return;
   if (action.type === "GARTIC_SUBMIT") {
+    // Verify round to prevent stale, delayed submissions from previous rounds overriding new ones
+    if (action.round !== undefined && action.round !== gState.round) return;
     const idx = gState.players.indexOf(sender);
     if (idx === -1 || gState.submissions[idx] !== undefined) return;
     gState.submissions[idx] = action.content;
@@ -777,6 +780,18 @@ function buildCanvas(cfg = DEFAULT_SETTINGS) {
 
   // Toolbar
   const swatchRow = el("div", { style: "display:flex; gap:5px; flex-wrap:wrap; justify-content:center; padding:8px 8px 4px;" });
+  const eraserBtn = el("button", { className: "btn ghost small eraser-btn", style: "padding:5px 12px; margin:0;", text: "🧹",
+    onClick: () => {
+      erasing = true;
+      // Clear color highlight borders
+      swatchRow.querySelectorAll("button").forEach(x => x.style.borderColor = "rgba(255,255,255,0.25)");
+      // Clear size button highlights
+      toolRow.querySelectorAll(".sz").forEach(x => { x.style.background = ""; x.style.borderColor = "rgba(255,255,255,0.15)"; });
+      // Highlight eraser button
+      eraserBtn.style.background = "var(--lake)"; eraserBtn.style.borderColor = "var(--water-foam)";
+    }
+  });
+
   BASE_COLORS.forEach(c => {
     const b = document.createElement("button");
     b.style.cssText = `width:30px; height:30px; border-radius:50%; background:${c};
@@ -786,6 +801,13 @@ function buildCanvas(cfg = DEFAULT_SETTINGS) {
       penColor = c; erasing = false;
       swatchRow.querySelectorAll("button").forEach(x => x.style.borderColor = "rgba(255,255,255,0.25)");
       b.style.borderColor = "var(--water-foam)";
+      if (eraserBtn) { eraserBtn.style.background = ""; eraserBtn.style.borderColor = "rgba(255,255,255,0.15)"; }
+      // Re-highlight current size button if erased
+      toolRow.querySelectorAll(".sz").forEach(x => {
+        if (x.textContent === SIZES.find(sz => sz.v === penSize)?.label) {
+          x.style.background = "var(--lake)"; x.style.borderColor = "var(--water-foam)";
+        }
+      });
     });
     swatchRow.appendChild(b);
   });
@@ -801,15 +823,14 @@ function buildCanvas(cfg = DEFAULT_SETTINGS) {
         penSize = sz.v; erasing = false;
         toolRow.querySelectorAll(".sz").forEach(x => { x.style.background = ""; x.style.borderColor = "rgba(255,255,255,0.15)"; });
         b.style.background = "var(--lake)"; b.style.borderColor = "var(--water-foam)";
+        if (eraserBtn) { eraserBtn.style.background = ""; eraserBtn.style.borderColor = "rgba(255,255,255,0.15)"; }
       }
     });
     toolRow.appendChild(b);
   });
 
   if (!impressionMode) {
-    toolRow.appendChild(el("button", { className: "btn ghost small", style: "padding:5px 12px; margin:0;", text: "🧹",
-      onClick: () => { erasing = true; }
-    }));
+    toolRow.appendChild(eraserBtn);
   }
   toolRow.appendChild(el("button", { className: "btn ghost small", style: "padding:5px 12px; margin:0;", text: "↩",
     onClick: () => { strokes.pop(); redrawAll(); }
@@ -841,7 +862,7 @@ function submitEntry(content) {
   if (hasSubmitted) return;
   hasSubmitted = true;
   if (isHost) { gState.submissions[myIdx] = content; checkAllIn(); }
-  else relay({ type: "GARTIC_SUBMIT", content });
+  else relay({ type: "GARTIC_SUBMIT", round: gState.round, content });
   renderPhase();
 }
 
@@ -852,18 +873,20 @@ function checkAllIn() {
 
 function autoAdvance() {
   if (!isHost || !gState || (gState.phase !== "write" && gState.phase !== "draw")) return;
+  const cfg = gState.settings || DEFAULT_SETTINGS;
   gState.players.forEach((_, i) => {
     if (gState.submissions[i] === undefined)
-      gState.submissions[i] = gState.phase === "draw" ? blankCanvas() : "(no answer)";
+      gState.submissions[i] = gState.phase === "draw" ? blankCanvas(cfg) : "(no answer)";
   });
   advanceRound();
 }
 
-function blankCanvas() {
+function blankCanvas(cfg = DEFAULT_SETTINGS) {
+  const night = cfg?.drawStyle === "night";
   const c = document.createElement("canvas"); c.width = 400; c.height = 280;
   const ctx = c.getContext("2d");
-  ctx.fillStyle = "#e8e8e8"; ctx.fillRect(0, 0, 400, 280);
-  ctx.fillStyle = "#aaa"; ctx.font = "bold 22px sans-serif"; ctx.textAlign = "center";
+  ctx.fillStyle = night ? "#0a0a0a" : "#e8e8e8"; ctx.fillRect(0, 0, 400, 280);
+  ctx.fillStyle = night ? "#444" : "#aaa"; ctx.font = "bold 22px sans-serif"; ctx.textAlign = "center";
   ctx.fillText("(no drawing)", 200, 148);
   return c.toDataURL("image/jpeg", 0.6);
 }
