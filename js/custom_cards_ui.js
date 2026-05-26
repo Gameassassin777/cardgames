@@ -1,5 +1,6 @@
 // Custom Cards Settings manager — visually edit, delete, and manually add custom responses and prompts.
 import { el, mount, toast, store } from "./ui.js";
+import { pushToCloud } from "./cloud_sync.js";
 
 const MANAGED_GAMES = [
   { id: "family", name: "Cards Against the Family", icon: "👨‍👩‍👧‍👦", saveKey: "family.game.v1", hasPrompts: true, placeholder: "e.g. mom trying to buy sketchy bootleg fireworks off a guy named Slick", familyFriendly: true },
@@ -180,6 +181,8 @@ function render() {
         responses.push(text);
         store.set(responsesKey, responses);
         toast("Response card added!");
+        // Push to cloud immediately (fire-and-forget)
+        pushToCloud(activeGame.id, [text], []);
       } else {
         // Count underscores
         const count = (text.match(/_/g) || []).length;
@@ -193,12 +196,12 @@ function render() {
         const existing = prompts.find(p => p.text === convertedText);
         if (existing) { toast("This prompt card already exists!"); return; }
 
-        prompts.push({
-          text: convertedText,
-          pick: Math.max(1, count)
-        });
+        const newPrompt = { text: convertedText, pick: Math.max(1, count) };
+        prompts.push(newPrompt);
         store.set(promptsKey, prompts);
         toast("Prompt card added!");
+        // Push to cloud immediately (fire-and-forget)
+        pushToCloud(activeGame.id, [], [newPrompt]);
       }
 
       newCardInput.value = "";
@@ -229,16 +232,22 @@ function render() {
         let duplicateCount = 0;
         let errorCount = 0;
 
+        const newlyAddedCards = [];
+        const newlyAddedPrompts = [];
+
         if (activeTab === "responses") {
           lines.forEach(text => {
             if (responses.includes(text)) {
               duplicateCount++;
             } else {
               responses.push(text);
+              newlyAddedCards.push(text);
               addedCount++;
             }
           });
           store.set(responsesKey, responses);
+          // Push all newly added cards to cloud in one batch
+          if (newlyAddedCards.length > 0) pushToCloud(activeGame.id, newlyAddedCards, []);
         } else {
           lines.forEach(text => {
             const count = (text.match(/_/g) || []).length;
@@ -250,15 +259,16 @@ function render() {
               if (existing) {
                 duplicateCount++;
               } else {
-                prompts.push({
-                  text: convertedText,
-                  pick: Math.max(1, count)
-                });
+                const p = { text: convertedText, pick: Math.max(1, count) };
+                prompts.push(p);
+                newlyAddedPrompts.push(p);
                 addedCount++;
               }
             }
           });
           store.set(promptsKey, prompts);
+          // Push all newly added prompts to cloud in one batch
+          if (newlyAddedPrompts.length > 0) pushToCloud(activeGame.id, [], newlyAddedPrompts);
         }
 
         let msg = `🎉 successfully imported ${addedCount} card(s)!`;

@@ -341,16 +341,16 @@ function beginGame(rawNames, target, physical) {
 function createRoom() {
   connectionStatus = "connecting";
   renderLobbySpinner("Creating online room...");
-
-  socket = new WebSocket(`${wsUrl}/ws/create?name=${encodeURIComponent(myName)}`);
+  const gameId = (cfg.saveKey || "cam").split(".")[0];
+  socket = new WebSocket(`${wsUrl}/ws/create?name=${encodeURIComponent(myName)}&game=${gameId}`);
   setupSocketListeners();
 }
 
 function joinRoom(code) {
   connectionStatus = "connecting";
   renderLobbySpinner(`Connecting to room ${code}...`);
-
-  socket = new WebSocket(`${wsUrl}/ws/join?code=${code}&name=${encodeURIComponent(myName)}`);
+  const gameId = (cfg.saveKey || "cam").split(".")[0];
+  socket = new WebSocket(`${wsUrl}/ws/join?code=${code}&name=${encodeURIComponent(myName)}&game=${gameId}`);
   setupSocketListeners();
 }
 

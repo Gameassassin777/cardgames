@@ -7,9 +7,13 @@ import { makeGame as makeDeck } from "./deckgame.js";
 import { PROMPTS, RESPONSES, NORMAL_PROMPTS, NORMAL_RESPONSES, FAMILY_PROMPTS, FAMILY_RESPONSES, SIBLING_RIVALRY, FAMILY_ROASTS, LAKE_TRUTHS, WOULD_YOU_RATHER, RED_GREEN, RIZZ_ROULETTE } from "./data.js";
 import { openCustomCardsManager } from "./custom_cards_ui.js";
 import * as catchphrase from "./catchphrase.js";
+import { pullFromCloud } from "./cloud_sync.js";
 
 // Force wholesome normal mode on every app restart/page load
 localStorage.setItem("lakehouse.weird_unlocked", "false");
+
+// Pull any cards other devices have added — fire-and-forget, merges silently into localStorage.
+pullFromCloud();
 
 let deferredInstall = null;
 
