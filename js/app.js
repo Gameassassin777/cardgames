@@ -29,31 +29,31 @@ const monkeys = makeCardGame({
   saveKey: "cam.game.v1", namesKey: "cam.names.v1", targetKey: "cam.target", physicalKey: "cam.physical",
 });
 const cabin = makeCardGame({
-  title: "Cards Against the Cabin", icon: icons.cabin,
+  title: "Fill in the Blank", icon: icons.cabin,
   prompts: NORMAL_PROMPTS, responses: NORMAL_RESPONSES,
-  winnerTitle: "Cabin Champion",
-  blurb: "The same fill-in-the-blank game with a tamer (still very adult) deck — dark, absurd, lake-house humor. Card Czar each round; pass the device, hands stay secret.",
-  footer: "A more normal deck. Still an adult party game.",
+  winnerTitle: "Round Winner",
+  blurb: "A fill-in-the-blank party game with a dry, absurd adult deck. One Card Czar judges each round; pass the device, hands stay secret.",
+  footer: "Dark and absurd humor. Adult party game.",
   saveKey: "cabin.game.v1", namesKey: "cabin.names.v1", targetKey: "cabin.target", physicalKey: "cabin.physical",
 });
 const family = makeCardGame({
-  title: "Cards Against the Family", icon: icons.family,
+  title: "Fill in the Blank", icon: icons.family,
   prompts: FAMILY_PROMPTS, responses: FAMILY_RESPONSES,
-  winnerTitle: "Family Champion",
-  blurb: "A wholesome, silly, campfire fill-in-the-blanks party game. Perfect for kids, parents, and cabin nights.",
-  footer: "Wholesome, goofy fun for the whole family.",
+  winnerTitle: "Round Winner",
+  blurb: "A wholesome, silly fill-in-the-blank party game. Everyone picks the funniest response card; the judge decides. Great for all ages.",
+  footer: "Family-friendly fill-in-the-blank fun.",
   saveKey: "family.game.v1", namesKey: "family.names.v1", targetKey: "family.target", physicalKey: "family.physical",
 });
 const rizzRoulette = makeDeck({ title: "Rizz Roulette", source: RIZZ_ROULETTE, saveKey: "rizz.game.v1" });
 const wouldYouRather = makeDeck({ title: "Would You Rather", source: WOULD_YOU_RATHER, saveKey: "wyr.game.v1" });
 const redGreen = makeDeck({ title: "Red Flag / Green Flag", source: RED_GREEN, saveKey: "flags.game.v1" });
-const lakeTruths = makeDeck({ title: "Lake House Truths", source: LAKE_TRUTHS, saveKey: "truths.game.v1" });
-const campfireRoasts = makeDeck({ title: "Campfire Roasts", source: CAMPFIRE_ROASTS, saveKey: "roasts.game.v1" });
+const lakeTruths = makeDeck({ title: "Truth or Dare", source: LAKE_TRUTHS, saveKey: "truths.game.v1" });
+const campfireRoasts = makeDeck({ title: "Roast Me", source: CAMPFIRE_ROASTS, saveKey: "roasts.game.v1" });
 
 const GAMES = [
   {
-    id: "family", icon: icons.family, title: "Cards Against the Family", badge: "Family",
-    blurb: "Fill in the blanks with prompt and response cards. Family-friendly edition. 3+ players.",
+    id: "family", icon: icons.family, title: "Fill in the Blank", badge: "Family",
+    blurb: "Everyone picks the funniest response card to complete a prompt. The judge decides the winner. Family-friendly deck. 3+ players.",
     start: family,
     familyFriendly: true,
   },
@@ -64,13 +64,13 @@ const GAMES = [
     familyFriendly: false,
   },
   {
-    id: "cabin", icon: icons.cabin, title: "Cards Against the Cabin", badge: "Adult",
-    blurb: "Fill in the blanks using prompt and response cards featuring dry and absurd lake-house humor. 3+ players.",
+    id: "cabin", icon: icons.cabin, title: "Fill in the Blank", badge: "Adult",
+    blurb: "Everyone picks the funniest response card to complete a prompt. The judge decides the winner. Adult deck. 3+ players.",
     start: cabin,
     familyFriendly: false,
   },
   {
-    id: "meeting", icon: icons.meeting, title: "Emergency Meeting", badge: "Voting",
+    id: "meeting", icon: icons.meeting, title: "Most Likely To", badge: "Voting",
     blurb: "Vote on which player is most likely to match a given prompt. 3+ players.",
     start: meeting.start,
     familyFriendly: false,
@@ -94,26 +94,26 @@ const GAMES = [
     familyFriendly: true,
   },
   {
-    id: "truths", icon: icons.truths, title: "Lake House Truths", badge: "Social",
-    blurb: "Choose between answering truth questions or completing dare challenges. Suitable for any group size.",
+    id: "truths", icon: icons.truths, title: "Truth or Dare", badge: "Social",
+    blurb: "Choose between answering a truth question or completing a dare. Suitable for any group size.",
     start: lakeTruths,
     familyFriendly: true,
   },
   {
-    id: "roasts", icon: icons.roasts, title: "Campfire Roasts", badge: "Social",
-    blurb: "Lighthearted group roasts, goofy dares, and funny social dilemmas. Perfect for friends and family alike. 3+ players.",
+    id: "roasts", icon: icons.roasts, title: "Roast Me", badge: "Social",
+    blurb: "Lighthearted group roasts, goofy dares, and funny social dilemmas. 3+ players.",
     start: campfireRoasts,
     familyFriendly: true,
   },
   {
-    id: "catchphrase", icon: icons.catchphrase, title: "Lake House Catchphrase", badge: "Word",
-    blurb: "Teams compete to guess secret words described by teammates before the ticking round timer runs out. 4+ players.",
+    id: "catchphrase", icon: icons.catchphrase, title: "Catchphrase", badge: "Word",
+    blurb: "Teams race to guess secret words described by their teammates before the round timer runs out. 4+ players.",
     start: catchphrase.start,
     familyFriendly: true,
   },
   {
-    id: "doodles", icon: icons.doodles, title: "Lake House Doodles", badge: "Drawing",
-    blurb: "A multiplayer telephone game where players alternate between writing prompts and drawing scenes. 3+ players.",
+    id: "doodles", icon: icons.doodles, title: "Telephone Doodles", badge: "Drawing",
+    blurb: "Players alternate between writing prompts and drawing scenes — see how the message changes! 3+ players.",
     start: (home) => gartic.start(home),
     familyFriendly: true,
   },
