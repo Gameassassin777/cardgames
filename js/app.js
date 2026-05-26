@@ -56,7 +56,7 @@ const GAMES = [
     blurb: "Fill in the blanks with prompt and response cards. Family-friendly edition. 3+ players.",
     start: family,
     familyFriendly: true,
-    banner: "./icons/monkeys_cah_banner.png",
+    banner: "./icons/family_game_banner.png",
   },
   {
     id: "cam", icon: icons.monkeys, title: "Cards Against Monkeys", badge: "Internet",
@@ -84,24 +84,28 @@ const GAMES = [
     blurb: "Draw cards to complete interactive dares, answer questions, or discuss conversational prompts. 2+ players.",
     start: rizzRoulette,
     familyFriendly: false,
+    banner: "./icons/rizz_roulette_banner.png",
   },
   {
     id: "wyr", icon: icons.wyr, title: "Would You Rather", badge: "Dilemma",
     blurb: "Read a dilemma with two choices, and have players vote on their preference. 2+ players.",
     start: wouldYouRather,
     familyFriendly: false,
+    banner: "./icons/would_you_rather_banner.png",
   },
   {
     id: "flags", icon: icons.flags, title: "Red Flag / Green Flag", badge: "Social",
     blurb: "Discuss and judge character traits as positive, negative, or neutral. 2+ players.",
     start: redGreen,
     familyFriendly: true,
+    banner: "./icons/red_green_flag_banner.png",
   },
   {
     id: "truths", icon: icons.truths, title: "Lake House Truths", badge: "Social",
     blurb: "Choose between answering truth questions or completing dare challenges. Suitable for any group size.",
     start: lakeTruths,
     familyFriendly: true,
+    banner: "./icons/lake_truths_banner.png",
   },
   {
     id: "roasts", icon: icons.roasts, title: "Campfire Roasts", badge: "Social",
