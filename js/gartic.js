@@ -1,6 +1,7 @@
-// Lake House Doodles 🎨 — Gartic Phone-style game.
+// Lake House Doodles — Gartic Phone-style game.
 // Features: open room browser, chaos game modes, blur/rotate, TTS, background art slideshow.
 import { el, mount, toast } from "./ui.js";
+import { icons } from "./icons.js";
 
 const WS_BASE = location.hostname === "localhost" || location.hostname === "127.0.0.1"
   ? "ws://localhost:3000"
@@ -86,12 +87,15 @@ function renderSetup() {
 
   mount(
     el("div", { className: "topbar" }, [
-      el("button", { className: "back", text: "‹ Home", onClick: () => { resetAll(); goHome(); } }),
-      el("div",    { className: "title", text: "Lake House Doodles 🎨" }),
+      el("button", { className: "back", onClick: () => { resetAll(); goHome(); } }, [
+        el("span", { style: "width:16px; height:16px; display:inline-block;" }, [icons.back()]),
+        el("span", { text: "Home" })
+      ]),
+      el("div",    { className: "title", text: "Lake House Doodles" }),
       el("span",   { style: "width:64px" })
     ]),
     el("div", { className: "panel center" }, [
-      el("div", { style: "font-size:3rem; margin-bottom:8px;", text: "🎨" }),
+      el("div", { style: "width:48px; height:48px; margin:0 auto 12px; color:var(--sunset-soft);" }, [icons.doodles()]),
       el("h2",  { style: "margin:0 0 6px; color:var(--water-foam);", text: "Lake House Doodles" }),
       el("p",   { className: "muted", style: "margin:0 0 20px; font-size:0.9rem;",
         text: "Write a phrase → someone draws it → someone guesses → watch it transform!" }),
@@ -99,24 +103,28 @@ function renderSetup() {
       nameInput,
     ]),
     el("div", { className: "panel" }, [
-      el("label", { text: "🚀 Create a New Room (you host)" }),
-      el("button", { className: "btn", style: "width:100%; margin-top:6px;", text: "✨ Create Room",
-        onClick: () => { const n = getName(); if (n) { myName = n; connectRoom("create"); } }
-      }),
-      el("label", { style: "margin-top:18px;", text: "👀 Browse Open Rooms" }),
-      el("button", { className: "btn ghost", style: "width:100%; margin-top:6px;", text: "📋 Browse Rooms",
-        onClick: () => { const n = getName(); if (n) { myName = n; renderRoomBrowser(); } }
-      }),
-      el("label", { style: "margin-top:14px;", text: "🔑 Join by Code" }),
+      el("label", { text: "Create a New Room (you host)" }),
+      el("button", { className: "btn", style: "width:100%; margin-top:6px;", onClick: () => { const n = getName(); if (n) { myName = n; connectRoom("create"); } } }, [
+        el("span", { style: "width:18px; height:18px; display:inline-block;" }, [icons.plus()]),
+        el("span", { text: "Create Room" })
+      ]),
+      el("label", { style: "margin-top:18px;", text: "Browse Open Rooms" }),
+      el("button", { className: "btn ghost", style: "width:100%; margin-top:6px;", onClick: () => { const n = getName(); if (n) { myName = n; renderRoomBrowser(); } } }, [
+        el("span", { style: "width:18px; height:18px; display:inline-block;" }, [icons.search()]),
+        el("span", { text: "Browse Rooms" })
+      ]),
+      el("label", { style: "margin-top:14px;", text: "Join by Code" }),
       codeInput,
-      el("button", { className: "btn ghost", style: "width:100%; margin-top:4px;", text: "Join →",
-        onClick: () => {
+      el("button", { className: "btn ghost", style: "width:100%; margin-top:4px;", onClick: () => {
           const n = getName(); if (!n) return;
           const code = codeInput.value.trim().toUpperCase();
           if (code.length !== 4) { toast("Enter a 4-letter room code!"); return; }
           myName = n; connectRoom("join", code);
         }
-      })
+      }, [
+        el("span", { text: "Join" }),
+        el("span", { style: "width:18px; height:18px; display:inline-block;" }, [icons.chevronRight()])
+      ])
     ])
   );
 }
@@ -145,10 +153,10 @@ function renderRoomBrowser() {
         const badgeElements = [];
         if (r.chaosMode && r.chaosMode !== "none") {
           const labels = {
-            rorschach: "🔄 Rorschach",
-            whisper: "📵 Whisper",
-            classified: "📜 Classified",
-            threewords: "3️⃣ 3 Words"
+            rorschach: "Rorschach",
+            whisper: "Whisper",
+            classified: "Classified",
+            threewords: "3 Words"
           };
           if (labels[r.chaosMode]) {
             badgeElements.push(el("span", {
@@ -159,10 +167,10 @@ function renderRoomBrowser() {
         }
         if (r.drawStyle && r.drawStyle !== "normal") {
           const labels = {
-            mirror: "🪞 Mirror",
-            night: "🌃 Night",
-            impressionist: "💥 Impressionist",
-            speeddemon: "⚡ Speed"
+            mirror: "Mirror",
+            night: "Night",
+            impressionist: "Impressionist",
+            speeddemon: "Speed"
           };
           if (labels[r.drawStyle]) {
             badgeElements.push(el("span", {
@@ -174,7 +182,7 @@ function renderRoomBrowser() {
         if (r.isMonkey) {
           badgeElements.push(el("span", {
             style: "display:inline-block; background:rgba(255,215,0,0.1); border:1px solid rgba(255,215,0,0.3); border-radius:4px; padding:1px 4px; font-size:0.65rem; color:var(--sunset); font-weight:700; margin-right:4px; margin-top:4px;",
-            text: "🐒 Monkey"
+            text: "Monkey"
           }));
         }
 
@@ -204,7 +212,10 @@ function renderRoomBrowser() {
 
   mount(
     el("div", { className: "topbar" }, [
-      el("button", { className: "back", text: "‹ Back", onClick: () => { clearInterval(roomBrowserRefresh); renderSetup(); } }),
+      el("button", { className: "back", onClick: () => { clearInterval(roomBrowserRefresh); renderSetup(); } }, [
+        el("span", { style: "width:16px; height:16px; display:inline-block;" }, [icons.back()]),
+        el("span", { text: "Back" })
+      ]),
       el("div",    { className: "title", text: "Open Rooms" }),
       el("span",   { style: "width:64px" })
     ]),
@@ -212,9 +223,10 @@ function renderRoomBrowser() {
       el("p", { className: "muted", style: "margin:0; font-size:0.82rem;", text: "Refreshes every 8s. Tap Join to enter." })
     ]),
     el("div", { className: "panel", style: "padding:10px;" }, [listEl]),
-    el("button", { className: "btn ghost", style: "margin-top:4px;", text: "🔄 Refresh",
-      onClick: () => loadRooms()
-    })
+    el("button", { className: "btn ghost", style: "margin-top:4px;", onClick: () => loadRooms() }, [
+      el("span", { style: "width:18px; height:18px; display:inline-block;" }, [icons.refresh()]),
+      el("span", { text: "Refresh" })
+    ])
   );
 }
 
@@ -325,7 +337,15 @@ function renderLobby() {
   players.forEach((p, i) => {
     list.appendChild(el("div", { className: "score-row" }, [
       el("span", { className: "nm", text: `${i + 1}. ${p}${p === myName ? " (You)" : ""}` }),
-      el("span", { className: "pill" + (i === 0 ? " czar-pill" : ""), text: i === 0 ? "👑 Host" : "Ready" })
+      i === 0
+        ? el("span", { className: "pill czar-pill", style: "display:inline-flex; align-items:center; gap:4px;" }, [
+            el("span", { style: "width:12px; height:12px; display:inline-block;" }, [icons.star()]),
+            el("span", { text: "Host" })
+          ])
+        : el("span", { className: "pill", style: "display:inline-flex; align-items:center; gap:4px;" }, [
+            el("span", { style: "width:12px; height:12px; display:inline-block;" }, [icons.checked()]),
+            el("span", { text: "Ready" })
+          ])
     ]));
   });
 
@@ -335,12 +355,14 @@ function renderLobby() {
   const settingsEl = isHost ? buildSettingsPanel() : null;
 
   mount(
-    topbar("🎨 Lobby"),
+    topbar("Lobby"),
     el("div", { className: "wood-panel center" }, [
       el("p",  { className: "muted", style: "margin:0 0 4px; font-size:0.8rem;", text: "ROOM CODE" }),
       el("h1", { style: "font-size:3rem; letter-spacing:8px; font-family:monospace; color:#fff; margin:0 0 8px; text-shadow:0 2px 8px var(--shadow);", text: roomCode }),
-      el("p",  { className: "muted", style: "font-size:0.82rem; margin:0;",
-        text: hostSettings.privateRoom ? "🔒 Private room — share code only" : "Public room · share code to invite!" })
+      el("p", { className: "muted center", style: "font-size:0.82rem; margin:0; display:flex; align-items:center; justify-content:center; gap:6px;" }, [
+        el("span", { style: "width:14px; height:14px; display:inline-block;" }, [hostSettings.privateRoom ? icons.lock() : icons.public()]),
+        el("span", { text: hostSettings.privateRoom ? "Private room — share code only" : "Public room · share code to invite!" })
+      ])
     ]),
     el("div", { className: "panel" }, [
       el("label", { text: `Players (${players.length})` }),
@@ -350,10 +372,15 @@ function renderLobby() {
     isHost
       ? el("button", {
           className: "btn", style: "margin-top:4px;",
-          text: enough ? "🎨 Start Game!" : `Need ${MIN_PLAYERS - players.length} more player(s)`,
           disabled: !enough,
           onClick: hostStartGame
-        })
+        }, enough ? [
+            el("span", { style: "width:18px; height:18px; display:inline-block;" }, [icons.play()]),
+            el("span", { text: "Start Game" })
+          ] : [
+            el("span", { text: `Need ${MIN_PLAYERS - players.length} more player(s)` })
+          ]
+        )
       : el("p", { className: "muted center", style: "margin-top:14px;", text: "Waiting for host to start…" })
   );
 }
@@ -362,41 +389,47 @@ function renderLobby() {
 function buildSettingsPanel() {
   const s = hostSettings; // reference — mutated in place
 
-  const mkSlider = (label, key, min, max, unit) => {
+  const mkSlider = (label, key, min, max, unit, iconFn) => {
     const valSpan = el("span", { style: "font-weight:700; color:var(--water-foam);", text: `${s[key]}${unit}` });
     const slider  = el("input", { type: "range", min: String(min), max: String(max), value: String(s[key]),
       style: "width:100%; margin-top:4px;"
     });
     slider.addEventListener("input", () => { s[key] = Number(slider.value); valSpan.textContent = `${s[key]}${unit}`; });
     return el("div", { style: "margin-bottom:10px;" }, [
-      el("div", { style: "display:flex; justify-content:space-between; align-items:center; font-size:0.85rem; color:var(--lake-light);", text: "" }, [
-        el("span", { text: label }), valSpan
+      el("div", { style: "display:flex; justify-content:space-between; align-items:center; font-size:0.85rem; color:var(--lake-light);" }, [
+        el("span", { style: "display:inline-flex; align-items:center; gap:6px;" }, [
+          iconFn ? el("span", { style: "width:14px; height:14px; display:inline-block;" }, [iconFn()]) : null,
+          el("span", { text: label })
+        ]),
+        valSpan
       ]),
       slider
     ]);
   };
 
-  const mkRadio = (label, key, value, emoji) => {
+  const mkRadio = (label, key, value, iconFn) => {
     const btn = el("button", {
       className: "btn ghost small",
-      style: `margin:3px; padding:6px 10px; font-size:0.78rem; ${s[key] === value ? "background:var(--lake); border-color:var(--water-foam);" : ""}`,
-      text: `${emoji} ${label}`,
+      style: `margin:3px; padding:6px 10px; font-size:0.78rem; display:inline-flex; align-items:center; gap:6px; ${s[key] === value ? "background:var(--lake); border-color:var(--water-foam);" : ""}`,
       onClick: () => {
         s[key] = value;
         // re-highlight all in group
-        group.querySelectorAll("button").forEach(b => { b.style.background = ""; b.style.borderColor = "rgba(255,255,255,0.15)"; });
+        const grp = btn.parentNode;
+        grp.querySelectorAll("button").forEach(b => { b.style.background = ""; b.style.borderColor = "rgba(255,255,255,0.15)"; });
         btn.style.background = "var(--lake)"; btn.style.borderColor = "var(--water-foam)";
         registerRoom(s);
       }
-    });
+    }, [
+      iconFn ? el("span", { style: "width:12px; height:12px; display:inline-block;" }, [iconFn()]) : null,
+      el("span", { text: label })
+    ]);
     return btn;
   };
 
-  const mkToggle = (label, key, emoji) => {
+  const mkToggle = (label, key, iconFn) => {
     const btn = el("button", {
       className: "btn ghost small",
-      style: `width:100%; margin-bottom:6px; ${s[key] ? "background:var(--lake); border-color:var(--water-foam);" : ""}`,
-      text: `${emoji} ${label}`,
+      style: `width:100%; margin-bottom:6px; display:inline-flex; align-items:center; justify-content:center; gap:6px; ${s[key] ? "background:var(--lake); border-color:var(--water-foam);" : ""}`,
       onClick: () => {
         s[key] = !s[key];
         btn.style.background   = s[key] ? "var(--lake)" : "";
@@ -407,43 +440,49 @@ function buildSettingsPanel() {
           renderLobby();
         }
       }
-    });
+    }, [
+      iconFn ? el("span", { style: "width:14px; height:14px; display:inline-block;" }, [iconFn()]) : null,
+      el("span", { text: label })
+    ]);
     return btn;
   };
 
   // Chaos mode radio group
   const chaosOptions = [
-    { label: "Normal",       value: "none",        emoji: "😊" },
-    { label: "Rorschach",    value: "rorschach",   emoji: "🔄" },
-    { label: "Whisper",      value: "whisper",     emoji: "📵" },
-    { label: "Classified",   value: "classified",  emoji: "📜" },
-    { label: "3 Words Max",  value: "threewords",  emoji: "3️⃣" },
+    { label: "Normal",       value: "none",        iconFn: icons.checked },
+    { label: "Rorschach",    value: "rorschach",   iconFn: icons.refresh },
+    { label: "Whisper",      value: "whisper",     iconFn: icons.eyeOff },
+    { label: "Classified",   value: "classified",  iconFn: icons.lock },
+    { label: "3 Words Max",  value: "threewords",  iconFn: icons.chat },
   ];
   const group = el("div", { style: "display:flex; flex-wrap:wrap; gap:4px; margin-bottom:10px;" });
-  chaosOptions.forEach(({ label, value, emoji }) => group.appendChild(mkRadio(label, "chaosMode", value, emoji)));
+  chaosOptions.forEach(({ label, value, iconFn }) => group.appendChild(mkRadio(label, "chaosMode", value, iconFn)));
 
   // Draw style radio group
   const drawOptions = [
-    { label: "Normal",       value: "normal",      emoji: "✏️" },
-    { label: "Mirror",       value: "mirror",      emoji: "🪞" },
-    { label: "Night",        value: "night",       emoji: "🌃" },
-    { label: "Impressionist",value: "impressionist",emoji: "💥" },
-    { label: "Speed Demon",  value: "speeddemon",  emoji: "⚡" },
+    { label: "Normal",       value: "normal",      iconFn: icons.pen },
+    { label: "Mirror",       value: "mirror",      iconFn: icons.wyr },
+    { label: "Night",        value: "night",       iconFn: icons.moon },
+    { label: "Impressionist",value: "impressionist",iconFn: icons.sparkles },
+    { label: "Speed Demon",  value: "speeddemon",  iconFn: icons.timer },
   ];
   const drawGroup = el("div", { style: "display:flex; flex-wrap:wrap; gap:4px; margin-bottom:10px;" });
-  drawOptions.forEach(({ label, value, emoji }) => drawGroup.appendChild(mkRadio(label, "drawStyle", value, emoji)));
+  drawOptions.forEach(({ label, value, iconFn }) => drawGroup.appendChild(mkRadio(label, "drawStyle", value, iconFn)));
 
   return el("div", { className: "panel settings-section" }, [
-    el("label", { style: "font-size:0.9rem; font-weight:700; color:var(--water-foam); margin-bottom:10px;", text: "⚙️ Game Settings (Host Only)" }),
-    mkSlider("✍️ Write Time", "writeTime", 10, 120, "s"),
-    mkSlider("🎨 Draw Time",  "drawTime",  10, 120, "s"),
-    mkSlider("🔵 Blur (shown drawing)", "blurPx", 0, 20, "px"),
-    el("div", { style: "font-size:0.82rem; color:var(--lake-light); margin-bottom:4px;", text: "🎭 Chaos Mode:" }),
+    el("label", { style: "font-size:0.9rem; font-weight:700; color:var(--water-foam); margin-bottom:10px; display:flex; align-items:center; gap:6px;" }, [
+      el("span", { style: "width:16px; height:16px; display:inline-block;" }, [icons.settings()]),
+      el("span", { text: "Game Settings (Host Only)" })
+    ]),
+    mkSlider("Write Time", "writeTime", 10, 120, "s", icons.pen),
+    mkSlider("Draw Time",  "drawTime",  10, 120, "s", icons.doodles),
+    mkSlider("Blur (shown drawing)", "blurPx", 0, 20, "px", icons.eye),
+    el("div", { style: "font-size:0.82rem; color:var(--lake-light); margin-bottom:4px;", text: "Chaos Mode:" }),
     group,
-    el("div", { style: "font-size:0.82rem; color:var(--lake-light); margin-bottom:4px;", text: "🖌️ Draw Style:" }),
+    el("div", { style: "font-size:0.82rem; color:var(--lake-light); margin-bottom:4px;", text: "Draw Style:" }),
     drawGroup,
-    mkToggle("🔊 Read Text Entries Aloud (TTS)", "tts", "🔊"),
-    mkToggle("🔒 Private Room (code required to join)", "privateRoom", "🔒"),
+    mkToggle("Read Text Entries Aloud (TTS)", "tts", icons.speak),
+    mkToggle("Private Room (code required to join)", "privateRoom", icons.lock),
   ]);
 }
 
@@ -985,27 +1024,36 @@ function renderRevealPhase() {
   let actionBtn;
   if (isHost) {
     if (atEnd && lastC) {
-      actionBtn = el("button", { className: "btn", style: "margin-top:12px;", text: "🎉 Finish Game!",
+      actionBtn = el("button", { className: "btn", style: "margin-top:12px;",
         onClick: () => { gState.phase = "done"; relay({ type: "GARTIC_SYNC", state: gState }); applyState(gState); }
-      });
+      }, [
+        el("span", { style: "width:18px; height:18px; display:inline-block;" }, [icons.checked()]),
+        el("span", { text: "Finish Game" })
+      ]);
     } else if (atEnd) {
-      actionBtn = el("button", { className: "btn", style: "margin-top:12px;", text: "➡️ Next Chain",
+      actionBtn = el("button", { className: "btn", style: "margin-top:12px;",
         onClick: () => { gState.revealChainIdx++; gState.revealEntryIdx = -1; relay({ type: "GARTIC_SYNC", state: gState }); applyState(gState); }
-      });
+      }, [
+        el("span", { text: "Next Chain" }),
+        el("span", { style: "width:18px; height:18px; display:inline-block;" }, [icons.chevronRight()])
+      ]);
     } else {
-      actionBtn = el("button", { className: "btn", style: "margin-top:12px;", text: "▶️ Reveal Next",
+      actionBtn = el("button", { className: "btn", style: "margin-top:12px;",
         onClick: () => { gState.revealEntryIdx++; relay({ type: "GARTIC_SYNC", state: gState }); applyState(gState); }
-      });
+      }, [
+        el("span", { style: "width:18px; height:18px; display:inline-block;" }, [icons.play()]),
+        el("span", { text: "Reveal Next" })
+      ]);
     }
   } else {
     actionBtn = el("p", { className: "muted center", style: "margin-top:14px; font-size:0.9rem;", text: "Host is controlling the reveal…" });
   }
 
   mount(
-    topbar("📖 Reveal!"),
+    topbar("Reveal!"),
     el("div", { className: "panel center", style: "padding:10px 14px;" }, [
       el("p",  { style: "margin:0 0 2px; font-size:0.75rem; color:var(--lake-light); font-weight:700; letter-spacing:1px;", text: `CHAIN ${ci + 1} OF ${totalC}` }),
-      el("h3", { style: "margin:0; color:var(--water-foam);", text: `📖 ${authorName}'s Chain` })
+      el("h3", { style: "margin:0; color:var(--water-foam);", text: `${authorName}'s Chain` })
     ]),
     el("div", { className: "panel", style: "padding:14px; max-height:60vh; overflow-y:auto;" }, [chainEl]),
     actionBtn
@@ -1016,15 +1064,18 @@ function renderRevealPhase() {
 function renderDonePhase() {
   if (window.speechSynthesis) window.speechSynthesis.cancel();
   mount(
-    topbar("🎉 Done!"),
+    topbar("Done!"),
     el("div", { className: "panel center", style: "padding:28px 20px;" }, [
-      el("div", { style: "font-size:3.5rem; margin-bottom:12px;", text: "🎨" }),
+      el("div", { style: "width:64px; height:64px; margin:0 auto 12px; color:var(--sunset-soft);" }, [icons.doodles()]),
       el("h2", { style: "margin:0 0 8px; color:var(--water-foam);", text: "Game saved to gallery!" }),
       el("p",  { className: "muted", style: "margin:0 0 24px; font-size:0.9rem;",
-        text: "View it anytime in the Art Gallery 🖼️" })
+        text: "View it anytime in the Art Gallery" })
     ]),
     el("div", { className: "btn-row", style: "flex-direction:column; gap:10px;" }, [
-      el("button", { className: "btn", text: "🏠 Back to Home", onClick: () => { resetAll(); goHome(); } })
+      el("button", { className: "btn", onClick: () => { resetAll(); goHome(); } }, [
+        el("span", { style: "width:18px; height:18px; display:inline-block;" }, [icons.back()]),
+        el("span", { text: "Back to Home" })
+      ])
     ])
   );
 }
@@ -1111,14 +1162,17 @@ function startArtBackground() {
 // ── UI helpers ────────────────────────────────────────────────────────────────
 function topbar(title) {
   return el("div", { className: "topbar" }, [
-    el("button", { className: "back", text: "‹ Leave",
+    el("button", { className: "back",
       onClick: () => {
         if (!gState || gState.phase === "lobby" || gState.phase === "done" || confirm("Leave the game?")) {
           if (isHost) unregisterRoom();
           resetAll(); goHome();
         }
       }
-    }),
+    }, [
+      el("span", { style: "width:16px; height:16px; display:inline-block;" }, [icons.back()]),
+      el("span", { text: "Leave" })
+    ]),
     el("div", { className: "title", text: title }),
     el("span", { style: "width:64px" })
   ]);
@@ -1130,7 +1184,7 @@ function timerBar() {
     id: "g-timer",
     style: `font-size:1.5rem; font-weight:900; color:var(--sunset); text-align:center;
             margin-bottom:4px; letter-spacing:2px; text-shadow:0 1px 6px rgba(0,0,0,0.4);`,
-    text: `⏱ ${secs}s`
+    text: `${secs}s`
   });
 }
 
@@ -1150,12 +1204,15 @@ function roundDots() {
 function renderSpinner(msg) {
   mount(
     el("div", { className: "topbar" }, [
-      el("button", { className: "back", text: "‹ Back", onClick: () => { resetAll(); goHome(); } }),
-      el("div",    { className: "title", text: "Lake House Doodles 🎨" }),
+      el("button", { className: "back", onClick: () => { resetAll(); goHome(); } }, [
+        el("span", { style: "width:16px; height:16px; display:inline-block;" }, [icons.back()]),
+        el("span", { text: "Back" })
+      ]),
+      el("div",    { className: "title", text: "Lake House Doodles" }),
       el("span",   { style: "width:64px" })
     ]),
     el("div", { className: "panel center", style: "padding:40px 20px;" }, [
-      el("div", { className: "big-emoji spin", style: "font-size:3rem;", text: "🎨" }),
+      el("div", { className: "spin-indicator", style: "width:64px; height:64px; color:var(--sunset-soft); margin:0 auto;" }, [icons.doodles()]),
       el("h3",  { style: "margin-top:16px;", text: msg })
     ])
   );
@@ -1181,6 +1238,6 @@ async function saveToGallery(state) {
     console.log("[Doodles] ✓ Saved to gallery.");
   } catch (e) {
     console.warn("[Doodles] Gallery save failed:", e.message);
-    toast("⚠️ Gallery save failed (offline?)");
+    toast("Gallery save failed (offline?)");
   }
 }

@@ -1,18 +1,19 @@
 // Custom Cards Settings manager — visually edit, delete, and manually add custom responses and prompts.
 import { el, mount, toast, store } from "./ui.js";
 import { pushToCloud } from "./cloud_sync.js";
+import { icons } from "./icons.js";
 
 const MANAGED_GAMES = [
-  { id: "family", name: "Cards Against the Family", icon: "👨‍👩‍👧‍👦", saveKey: "family.game.v1", hasPrompts: true, placeholder: "e.g. mom trying to buy sketchy bootleg fireworks off a guy named Slick", familyFriendly: true },
-  { id: "sibling", name: "Sibling Rivalry", icon: "🥊", saveKey: "sibling.game.v1", hasPrompts: false, placeholder: "e.g. Do a dramatic reenactment of buying a cursed energy drink behind a sketchy laser tag arena.", familyFriendly: true },
-  { id: "roasts", name: "Family Roasts", icon: "🔥", saveKey: "roasts.game.v1", hasPrompts: false, placeholder: "e.g. Who in the family is secretly the biggest screen-time addict.", familyFriendly: true },
-  { id: "cam", name: "Cards Against Monkeys", icon: "🐒", saveKey: "cam.game.v1", hasPrompts: true, placeholder: "e.g. Subway Surfers gameplay during a funeral", familyFriendly: false },
-  { id: "cabin", name: "Cards Against the Cabin", icon: "🛖", saveKey: "cabin.game.v1", hasPrompts: true, placeholder: "e.g. bootleg Elmo in an alleyway surrounded by mysterious cloudy gas", familyFriendly: false },
-  { id: "rizz", name: "Rizz Roulette", icon: "😏", saveKey: "rizz.game.v1", hasPrompts: false, placeholder: "e.g. Say it with rizz: \"Are you Ohio? Because you make me act crazy.\"", familyFriendly: false },
-  { id: "wyr", name: "Would You Rather", icon: "🤔", saveKey: "wyr.game.v1", hasPrompts: false, placeholder: "e.g. Always step on a wet spot, OR chew on a dry sponge?", familyFriendly: false },
-  { id: "flags", name: "Red Flag / Green Flag", icon: "🚩", saveKey: "flags.game.v1", hasPrompts: false, placeholder: "e.g. They literally have zero internet presence.", familyFriendly: true },
-  { id: "truths", name: "Lake House Truths", icon: "🛶", saveKey: "truths.game.v1", hasPrompts: false, placeholder: "e.g. Who in the cabin is secretly a duplicate agent?", familyFriendly: true },
-  { id: "catchphrase", name: "Lake House Catchphrase", icon: "🗣️", saveKey: "catchphrase.game.v1", hasPrompts: false, placeholder: "e.g. water skiing behind a rowboat", familyFriendly: true }
+  { id: "family", name: "Cards Against the Family", iconFn: icons.family, saveKey: "family.game.v1", hasPrompts: true, placeholder: "e.g. mom trying to buy sketchy bootleg fireworks off a guy named Slick", familyFriendly: true },
+  { id: "sibling", name: "Sibling Rivalry", iconFn: icons.sibling, saveKey: "sibling.game.v1", hasPrompts: false, placeholder: "e.g. Do a dramatic reenactment of buying a cursed energy drink behind a sketchy laser tag arena.", familyFriendly: true },
+  { id: "roasts", name: "Family Roasts", iconFn: icons.roasts, saveKey: "roasts.game.v1", hasPrompts: false, placeholder: "e.g. Who in the family is secretly the biggest screen-time addict.", familyFriendly: true },
+  { id: "cam", name: "Cards Against Monkeys", iconFn: icons.monkeys, saveKey: "cam.game.v1", hasPrompts: true, placeholder: "e.g. Subway Surfers gameplay during a funeral", familyFriendly: false },
+  { id: "cabin", name: "Cards Against the Cabin", iconFn: icons.cabin, saveKey: "cabin.game.v1", hasPrompts: true, placeholder: "e.g. bootleg Elmo in an alleyway surrounded by mysterious cloudy gas", familyFriendly: false },
+  { id: "rizz", name: "Rizz Roulette", iconFn: icons.rizz, saveKey: "rizz.game.v1", hasPrompts: false, placeholder: "e.g. Say it with rizz: \"Are you Ohio? Because you make me act crazy.\"", familyFriendly: false },
+  { id: "wyr", name: "Would You Rather", iconFn: icons.wyr, saveKey: "wyr.game.v1", hasPrompts: false, placeholder: "e.g. Always step on a wet spot, OR chew on a dry sponge?", familyFriendly: false },
+  { id: "flags", name: "Red Flag / Green Flag", iconFn: icons.flags, saveKey: "flags.game.v1", hasPrompts: false, placeholder: "e.g. They literally have zero internet presence.", familyFriendly: true },
+  { id: "truths", name: "Lake House Truths", iconFn: icons.truths, saveKey: "truths.game.v1", hasPrompts: false, placeholder: "e.g. Who in the cabin is secretly a duplicate agent?", familyFriendly: true },
+  { id: "catchphrase", name: "Lake House Catchphrase", iconFn: icons.catchphrase, saveKey: "catchphrase.game.v1", hasPrompts: false, placeholder: "e.g. water skiing behind a rowboat", familyFriendly: true }
 ];
 
 let activeGameId = "family";
@@ -72,7 +73,7 @@ function render() {
         render();
       }
     }, [
-      el("span", { style: "font-size:1.1rem", text: g.icon }),
+      el("span", { style: "width:18px; height:18px; display:inline-block;" }, [g.iconFn()]),
       el("span", { text: g.id.toUpperCase() })
     ]);
     tabRow.appendChild(tabBtn);
@@ -81,7 +82,7 @@ function render() {
   // Game Intro Header
   const introHeader = el("div", { className: "panel center", style: "padding: 12px 18px;" }, [
     el("h3", { style: "margin:0 0 4px 0; color:var(--water-foam); font-size:1.15rem; display:flex; align-items:center; justify-content:center; gap:8px;" }, [
-      el("span", { text: activeGame.icon }),
+      el("span", { style: "width:22px; height:22px; display:inline-block;" }, [activeGame.iconFn()]),
       el("span", { text: activeGame.name })
     ]),
     el("p", {
@@ -97,7 +98,7 @@ function render() {
     const respSub = el("button", {
       className: "btn small" + (activeTab === "responses" ? " secondary" : " ghost"),
       style: "flex:1; font-weight:700; padding:6px 12px; font-size:0.85rem; margin:0;",
-      text: `⚪ Custom Responses (${responses.length})`,
+      text: `Responses (${responses.length})`,
       onClick: () => {
         activeTab = "responses";
         editingIndex = null;
@@ -108,7 +109,7 @@ function render() {
     const promptSub = el("button", {
       className: "btn small" + (activeTab === "prompts" ? " secondary" : " ghost"),
       style: "flex:1; font-weight:700; padding:6px 12px; font-size:0.85rem; margin:0;",
-      text: `⚫ Custom Prompts (${prompts.length})`,
+      text: `Prompts (${prompts.length})`,
       onClick: () => {
         activeTab = "prompts";
         editingIndex = null;
@@ -135,7 +136,9 @@ function render() {
       className: "panel",
       style: "background:rgba(0,0,0,0.2); border:1px solid rgba(255,255,255,0.06); padding:12px; margin-top:8px;"
     }, [
-      el("h4", { style: "margin:0 0 6px 0; font-size:0.9rem; color:var(--sunset);", text: "✍️ Prompt Formatting Instructions:" }),
+      el("h4", { style: "margin:0 0 6px 0; font-size:0.9rem; color:var(--sunset);" }, [
+        el("span", { text: "Prompt Formatting Instructions:" })
+      ]),
       el("ul", { style: "margin:0; padding-left:18px; font-size:0.82rem; line-height:1.4;" }, [
         el("li", {}, [
           document.createTextNode("Use the underscore symbol "),
@@ -153,7 +156,9 @@ function render() {
       className: "panel",
       style: "background:rgba(0,0,0,0.2); border:1px solid rgba(255,255,255,0.06); padding:12px; margin-top:8px;"
     }, [
-      el("h4", { style: "margin:0 0 6px 0; font-size:0.9rem; color:var(--sunset);", text: "📤 TXT Import Instructions:" }),
+      el("h4", { style: "margin:0 0 6px 0; font-size:0.9rem; color:var(--sunset);" }, [
+        el("span", { text: "TXT Import Instructions:" })
+      ]),
       el("ul", { style: "margin:0; padding-left:18px; font-size:0.82rem; line-height:1.4;" }, [
         el("li", { text: "Prepare a plain text (.txt) file." }),
         el("li", { text: "Write each response card on a new line (no quotes)." }),
@@ -170,8 +175,7 @@ function render() {
 
   const addBtn = el("button", {
     className: "btn small",
-    style: "width:auto; margin:0; padding:12px 16px; font-weight:700;",
-    text: "➕ Add",
+    style: "width:auto; margin:0; padding:12px 16px; font-weight:700; display:flex; align-items:center; justify-content:center; gap:4px;",
     onClick: () => {
       const text = newCardInput.value.trim();
       if (!text) { toast("Please enter some card text first!"); return; }
@@ -208,7 +212,10 @@ function render() {
       editingIndex = null;
       render();
     }
-  });
+  }, [
+    el("span", { style: "width:14px; height:14px; display:inline-block;" }, [icons.plus()]),
+    el("span", { text: "Add" })
+  ]);
 
   // Client-side TXT File Batch Importer
   const fileInput = el("input", {
@@ -271,7 +278,7 @@ function render() {
           if (newlyAddedPrompts.length > 0) pushToCloud(activeGame.id, [], newlyAddedPrompts);
         }
 
-        let msg = `🎉 successfully imported ${addedCount} card(s)!`;
+        let msg = `Successfully imported ${addedCount} card(s)!`;
         if (duplicateCount > 0) msg += ` (${duplicateCount} duplicate(s) skipped)`;
         if (errorCount > 0) msg += ` (${errorCount} prompt(s) skipped due to exceeding 4 blanks)`;
         toast(msg);
@@ -288,7 +295,7 @@ function render() {
     style: "width:100%; font-weight:700; margin-top:8px; display:flex; align-items:center; justify-content:center; gap:8px; border-radius:12px;",
     onClick: () => fileInput.click()
   }, [
-    el("span", { style: "font-size:1.1rem", text: "📤" }),
+    el("span", { style: "width:16px; height:16px; display:inline-block;" }, [icons.plus()]),
     el("span", { text: "Import Cards from .txt File" })
   ]);
 
@@ -333,8 +340,7 @@ function render() {
 
         const saveBtn = el("button", {
           className: "icon-btn",
-          style: "width:34px; height:34px; border-radius:8px; font-size:0.9rem; background:#2e7d32; border:none; box-shadow:none;",
-          text: "💾",
+          style: "width:34px; height:34px; border-radius:8px; background:#2e7d32; border:none; box-shadow:none; display:flex; align-items:center; justify-content:center; padding:0;",
           title: "Save Changes",
           onClick: () => {
             const updatedText = editInput.value.trim();
@@ -368,18 +374,21 @@ function render() {
             render();
             toast("Card updated!");
           }
-        });
+        }, [
+          el("span", { style: "width:16px; height:16px; display:inline-block; color:#fff;" }, [icons.checked()])
+        ]);
 
         const cancelBtn = el("button", {
           className: "icon-btn",
-          style: "width:34px; height:34px; border-radius:8px; font-size:0.9rem; background:#c62828; border:none; box-shadow:none; margin-left:4px;",
-          text: "✕",
+          style: "width:34px; height:34px; border-radius:8px; background:#c62828; border:none; box-shadow:none; margin-left:4px; display:flex; align-items:center; justify-content:center; padding:0;",
           title: "Cancel Edit",
           onClick: () => {
             editingIndex = null;
             render();
           }
-        });
+        }, [
+          el("span", { style: "width:16px; height:16px; display:inline-block; color:#fff;" }, [icons.cross()])
+        ]);
 
         cardContent = editInput;
         actionButtons = el("div", { style: "display:flex; align-items:center;" }, [saveBtn, cancelBtn]);
@@ -401,19 +410,19 @@ function render() {
 
         const editBtn = el("button", {
           className: "icon-btn",
-          style: "width:32px; height:32px; border-radius:8px; font-size:0.85rem; background:rgba(255,255,255,0.08); border:none; box-shadow:none;",
-          text: "✏️",
+          style: "width:32px; height:32px; border-radius:8px; background:rgba(255,255,255,0.08); border:none; box-shadow:none; display:flex; align-items:center; justify-content:center; padding:0;",
           title: "Edit Card",
           onClick: () => {
             editingIndex = idx;
             render();
           }
-        });
+        }, [
+          el("span", { style: "width:14px; height:14px; display:inline-block; color:#fff;" }, [icons.pen()])
+        ]);
 
         const deleteBtn = el("button", {
           className: "icon-btn",
-          style: "width:32px; height:32px; border-radius:8px; font-size:0.85rem; background:rgba(198,40,40,0.15); border:none; box-shadow:none; margin-left:4px;",
-          text: "🗑️",
+          style: "width:32px; height:32px; border-radius:8px; background:rgba(198,40,40,0.15); border:none; box-shadow:none; margin-left:4px; display:flex; align-items:center; justify-content:center; padding:0;",
           title: "Delete Card",
           onClick: () => {
             if (confirm(`Are you sure you want to permanently delete this custom card?`)) {
@@ -424,7 +433,9 @@ function render() {
               toast("Card deleted!");
             }
           }
-        });
+        }, [
+          el("span", { style: "width:14px; height:14px; display:inline-block; color:#ef5350;" }, [icons.trash()])
+        ]);
 
         cardContent = el("div", { style: "display:flex; align-items:center; flex:1; margin-right:8px;" }, [
           pickTag,
@@ -446,17 +457,19 @@ function render() {
     // Clear All Button
     const clearBtn = el("button", {
       className: "btn ghost small",
-      style: "width:100%; margin-top: 14px; background:rgba(198,40,40,0.1); border:1px dashed #c62828; color:#ef5350; font-weight:700; box-shadow:none;",
-      text: `🧹 Delete All Custom ${activeTab.toUpperCase()}`,
+      style: "width:100%; margin-top: 14px; background:rgba(198,40,40,0.1); border:1px dashed #c62828; color:#ef5350; font-weight:700; box-shadow:none; display:flex; align-items:center; justify-content:center; gap:6px;",
       onClick: () => {
-        if (confirm(`⚠️ WARNING: This will permanently delete ALL custom ${activeTab} in this deck! Proceed?`)) {
+        if (confirm(`WARNING: This will permanently delete ALL custom ${activeTab} in this deck! Proceed?`)) {
           store.del(activeTab === "responses" ? responsesKey : promptsKey);
           editingIndex = null;
           render();
           toast("Wiped successfully!");
         }
       }
-    });
+    }, [
+      el("span", { style: "width:14px; height:14px; display:inline-block;" }, [icons.trash()]),
+      el("span", { text: `Delete All Custom ${activeTab.toUpperCase()}` })
+    ]);
     listPanel.appendChild(clearBtn);
   }
 

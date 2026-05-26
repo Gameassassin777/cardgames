@@ -1,6 +1,7 @@
-// Art Gallery 🖼️ — Browse and replay past Lake House Doodles games.
+// Art Gallery — Browse and replay past Lake House Doodles games.
 // Games marked isMonkey=true are hidden unless monkey mode is currently unlocked.
 import { el, mount, toast } from "./ui.js";
+import { icons } from "./icons.js";
 
 const HTTP_BASE = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1"
   ? "http://localhost:3000"
@@ -40,7 +41,10 @@ function renderGallery() {
 
   const topbarEl = el("div", { className: "topbar" }, [
     el("button", { className: "back", text: "‹ Home",  onClick: () => goHome() }),
-    el("div",    { className: "title", text: "🖼️ Art Gallery" }),
+    el("div",    { className: "title", style: "display:flex; align-items:center; gap:6px;" }, [
+      el("span", { style: "width:18px; height:18px; display:inline-block;" }, [icons.gallery()]),
+      el("span", { text: "Art Gallery" })
+    ]),
     el("span",   { style: "width:64px" })
   ]);
 
@@ -48,7 +52,7 @@ function renderGallery() {
     mount(
       topbarEl,
       el("div", { className: "panel center", style: "padding:40px 20px;" }, [
-        el("div", { style: "font-size:3rem; margin-bottom:12px;", text: "🎨" }),
+        el("div", { style: "width:64px; height:64px; margin:0 auto 12px; color:var(--water-foam);" }, [icons.doodles()]),
         el("h3",  { style: "margin:0 0 8px; color:var(--water-foam);", text: "No games yet!" }),
         el("p",   { className: "muted", style: "margin:0;",
           text: "Play a full game of Lake House Doodles to start the gallery." })
@@ -81,8 +85,8 @@ function renderGallery() {
       card.appendChild(img);
     } else {
       const placeholder = el("div", {
-        style: "width:100%; height:110px; background:rgba(255,255,255,0.06); border-radius:10px 10px 0 0; display:flex; align-items:center; justify-content:center; font-size:2.5rem;"
-      }, [ el("span", { text: "🎨" }) ]);
+        style: "width:100%; height:110px; background:rgba(255,255,255,0.06); border-radius:10px 10px 0 0; display:flex; align-items:center; justify-content:center;"
+      }, [ el("span", { style: "width:48px; height:48px; display:inline-block; color:rgba(255,255,255,0.15);" }, [icons.doodles()]) ]);
       card.appendChild(placeholder);
     }
 
@@ -93,10 +97,10 @@ function renderGallery() {
       const style = game.settings.drawStyle;
       if (chaos && chaos !== "none") {
         const labels = {
-          rorschach: "🔄 Rorschach",
-          whisper: "📵 Whisper",
-          classified: "📜 Classified",
-          threewords: "3️⃣ Three Words"
+          rorschach: "Rorschach",
+          whisper: "Whisper",
+          classified: "Classified",
+          threewords: "Three Words"
         };
         if (labels[chaos]) {
           badgeElements.push(el("span", {
@@ -107,10 +111,10 @@ function renderGallery() {
       }
       if (style && style !== "normal") {
         const labels = {
-          mirror: "🪞 Mirror",
-          night: "🌃 Night",
-          impressionist: "💥 Impressionist",
-          speeddemon: "⚡ Speed"
+          mirror: "Mirror",
+          night: "Night",
+          impressionist: "Impressionist",
+          speeddemon: "Speed"
         };
         if (labels[style]) {
           badgeElements.push(el("span", {
@@ -129,7 +133,7 @@ function renderGallery() {
     ]);
 
     if (game.isMonkey) {
-      card.appendChild(el("div", { style: "position:absolute; top:6px; right:6px; background:rgba(0,0,0,0.6); border-radius:8px; padding:2px 6px; font-size:0.7rem; font-weight:700; color:var(--sunset);", text: "🐒 MONKEY" }));
+      card.appendChild(el("div", { style: "position:absolute; top:6px; right:6px; background:rgba(0,0,0,0.6); border-radius:8px; padding:2px 6px; font-size:0.7rem; font-weight:700; color:var(--sunset);", text: "MONKEY" }));
       card.style.position = "relative";
     }
 
@@ -141,7 +145,7 @@ function renderGallery() {
     topbarEl,
     el("div", { style: "padding:0 0 10px;" }, [
       el("p", { style: "margin:0 0 10px; font-size:0.82rem; color:var(--lake-light); text-align:center;",
-        text: `${visible.length} saved game${visible.length === 1 ? "" : "s"}${weirdUnlocked ? " (🐒 monkey games visible)" : ""}` }),
+        text: `${visible.length} saved game${visible.length === 1 ? "" : "s"}${weirdUnlocked ? " (monkey games visible)" : ""}` }),
       grid
     ])
   );
@@ -167,7 +171,7 @@ function renderGameViewer(chainIdx, entryIdx) {
   if (entryIdx < 0) {
     chainEl.appendChild(el("p", {
       className: "muted center", style: "margin:20px 0; font-style:italic;",
-      text: "Tap ▶️ to start the reveal!"
+      text: "Tap Reveal to start!"
     }));
   } else {
     chain.slice(0, entryIdx + 1).forEach((entry, i) => {
@@ -195,17 +199,32 @@ function renderGameViewer(chainIdx, entryIdx) {
   // Navigation buttons
   let nextBtn;
   if (atEnd && lastC) {
-    nextBtn = el("button", { className: "btn", style: "margin-top:12px;", text: "🏁 Back to Gallery",
+    nextBtn = el("button", { 
+      className: "btn", 
+      style: "margin-top:12px; display:flex; align-items:center; justify-content:center; gap:6px; margin-left:auto; margin-right:auto;",
       onClick: () => { activeGame = null; renderGallery(); }
-    });
+    }, [
+      el("span", { style: "width:18px; height:18px; display:inline-block;" }, [icons.gallery()]),
+      el("span", { text: "Back to Gallery" })
+    ]);
   } else if (atEnd) {
-    nextBtn = el("button", { className: "btn", style: "margin-top:12px;", text: "➡️ Next Chain",
+    nextBtn = el("button", { 
+      className: "btn", 
+      style: "margin-top:12px; display:flex; align-items:center; justify-content:center; gap:6px; margin-left:auto; margin-right:auto;",
       onClick: () => renderGameViewer(chainIdx + 1, -1)
-    });
+    }, [
+      el("span", { style: "width:18px; height:18px; display:inline-block;" }, [icons.chevronRight()]),
+      el("span", { text: "Next Chain" })
+    ]);
   } else {
-    nextBtn = el("button", { className: "btn", style: "margin-top:12px;", text: "▶️ Reveal Next",
+    nextBtn = el("button", { 
+      className: "btn", 
+      style: "margin-top:12px; display:flex; align-items:center; justify-content:center; gap:6px; margin-left:auto; margin-right:auto;",
       onClick: () => renderGameViewer(chainIdx, entryIdx + 1)
-    });
+    }, [
+      el("span", { style: "width:18px; height:18px; display:inline-block;" }, [icons.play()]),
+      el("span", { text: "Reveal Next" })
+    ]);
   }
 
   const dateStr = formatDate(activeGame.date);
@@ -214,13 +233,16 @@ function renderGameViewer(chainIdx, entryIdx) {
   mount(
     el("div", { className: "topbar" }, [
       el("button", { className: "back", text: "‹ Gallery", onClick: () => { activeGame = null; renderGallery(); } }),
-      el("div",    { className: "title", text: "🖼️ Art Gallery" }),
+      el("div",    { className: "title", style: "display:flex; align-items:center; gap:6px;" }, [
+        el("span", { style: "width:18px; height:18px; display:inline-block;" }, [icons.gallery()]),
+        el("span", { text: "Art Gallery" })
+      ]),
       el("span",   { style: "width:64px" })
     ]),
     el("div", { className: "panel", style: "padding:10px 14px;" }, [
       el("p", { style: "margin:0 0 2px; font-size:0.72rem; color:var(--lake-light); font-weight:700;", text: `${dateStr} · ${players}` }),
       el("p", { style: "margin:0 0 2px; font-size:0.75rem; color:rgba(255,255,255,0.45);", text: `Chain ${chainIdx + 1} of ${totalC}` }),
-      el("h3", { style: "margin:0; color:var(--water-foam);", text: `📖 ${author}'s Chain` })
+      el("h3", { style: "margin:0; color:var(--water-foam);", text: `${author}'s Chain` })
     ]),
     el("div", { className: "panel", style: "padding:14px; max-height:55vh; overflow-y:auto;" }, [chainEl]),
     nextBtn
@@ -232,11 +254,14 @@ function renderLoading() {
   mount(
     el("div", { className: "topbar" }, [
       el("button", { className: "back", text: "‹ Home", onClick: () => goHome() }),
-      el("div",    { className: "title", text: "🖼️ Art Gallery" }),
+      el("div",    { className: "title", style: "display:flex; align-items:center; gap:6px;" }, [
+        el("span", { style: "width:18px; height:18px; display:inline-block;" }, [icons.gallery()]),
+        el("span", { text: "Art Gallery" })
+      ]),
       el("span",   { style: "width:64px" })
     ]),
     el("div", { className: "panel center", style: "padding:40px 20px;" }, [
-      el("div", { className: "big-emoji spin", style: "font-size:3rem;", text: "🖼️" }),
+      el("div", { className: "spin", style: "width:64px; height:64px; margin:0 auto; color:var(--water-foam);" }, [icons.refresh()]),
       el("p",   { className: "muted", style: "margin-top:14px;", text: "Loading gallery…" })
     ])
   );
@@ -246,14 +271,24 @@ function renderError(msg) {
   mount(
     el("div", { className: "topbar" }, [
       el("button", { className: "back", text: "‹ Home", onClick: () => goHome() }),
-      el("div",    { className: "title", text: "🖼️ Art Gallery" }),
+      el("div",    { className: "title", style: "display:flex; align-items:center; gap:6px;" }, [
+        el("span", { style: "width:18px; height:18px; display:inline-block;" }, [icons.gallery()]),
+        el("span", { text: "Art Gallery" })
+      ]),
       el("span",   { style: "width:64px" })
     ]),
     el("div", { className: "panel center", style: "padding:40px 20px;" }, [
-      el("div", { style: "font-size:2.5rem; margin-bottom:10px;", text: "⚠️" }),
+      el("div", { style: "width:64px; height:64px; margin:0 auto 10px; color:var(--sunset);" }, [icons.warning()]),
       el("h3",  { style: "margin:0 0 6px; color:var(--sunset);", text: "Couldn't load gallery" }),
       el("p",   { className: "muted", style: "margin:0 0 16px; font-size:0.85rem;", text: msg }),
-      el("button", { className: "btn ghost", text: "🔄 Retry", onClick: () => { renderLoading(); fetchGames(); } })
+      el("button", { 
+        className: "btn ghost", 
+        style: "display:flex; align-items:center; justify-content:center; gap:6px; margin:0 auto;",
+        onClick: () => { renderLoading(); fetchGames(); } 
+      }, [
+        el("span", { style: "width:16px; height:16px; display:inline-block;" }, [icons.refresh()]),
+        el("span", { text: "Retry" })
+      ])
     ])
   );
 }

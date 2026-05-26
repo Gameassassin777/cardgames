@@ -1,6 +1,7 @@
 // Game engine for Cards Against Monkeys / Cabin.
 // Supports: Local Pass-and-Play, Physical Cards, and Real-Time Online Play (Cloudflare Worker).
 import { el, mount, shuffle, toast, store, fillPrompt } from "./ui.js";
+import { icons } from "./icons.js";
 import { BLANK, CUSTOM_CARD_TEXT } from "./data.js";
 
 const HAND_SIZE = 4; // High-intensity, strategic hand size
@@ -113,7 +114,10 @@ function resetOnlineState() {
 
 function topbar(title) {
   return el("div", { className: "topbar" }, [
-    el("button", { className: "back", text: "‹ Lobby", onClick: confirmQuit }),
+    el("button", { className: "back", onClick: confirmQuit }, [
+      el("span", { style: "width:16px; height:16px; display:inline-block;" }, [icons.back()]),
+      el("span", { text: "Lobby" })
+    ]),
     el("div", { className: "title", text: title }),
     el("span", { style: "width:64px" }),
   ]);
@@ -129,7 +133,7 @@ function renderResume(saved) {
   mount(
     topbar(cfg.title),
     el("div", { className: "panel center" }, [
-      el("div", { className: "big-emoji", text: cfg.icon }),
+      el("div", { style: "width:64px; height:64px; margin:0 auto 12px; color:var(--sunset-soft);" }, [cfg.icon()]),
       el("h2", { text: "Game in progress" }),
       el("p", { className: "muted", text: `Round ${saved.round} • ${saved.players.length} players. Pick up where you left off?` }),
       el("div", { className: "spacer" }),
@@ -804,12 +808,18 @@ function renderOnlineCzarWaiting() {
   state.players.forEach((p, i) => {
     if (i === state.czar) return;
     const hasSubmitted = state.submissions.find(s => s.player === i) != null;
+    const statusSpan = hasSubmitted
+      ? el("span", { className: "pill czar-pill", style: "display:inline-flex; align-items:center; gap:4px;" }, [
+          el("span", { style: "width:12px; height:12px; display:inline-block;" }, [icons.lock()]),
+          el("span", { text: "Submitted" })
+        ])
+      : el("span", { className: "pill", style: "display:inline-flex; align-items:center; gap:4px;" }, [
+          el("span", { style: "width:12px; height:12px; display:inline-block;" }, [icons.eye()]),
+          el("span", { text: "Thinking" })
+        ]);
     list.appendChild(el("div", { className: "score-row" }, [
       el("span", { className: "nm", text: p.name }),
-      el("span", {
-        className: "pill" + (hasSubmitted ? " czar-pill" : ""),
-        text: hasSubmitted ? "Submitted 🔒" : "Thinking... 🤫"
-      })
+      statusSpan
     ]));
   });
 
@@ -823,8 +833,11 @@ function renderOnlineCzarWaiting() {
     el("div", { className: "panel center" }, [
       el("p", { className: "muted", text: "You are the Card Czar this round!" }),
       el("div", { className: "handoff", style: "padding:6px" }, [
-        el("div", { className: "who", text: "👑 Your Turn" }),
-        el("span", { className: "pill czar-pill", text: "Waiting for submissions..." })
+        el("div", { className: "who", text: "Your Turn" }),
+        el("span", { className: "pill czar-pill", style: "display:inline-flex; align-items:center; gap:4px;" }, [
+          el("span", { style: "width:12px; height:12px; display:inline-block;" }, [icons.timer()]),
+          el("span", { text: "Waiting for submissions..." })
+        ])
       ]),
     ]),
     promptCard,
@@ -858,8 +871,7 @@ function renderOnlineSubmitterWaiting() {
         el("span", { style: "font-size:0.95rem; font-weight:700; color:#fff;", text: card }),
         el("button", {
           className: "btn small",
-          style: "width:auto; padding:4px 10px; background:#c62828; color:#fff; font-size:0.8rem; box-shadow:none;",
-          text: "🗑️ Discard",
+          style: "width:auto; padding:4px 10px; background:#c62828; color:#fff; font-size:0.8rem; box-shadow:none; display:inline-flex; align-items:center; gap:4px;",
           onClick: () => {
             // Remove locally and sync to host
             hand.splice(i, 1);
@@ -872,7 +884,10 @@ function renderOnlineSubmitterWaiting() {
             render();
             toast("Card discarded. Fresh card dealt next round!");
           }
-        })
+        }, [
+          el("span", { style: "width:12px; height:12px; display:inline-block;" }, [icons.trash()]),
+          el("span", { text: "Discard" })
+        ])
       ]));
     });
     trashWrap.appendChild(trashGrid);
@@ -881,8 +896,8 @@ function renderOnlineSubmitterWaiting() {
   mount(
     topbar(`Round ${state.round}`),
     el("div", { className: "handoff panel center" }, [
-      el("div", { className: "big-emoji", text: "🤫" }),
-      el("h3", { text: "Submission Locked 🔒" }),
+      el("div", { style: "width:64px; height:64px; margin:0 auto 12px; color:var(--sunset-soft);" }, [icons.lock()]),
+      el("h3", { text: "Submission Locked" }),
       el("p", { className: "muted", text: "Your cards were sent to the Host. Review your hand below." }),
     ]),
     promptCard,
@@ -916,8 +931,7 @@ function renderOnlineSubmitterPick() {
     if (!selected) {
       const trashBtn = el("button", {
         className: "icon-btn",
-        style: "position:absolute; top:4px; right:4px; width:28px; height:28px; font-size:0.85rem; border-radius:50%; background:rgba(0,0,0,0.1); border:none; box-shadow:none; padding:0; display:grid; place-items:center;",
-        text: "🗑️",
+        style: "position:absolute; top:4px; right:4px; width:28px; height:28px; font-size:0.85rem; border-radius:50%; background:rgba(0,0,0,0.1); border:none; box-shadow:none; padding:0; display:grid; place-items:center; color:var(--sunset-soft);",
         title: "Discard card",
         onClick: (e) => {
           e.stopPropagation(); // Prevent card selection toggle!
@@ -931,7 +945,9 @@ function renderOnlineSubmitterPick() {
           render();
           toast("Card discarded.");
         }
-      });
+      }, [
+        el("span", { style: "width:14px; height:14px; display:inline-block;" }, [icons.trash()])
+      ]);
       node.appendChild(trashBtn);
     }
 
@@ -950,10 +966,15 @@ function renderOnlineSubmitterPick() {
     el("div", { className: "spacer" }),
     el("button", {
       className: "btn",
-      text: ready ? "Lock in submission 🔒" : `Select ${need - state.selected.length} more`,
       disabled: !ready,
       onClick: submitCardsOnline
-    }),
+    }, ready ? [
+        el("span", { style: "width:18px; height:18px; display:inline-block;" }, [icons.lock()]),
+        el("span", { text: "Lock in submission" })
+      ] : [
+        el("span", { text: `Select ${need - state.selected.length} more` })
+      ]
+    ),
     scoreboardEl()
   );
 }
@@ -1079,15 +1100,17 @@ function renderOnlineResult() {
 
   const speakBtn = el("button", {
     className: "btn ghost small",
-    style: "display:inline-block; margin-top:8px; padding:4px 10px; font-size:0.75rem;",
-    text: "🔊 Read Aloud",
+    style: "display:inline-flex; align-items:center; gap:4px; margin-top:8px; padding:4px 10px; font-size:0.75rem;",
     onClick: speak
-  });
+  }, [
+    el("span", { style: "width:12px; height:12px; display:inline-block;" }, [icons.speak()]),
+    el("span", { text: "Read Aloud" })
+  ]);
 
   mount(
     topbar(`Round ${state.round} Results`),
     el("div", { className: "panel center" }, [
-      el("div", { className: "big-emoji", text: "🏆" }),
+      el("div", { style: "width:64px; height:64px; margin:0 auto 12px; color:var(--sunset-soft);" }, [icons.star()]),
       el("h2", { text: `${winnerName} wins the round!` }),
       el("div", { className: "play-card prompt", style: "text-align:left" }, [
         fillPrompt(state.prompt.text, BLANK, w.cards || []),
@@ -1269,12 +1292,15 @@ function render() {
     if (myIdx === -1) {
       mount(
         el("div", { className: "topbar" }, [
-          el("button", { className: "back", text: "‹ Leave", onClick: () => { resetOnlineState(); renderSetup(); } }),
-          el("div",    { className: "title", text: "👁️ Spectating" }),
+          el("button", { className: "back", onClick: () => { resetOnlineState(); renderSetup(); } }, [
+            el("span", { style: "width:16px; height:16px; display:inline-block;" }, [icons.back()]),
+            el("span", { text: "Leave" })
+          ]),
+          el("div",    { className: "title", text: "Spectating" }),
           el("span",   { style: "width:64px" })
         ]),
         el("div", { className: "panel center", style: "padding:40px 20px;" }, [
-          el("div", { style: "font-size:3rem; margin-bottom:12px;", text: "🍿" }),
+          el("div", { style: "width:64px; height:64px; margin:0 auto 12px; color:var(--sunset-soft);" }, [icons.spectator()]),
           el("h3",  { style: "margin:0 0 8px; color:var(--water-foam);", text: "Game in progress!" }),
           el("p",   { className: "muted", style: "margin:0;", text: "You are spectating this game. You will be able to join in the next lobby!" })
         ])
@@ -1609,15 +1635,17 @@ function renderResult() {
 
   const speakBtn = el("button", {
     className: "btn ghost small",
-    style: "display:inline-block; margin-top:8px; padding:4px 10px; font-size:0.75rem;",
-    text: "🔊 Read Aloud",
+    style: "display:inline-flex; align-items:center; gap:4px; margin-top:8px; padding:4px 10px; font-size:0.75rem;",
     onClick: speak
-  });
+  }, [
+    el("span", { style: "width:12px; height:12px; display:inline-block;" }, [icons.speak()]),
+    el("span", { text: "Read Aloud" })
+  ]);
 
   mount(
     topbar(`Round ${state.round}`),
     el("div", { className: "panel center" }, [
-      el("div", { className: "big-emoji", text: "🏆" }),
+      el("div", { style: "width:64px; height:64px; margin:0 auto 12px; color:var(--sunset-soft);" }, [icons.star()]),
       el("h2", { text: `${winnerName} wins the round!` }),
       el("div", { className: "play-card prompt", style: "text-align:left" }, [
         fillPrompt(state.prompt.text, BLANK, w.cards || []),

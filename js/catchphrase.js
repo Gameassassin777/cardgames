@@ -1,5 +1,6 @@
 // Lake House Catchphrase — fast-paced hot-potato word guessing game!
 import { el, mount, toast, store, shuffle } from "./ui.js";
+import { icons } from "./icons.js";
 
 // Standard Word Pools
 const FAM_WORDS = [
@@ -223,13 +224,31 @@ function renderOfflineSetup(modeTab) {
 
   // Category Selector
   const weirdUnlocked = localStorage.getItem("lakehouse.weird_unlocked") === "true";
-  const famBtn = el("button", { className: "btn" + (game.category === "family" ? "" : " ghost"), text: "🌲 Wholesome Campfire", onClick: () => selectCategory("family") });
-  const onlineBtn = el("button", { className: "btn" + (game.category === "online" ? "" : " ghost"), text: "🔒 Sus Brain-rot", onClick: () => selectCategory("online") });
-  const adultBtn = el("button", { className: "btn" + (game.category === "adult" ? "" : " ghost"), text: "🔒 Unhinged Cabin", onClick: () => selectCategory("adult") });
+  const famBtn = el("button", {
+    className: "btn" + (game.category === "family" ? "" : " ghost"),
+    onClick: () => selectCategory("family")
+  }, [
+    el("span", { style: "width:16px; height:16px; display:inline-block;" }, [icons.truths()]),
+    el("span", { text: "Wholesome Campfire" })
+  ]);
+  const onlineBtn = el("button", {
+    className: "btn" + (game.category === "online" ? "" : " ghost"),
+    onClick: () => selectCategory("online")
+  }, [
+    el("span", { style: "width:16px; height:16px; display:inline-block;" }, [weirdUnlocked ? icons.unlock() : icons.lock()]),
+    el("span", { text: "Sus Brain-rot" })
+  ]);
+  const adultBtn = el("button", {
+    className: "btn" + (game.category === "adult" ? "" : " ghost"),
+    onClick: () => selectCategory("adult")
+  }, [
+    el("span", { style: "width:16px; height:16px; display:inline-block;" }, [weirdUnlocked ? icons.unlock() : icons.lock()]),
+    el("span", { text: "Unhinged Cabin" })
+  ]);
 
   function selectCategory(cat) {
     if (!weirdUnlocked && cat !== "family") {
-      toast("🔒 Tap the header duck 🦆 5 times and enter the secret password!");
+      toast("Tap the header duck 5 times and enter the secret password!");
       return;
     }
     game.category = cat;
@@ -239,13 +258,12 @@ function renderOfflineSetup(modeTab) {
   }
 
   if (weirdUnlocked) {
-    onlineBtn.textContent = "🐒 Sus Brain-rot";
-    adultBtn.textContent = "🤫 Unhinged Cabin";
+    // Keep it elegant without emojis and let the defined SVG icons stand
   }
 
   const startBtn = el("button", {
     className: "btn",
-    text: "🔥 Start Catchphrase!",
+    style: "display:flex; align-items:center; justify-content:center; gap:6px; margin:0 auto;",
     onClick: () => {
       game.wordPool = getWordPool();
       if (game.wordPool.length === 0) {
@@ -255,7 +273,10 @@ function renderOfflineSetup(modeTab) {
       game.wordIndex = 0;
       startRound();
     }
-  });
+  }, [
+    el("span", { style: "width:18px; height:18px; display:inline-block;" }, [icons.play()]),
+    el("span", { text: "Start Catchphrase!" })
+  ]);
 
   const setupCard = el("div", { className: "panel" }, [
     el("label", { text: "Set Team Names" }),
@@ -376,7 +397,10 @@ function renderOnlineLobby() {
   const greenPlayers = onlinePlayers.filter(p => playerTeams[p.name] === 2);
 
   const team1List = el("div", { className: "scoreboard", style: "background:rgba(26,122,140,0.15); min-height:80px; padding:10px; border-radius:12px; margin-bottom:8px;" }, [
-    el("h4", { style: "margin:0 0 6px 0; color:#57b6c4;", text: "🔵 Team Blue" }),
+    el("div", { style: "display:flex; align-items:center; gap:8px; margin-bottom:6px;" }, [
+      el("span", { style: "width:12px; height:12px; border-radius:50%; background:#2196f3; display:inline-block;" }),
+      el("h4", { style: "margin:0; color:#57b6c4; font-weight:700;", text: "Team Blue" })
+    ]),
     ...bluePlayers.map(p => el("div", { style: "font-size:0.9rem; margin-bottom:3px; font-weight:700; color:#fff;", text: p.name + (p.name === myName ? " (You)" : "") })),
     el("button", {
       className: "btn ghost small",
@@ -392,7 +416,10 @@ function renderOnlineLobby() {
   ]);
 
   const team2List = el("div", { className: "scoreboard", style: "background:rgba(47,90,61,0.15); min-height:80px; padding:10px; border-radius:12px; margin-bottom:8px;" }, [
-    el("h4", { style: "margin:0 0 6px 0; color:#81c784;", text: "🟢 Team Green" }),
+    el("div", { style: "display:flex; align-items:center; gap:8px; margin-bottom:6px;" }, [
+      el("span", { style: "width:12px; height:12px; border-radius:50%; background:#4caf50; display:inline-block;" }),
+      el("h4", { style: "margin:0; color:#81c784; font-weight:700;", text: "Team Green" })
+    ]),
     ...greenPlayers.map(p => el("div", { style: "font-size:0.9rem; margin-bottom:3px; font-weight:700; color:#fff;", text: p.name + (p.name === myName ? " (You)" : "") })),
     el("button", {
       className: "btn ghost small",
@@ -426,13 +453,31 @@ function renderOnlineLobby() {
 
     // Categories Selection
     const weirdUnlocked = localStorage.getItem("lakehouse.weird_unlocked") === "true";
-    const famBtn = el("button", { className: "btn small" + (game.category === "family" ? "" : " ghost"), text: "🌲 Wholesome", onClick: () => selectCategory("family") });
-    const onlineBtn = el("button", { className: "btn small" + (game.category === "online" ? "" : " ghost"), text: "🔒 Sus", onClick: () => selectCategory("online") });
-    const adultBtn = el("button", { className: "btn small" + (game.category === "adult" ? "" : " ghost"), text: "🔒 Unhinged", onClick: () => selectCategory("adult") });
+    const famBtn = el("button", {
+      className: "btn small" + (game.category === "family" ? "" : " ghost"),
+      onClick: () => selectCategory("family")
+    }, [
+      el("span", { style: "width:14px; height:14px; display:inline-block;" }, [icons.truths()]),
+      el("span", { text: "Wholesome" })
+    ]);
+    const onlineBtn = el("button", {
+      className: "btn small" + (game.category === "online" ? "" : " ghost"),
+      onClick: () => selectCategory("online")
+    }, [
+      el("span", { style: "width:14px; height:14px; display:inline-block;" }, [weirdUnlocked ? icons.unlock() : icons.lock()]),
+      el("span", { text: "Sus" })
+    ]);
+    const adultBtn = el("button", {
+      className: "btn small" + (game.category === "adult" ? "" : " ghost"),
+      onClick: () => selectCategory("adult")
+    }, [
+      el("span", { style: "width:14px; height:14px; display:inline-block;" }, [weirdUnlocked ? icons.unlock() : icons.lock()]),
+      el("span", { text: "Unhinged" })
+    ]);
 
     function selectCategory(cat) {
       if (!weirdUnlocked && cat !== "family") {
-        toast("🔒 Unlock weird categories first!");
+        toast("Unlock weird categories first!");
         return;
       }
       game.category = cat;
@@ -440,11 +485,6 @@ function renderOnlineLobby() {
       onlineBtn.className = cat === "online" ? "btn small" : "btn small ghost";
       adultBtn.className = cat === "adult" ? "btn small" : "btn small ghost";
       syncLobbySettings();
-    }
-
-    if (weirdUnlocked) {
-      onlineBtn.textContent = "🐒 Sus";
-      adultBtn.textContent = "🤫 Unhinged";
     }
 
     settingsArea = el("div", { className: "panel" }, [
@@ -456,7 +496,10 @@ function renderOnlineLobby() {
   } else {
     // Read-only settings panel for guests
     settingsArea = el("div", { className: "panel", style: "background:rgba(255,255,255,0.02); text-align:center;" }, [
-      el("label", { text: "🔒 Host Controlled Setup" }),
+      el("label", { style: "display:flex; align-items:center; justify-content:center; gap:6px;" }, [
+        el("span", { style: "width:14px; height:14px; display:inline-block;" }, [icons.lock()]),
+        el("span", { text: "Host Controlled Setup" })
+      ]),
       el("p", { className: "muted", style: "margin:5px 0;", text: `Target Score: ${game.targetScore} points  ·  Duration: ${game.roundDuration}s  ·  Category: ${game.category.toUpperCase()}` })
     ]);
   }
@@ -465,7 +508,6 @@ function renderOnlineLobby() {
   const playAreaBtn = isHost 
     ? el("button", {
         className: "btn",
-        text: "🔥 Start Online Catchphrase!",
         onClick: () => {
           game.wordPool = getWordPool();
           if (game.wordPool.length === 0) {
@@ -482,9 +524,12 @@ function renderOnlineLobby() {
           activePhase = "play";
           startRound();
         }
-      })
+      }, [
+        el("span", { style: "width:18px; height:18px; display:inline-block;" }, [icons.play()]),
+        el("span", { text: "Start Online Catchphrase!" })
+      ])
     : el("div", { className: "panel center", style: "background:none; border:none; margin:0;" }, [
-        el("p", { className: "muted pulse", style: "font-weight:700;", text: "⏳ Waiting for host to start match..." })
+        el("p", { className: "muted pulse", style: "font-weight:700;", text: "Waiting for host to start match..." })
       ]);
 
   mount(
@@ -707,13 +752,16 @@ function handleRelayAction(action) {
     game.wordVisible = true;
     if (timerInterval) clearInterval(timerInterval);
     renderPlay();
-    toast(`🗣️ ${describerName} is describing!`);
+    toast(`${describerName} is describing!`);
   } else if (action.type === "tick_timer") {
     game.timeLeft = action.timeLeft;
     // Update local timer visual
     const timerBox = document.getElementById("pulsingTimer");
+    const timerText = document.getElementById("pulsingTimerText");
+    if (timerText) {
+      timerText.textContent = `${game.timeLeft}s`;
+    }
     if (timerBox) {
-      timerBox.textContent = `⏱️ ${game.timeLeft}s`;
       const ratio = game.timeLeft / game.roundDuration;
       if (ratio < 0.25) {
         timerBox.style.color = "#ef5350";
@@ -732,7 +780,7 @@ function handleRelayAction(action) {
     describerName = "";
     game.wordVisible = true;
     renderPlay();
-    toast("👉 Passed to opposing team!");
+    toast("Passed to opposing team!");
   } else if (action.type === "skip") {
     game.timeLeft = action.timeLeft;
     game.wordIndex = action.wordIndex;
@@ -778,9 +826,11 @@ function startRound() {
       game.timeLeft--;
       
       const timerBox = document.getElementById("pulsingTimer");
+      const timerText = document.getElementById("pulsingTimerText");
+      if (timerText) {
+        timerText.textContent = `${game.timeLeft}s`;
+      }
       if (timerBox) {
-        timerBox.textContent = `⏱️ ${game.timeLeft}s`;
-        
         const ratio = game.timeLeft / game.roundDuration;
         if (ratio < 0.25) {
           timerBox.style.color = "#ef5350";
@@ -811,9 +861,11 @@ function renderPlay() {
 
   const timerEl = el("div", {
     id: "pulsingTimer",
-    style: "font-size:2.4rem; font-weight:800; text-align:center; margin-bottom:12px; color:var(--water-foam); transition: color 0.3s; animation: pulse 1.5s infinite alternate;",
-    text: `⏱️ ${game.timeLeft}s`
-  });
+    style: "font-size:2.4rem; font-weight:800; display:flex; align-items:center; justify-content:center; gap:8px; margin-bottom:12px; color:var(--water-foam); transition: color 0.3s; animation: pulse 1.5s infinite alternate;"
+  }, [
+    el("span", { style: "width:32px; height:32px; display:inline-block;" }, [icons.timer()]),
+    el("span", { id: "pulsingTimerText", text: `${game.timeLeft}s` })
+  ]);
 
   const stopBtn = el("button", { 
     className: "back", 
@@ -857,38 +909,43 @@ function renderOfflinePlay(topbar, timerEl, currentWord, activeName) {
     wordCardText,
     el("div", {
       className: "muted",
-      style: "font-size:0.8rem; font-weight:normal; position:absolute; bottom:8px; width:100%; text-align:center; left:0; " + (game.wordVisible ? "display:none;" : "display:block;"),
-      text: "⚠️ WORD HIDDEN (Tap show to read)"
-    })
+      style: "font-size:0.8rem; font-weight:normal; position:absolute; bottom:8px; width:100%; left:0; display:flex; align-items:center; justify-content:center; gap:6px; " + (game.wordVisible ? "display:none;" : "")
+    }, [
+      el("span", { style: "width:12px; height:12px; display:inline-block;" }, [icons.warning()]),
+      el("span", { text: "WORD HIDDEN (Tap show to read)" })
+    ])
   ]);
 
   const toggleShowBtn = el("button", {
     className: "btn ghost small",
-    style: "width:100%; margin-bottom:12px; font-weight:700;",
-    text: game.wordVisible ? "👁️ Hide Word (Pass Device Safely)" : "👁️ Show Word",
+    style: "width:100%; margin-bottom:12px; font-weight:700; display:flex; align-items:center; justify-content:center; gap:6px;",
     onClick: () => {
       game.wordVisible = !game.wordVisible;
       renderPlay();
     }
-  });
+  }, [
+    el("span", { style: "width:16px; height:16px; display:inline-block;" }, [game.wordVisible ? icons.eyeOff() : icons.eye()]),
+    el("span", { text: game.wordVisible ? "Hide Word (Pass Device Safely)" : "Show Word" })
+  ]);
 
   const correctBtn = el("button", {
     className: "btn",
-    style: "background:#2e7d32; color:#fff; font-weight:800; font-size:1.1rem; box-shadow:0 4px #1b5e20; margin-bottom:8px;",
-    text: "✅ Guessed! Next & Pass",
+    style: "background:#2e7d32; color:#fff; font-weight:800; font-size:1.1rem; box-shadow:0 4px #1b5e20; margin-bottom:8px; display:flex; align-items:center; justify-content:center; gap:6px;",
     onClick: () => {
       game.wordIndex++;
       game.wordVisible = true;
       game.activeTeam = game.activeTeam === 1 ? 2 : 1;
       renderPlay();
-      toast("👉 Passed to opposing team!");
+      toast("Passed turn to opposing team!");
     }
-  });
+  }, [
+    el("span", { style: "width:18px; height:18px; display:inline-block;" }, [icons.checked()]),
+    el("span", { text: "Guessed! Next & Pass" })
+  ]);
 
   const skipBtn = el("button", {
     className: "btn ghost small",
-    style: "width:100%; margin:0; border-color:#c62828; color:#ef5350; font-weight:700;",
-    text: "⏭️ Skip (-2s Penalty)",
+    style: "width:100%; margin:0; border-color:#c62828; color:#ef5350; font-weight:700; display:flex; align-items:center; justify-content:center; gap:6px;",
     onClick: () => {
       game.timeLeft = Math.max(0, game.timeLeft - 2);
       game.wordIndex++;
@@ -896,7 +953,10 @@ function renderOfflinePlay(topbar, timerEl, currentWord, activeName) {
       renderPlay();
       toast("Skipped! -2 seconds penalty.");
     }
-  });
+  }, [
+    el("span", { style: "width:16px; height:16px; display:inline-block;" }, [icons.chevronRight()]),
+    el("span", { text: "Skip (-2s Penalty)" })
+  ]);
 
   const turnPanel = el("div", {
     className: "panel center",
@@ -923,19 +983,19 @@ function renderOfflinePlay(topbar, timerEl, currentWord, activeName) {
 
 /* --- B. Online Synced Separate-Phones Play UI --- */
 function renderOnlinePlay(topbar, timerEl, currentWord) {
-  const activeName = game.activeTeam === 1 ? "🔵 Team Blue" : "🟢 Team Green";
+  const activeName = game.activeTeam === 1 ? game.team1 : game.team2;
   const myTeam = playerTeams[myName] || 1;
 
   // Turn Header Panel
   const turnPanel = el("div", {
     className: "panel center",
-    style: `background:${game.activeTeam === 1 ? "rgba(26,122,140,0.12)" : "rgba(47,90,61,0.12)"}; padding:10px; border-radius:12px; margin-bottom:12px; border:1px solid rgba(255,255,255,0.06);`
+    style: `background:${game.activeTeam === 1 ? "rgba(26,122,140,0.12)" : "rgba(47,90,61,0.12)"}; padding:10px; border-radius:12px; margin-bottom:12px; border:1px solid rgba(255,255,255,0.06); display:flex; align-items:center; justify-content:center; gap:8px;`
   }, [
+    el("span", { style: `width:10px; height:10px; border-radius:50%; background:${game.activeTeam === 1 ? "#2196f3" : "#4caf50"}; display:inline-block;` }),
     el("h3", {
-      style: "margin:0; font-size:1.1rem; color:#fff; text-align:center;"
-    }, [
-      el("span", { text: `Turn: ${activeName}` })
-    ])
+      style: "margin:0; font-size:1.1rem; color:#fff; text-align:center;",
+      text: `Turn: ${activeName}`
+    })
   ]);
 
   // Phase 1: No active describer has claimed this turn yet
@@ -946,7 +1006,7 @@ function renderOnlinePlay(topbar, timerEl, currentWord) {
         el("p", { style: "font-weight:bold; margin-bottom:14px; font-size:1rem; color:var(--water-foam);", text: "Your team is active! Who will describe the phrase?" }),
         el("button", {
           className: "btn",
-          text: "🗣️ I will Describe!",
+          style: "display:flex; align-items:center; justify-content:center; gap:6px; margin:0 auto;",
           onClick: () => {
             describerName = myName;
             sendRelay({ type: "set_describer", describerName: myName, wordIndex: game.wordIndex });
@@ -968,11 +1028,14 @@ function renderOnlinePlay(topbar, timerEl, currentWord) {
             renderPlay();
             toast("You are describing! Do not show your screen to guessers.");
           }
-        })
+        }, [
+          el("span", { style: "width:18px; height:18px; display:inline-block;" }, [icons.speak()]),
+          el("span", { text: "I will Describe!" })
+        ])
       ]);
     } else {
       playActionNode = el("div", { className: "panel center", style: "padding:24px; background:rgba(0,0,0,0.15);" }, [
-        el("div", { className: "big-emoji spin", style: "display:inline-block; font-size:2.2rem; margin-bottom:10px;", text: "🌀" }),
+        el("div", { className: "spin", style: "width:36px; height:36px; margin:0 auto 10px; color:var(--water-foam);" }, [icons.refresh()]),
         el("p", { className: "muted", style: "font-weight:700;", text: "Waiting for the other team to choose their describer..." })
       ]);
     }
@@ -1006,25 +1069,28 @@ function renderOnlinePlay(topbar, timerEl, currentWord) {
       wordCardText,
       el("div", {
         className: "muted",
-        style: "font-size:0.8rem; font-weight:normal; position:absolute; bottom:8px; width:100%; text-align:center; left:0; " + (game.wordVisible ? "display:none;" : "display:block;"),
-        text: "⚠️ WORD HIDDEN (Tap show to read)"
-      })
+        style: "font-size:0.8rem; font-weight:normal; position:absolute; bottom:8px; width:100%; left:0; display:flex; align-items:center; justify-content:center; gap:6px; " + (game.wordVisible ? "display:none;" : "")
+      }, [
+        el("span", { style: "width:12px; height:12px; display:inline-block;" }, [icons.warning()]),
+        el("span", { text: "WORD HIDDEN (Tap show to read)" })
+      ])
     ]);
 
     const toggleShowBtn = el("button", {
       className: "btn ghost small",
-      style: "width:100%; margin-bottom:12px; font-weight:700;",
-      text: game.wordVisible ? "👁️ Hide Word (Pass Phone Safely)" : "👁️ Show Word",
+      style: "width:100%; margin-bottom:12px; font-weight:700; display:flex; align-items:center; justify-content:center; gap:6px;",
       onClick: () => {
         game.wordVisible = !game.wordVisible;
         renderPlay();
       }
-    });
+    }, [
+      el("span", { style: "width:16px; height:16px; display:inline-block;" }, [game.wordVisible ? icons.eyeOff() : icons.eye()]),
+      el("span", { text: game.wordVisible ? "Hide Word (Pass Phone Safely)" : "Show Word" })
+    ]);
 
     const correctBtn = el("button", {
       className: "btn",
-      style: "background:#2e7d32; color:#fff; font-weight:800; font-size:1.1rem; box-shadow:0 4px #1b5e20; margin-bottom:8px;",
-      text: "✅ Guessed! Next & Pass",
+      style: "background:#2e7d32; color:#fff; font-weight:800; font-size:1.1rem; box-shadow:0 4px #1b5e20; margin-bottom:8px; display:flex; align-items:center; justify-content:center; gap:6px;",
       onClick: () => {
         if (timerInterval) clearInterval(timerInterval);
         timerInterval = null;
@@ -1036,14 +1102,16 @@ function renderOnlinePlay(topbar, timerEl, currentWord) {
         
         sendRelay({ type: "guess_success", wordIndex: game.wordIndex, activeTeam: nextTeam });
         renderPlay();
-        toast("👉 Passed turn to the other team!");
+        toast("Passed turn to the other team!");
       }
-    });
+    }, [
+      el("span", { style: "width:18px; height:18px; display:inline-block;" }, [icons.checked()]),
+      el("span", { text: "Guessed! Next & Pass" })
+    ]);
 
     const skipBtn = el("button", {
       className: "btn ghost small",
-      style: "width:100%; margin:0; border-color:#c62828; color:#ef5350; font-weight:700;",
-      text: "⏭️ Skip (-2s Penalty)",
+      style: "width:100%; margin:0; border-color:#c62828; color:#ef5350; font-weight:700; display:flex; align-items:center; justify-content:center; gap:6px;",
       onClick: () => {
         game.timeLeft = Math.max(0, game.timeLeft - 2);
         game.wordIndex++;
@@ -1051,13 +1119,19 @@ function renderOnlinePlay(topbar, timerEl, currentWord) {
         renderPlay();
         toast("Skipped! -2 seconds penalty.");
       }
-    });
+    }, [
+      el("span", { style: "width:16px; height:16px; display:inline-block;" }, [icons.chevronRight()]),
+      el("span", { text: "Skip (-2s Penalty)" })
+    ]);
 
     statusPanelNode = el("div", {
       className: "panel center",
       style: "background:rgba(232,121,74,0.15); padding:10px; border-radius:12px; margin-bottom:12px; border:1px dashed var(--sunset);"
     }, [
-      el("p", { style: "margin:0; font-size:0.95rem; font-weight:bold; color:var(--sunset-soft);", text: "🗣️ YOU ARE DESCRIBING! Guessers are listening..." })
+      el("div", { style: "display:flex; align-items:center; justify-content:center; gap:8px;" }, [
+        el("span", { style: "width:18px; height:18px; display:inline-block;" }, [icons.speak()]),
+        el("span", { style: "margin:0; font-size:0.95rem; font-weight:bold; color:var(--sunset-soft);", text: "YOU ARE DESCRIBING! Guessers are listening..." })
+      ])
     ]);
 
     controlRowNode = el("div", { style: "display:flex; flex-direction:column; width:100%;" }, [
@@ -1071,25 +1145,26 @@ function renderOnlinePlay(topbar, timerEl, currentWord) {
       className: "play-card response locked",
       style: "min-height:160px; justify-content:center; align-items:center; text-align:center; padding:18px; margin: 18px 0; background:linear-gradient(135deg, rgba(0,0,0,0.4), rgba(0,0,0,0.25)); border:2px dashed rgba(255,255,255,0.08);"
     }, [
-      el("div", { className: "big-emoji", style: "font-size:2.4rem; margin-bottom:6px;", text: "🤫" }),
+      el("div", { style: "width:48px; height:48px; margin:0 auto 6px; color:var(--sunset-soft);" }, [icons.lock()]),
       el("span", { style: "font-size:1.15rem; font-weight:800; color:var(--water-foam);", text: "Word Hidden (Guessing Phase)" })
     ]);
 
     const isTeammate = myTeam === game.activeTeam;
     statusPanelNode = el("div", {
       className: "panel center",
-      style: "background:rgba(255,255,255,0.04); padding:12px; border-radius:12px; margin-bottom:12px;"
+      style: "background:rgba(255,255,255,0.04); padding:12px; border-radius:12px; margin-bottom:12px; display:flex; align-items:center; justify-content:center; gap:8px;"
     }, [
-      el("p", {
+      el("span", { style: "width:18px; height:18px; display:inline-block; color:var(--water-foam);" }, [isTeammate ? icons.speak() : icons.shield()]),
+      el("span", {
         style: "margin:0; font-size:0.92rem; font-weight:700; color:#fff;",
         text: isTeammate 
-          ? `👂 Listen closely! Teammate ${describerName} is describing!`
-          : `🛡️ Intercept! Opponent ${describerName} is describing to their team!`
+          ? `Listen closely! Teammate ${describerName} is describing!`
+          : `Intercept! Opponent ${describerName} is describing to their team!`
       })
     ]);
 
     controlRowNode = el("div", { className: "panel center", style: "background:none; border:none; margin:0;" }, [
-      el("p", { className: "muted pulse", text: "⏳ Active word synchronization active..." })
+      el("p", { className: "muted pulse", text: "Active word synchronization active..." })
     ]);
   }
 
@@ -1111,11 +1186,17 @@ function renderBuzzer() {
 
   const scorePanel = el("div", { className: "scoreboard" }, [
     el("div", { className: "score-row" + (game.score1 >= game.score2 && game.score1 > 0 ? " leader" : "") }, [
-      el("span", { className: "nm", text: `🔵 ${game.team1}` }),
+      el("div", { style: "display:flex; align-items:center; gap:8px;" }, [
+        el("span", { style: "width:12px; height:12px; border-radius:50%; background:#2196f3; display:inline-block;" }),
+        el("span", { className: "nm", text: game.team1 })
+      ]),
       el("span", { className: "pts", text: `${game.score1}/${game.targetScore}` })
     ]),
     el("div", { className: "score-row" + (game.score2 >= game.score1 && game.score2 > 0 ? " leader" : "") }, [
-      el("span", { className: "nm", text: `🟢 ${game.team2}` }),
+      el("div", { style: "display:flex; align-items:center; gap:8px;" }, [
+        el("span", { style: "width:12px; height:12px; border-radius:50%; background:#4caf50; display:inline-block;" }),
+        el("span", { className: "nm", text: game.team2 })
+      ]),
       el("span", { className: "pts", text: `${game.score2}/${game.targetScore}` })
     ])
   ]);
@@ -1125,7 +1206,7 @@ function renderBuzzer() {
     if (isHost) {
       scoreAction = el("button", {
         className: "btn",
-        text: `🏆 Award Point to ${winnerName}`,
+        style: "display:flex; align-items:center; justify-content:center; gap:6px; margin: 12px auto 0;",
         onClick: () => {
           if (game.activeTeam === 1) {
             game.score2++;
@@ -1147,7 +1228,10 @@ function renderBuzzer() {
             startNextRoundOverlay();
           }
         }
-      });
+      }, [
+        el("span", { style: "width:18px; height:18px; display:inline-block;" }, [icons.star()]),
+        el("span", { text: `Award Point to ${winnerName}` })
+      ]);
     } else {
       scoreAction = el("div", { className: "panel center", style: "background:none; border:none; margin:0;" }, [
         el("p", { className: "muted pulse", style: "font-weight:700;", text: `Waiting for Host to award point to ${winnerName}...` })
@@ -1157,7 +1241,7 @@ function renderBuzzer() {
     // Offline scoring button
     scoreAction = el("button", {
       className: "btn",
-      text: `🏆 Award Point to ${winnerName}`,
+      style: "display:flex; align-items:center; justify-content:center; gap:6px; margin: 12px auto 0;",
       onClick: () => {
         if (game.activeTeam === 1) {
           game.score2++;
@@ -1172,7 +1256,10 @@ function renderBuzzer() {
           startNextRoundOverlay();
         }
       }
-    });
+    }, [
+      el("span", { style: "width:18px; height:18px; display:inline-block;" }, [icons.star()]),
+      el("span", { text: `Award Point to ${winnerName}` })
+    ]);
   }
 
   mount(
@@ -1180,8 +1267,8 @@ function renderBuzzer() {
       el("div", { className: "title", text: "Round Over!" }),
     ]),
     el("div", { className: "panel center", style: "background:rgba(198,40,40,0.15); border:1.5px solid #c62828; animation: shake 0.5s;" }, [
-      el("div", { className: "big-emoji", style: "font-size:3.5rem; animation: pulse 0.5s infinite alternate;", text: "🚨" }),
-      el("h2", { style: "color:#ef5350; margin:10px 0 4px 0;", text: "⏰ TIME'S UP!" }),
+      el("div", { style: "width:64px; height:64px; margin:0 auto 10px; color:#ef5350; animation: pulse 0.5s infinite alternate;" }, [icons.warning()]),
+      el("h2", { style: "color:#ef5350; margin:10px 0 4px 0;", text: "TIME'S UP!" }),
       el("p", { className: "muted", style: "margin:0;", text: `${activeName} was caught holding the device when the timer buzzed!` })
     ]),
     el("div", { className: "panel" }, [
@@ -1197,11 +1284,17 @@ function startNextRoundOverlay() {
 
   const scorePanel = el("div", { className: "scoreboard" }, [
     el("div", { className: "score-row" }, [
-      el("span", { className: "nm", text: `🔵 ${game.team1}` }),
+      el("div", { style: "display:flex; align-items:center; gap:8px;" }, [
+        el("span", { style: "width:12px; height:12px; border-radius:50%; background:#2196f3; display:inline-block;" }),
+        el("span", { className: "nm", text: game.team1 })
+      ]),
       el("span", { className: "pts", text: `${game.score1}/${game.targetScore}` })
     ]),
     el("div", { className: "score-row" }, [
-      el("span", { className: "nm", text: `🟢 ${game.team2}` }),
+      el("div", { style: "display:flex; align-items:center; gap:8px;" }, [
+        el("span", { style: "width:12px; height:12px; border-radius:50%; background:#4caf50; display:inline-block;" }),
+        el("span", { className: "nm", text: game.team2 })
+      ]),
       el("span", { className: "pts", text: `${game.score2}/${game.targetScore}` })
     ])
   ]);
@@ -1211,7 +1304,7 @@ function startNextRoundOverlay() {
     if (isHost) {
       nextActionBtn = el("button", {
         className: "btn",
-        text: `▶️ Start next round with ${activeName}`,
+        style: "display:flex; align-items:center; justify-content:center; gap:6px; margin:0 auto;",
         onClick: () => {
           sendRelay({ type: "start_next_round" });
           game.wordIndex = 0;
@@ -1219,7 +1312,10 @@ function startNextRoundOverlay() {
           game.timeLeft = game.roundDuration;
           startRound();
         }
-      });
+      }, [
+        el("span", { style: "width:18px; height:18px; display:inline-block;" }, [icons.play()]),
+        el("span", { text: `Start next round with ${activeName}` })
+      ]);
     } else {
       nextActionBtn = el("div", { className: "panel center", style: "background:none; border:none; margin:0;" }, [
         el("p", { className: "muted pulse", style: "font-weight:700;", text: `Waiting for Host to start next round with ${activeName}...` })
@@ -1229,13 +1325,16 @@ function startNextRoundOverlay() {
     // Offline start next round button
     nextActionBtn = el("button", {
       className: "btn",
-      text: `▶️ Start next round with ${activeName}`,
+      style: "display:flex; align-items:center; justify-content:center; gap:6px; margin:0 auto;",
       onClick: () => {
         game.wordPool = getWordPool();
         game.wordIndex = 0;
         startRound();
       }
-    });
+    }, [
+      el("span", { style: "width:18px; height:18px; display:inline-block;" }, [icons.play()]),
+      el("span", { text: `Start next round with ${activeName}` })
+    ]);
   }
 
   mount(
@@ -1257,16 +1356,24 @@ function startNextRoundOverlay() {
 function renderGameOver() {
   const isWinner1 = game.score1 >= game.targetScore;
   const winnerName = isWinner1 ? game.team1 : game.team2;
-  const winnerColor = isWinner1 ? "🔵" : "🟢";
+  const runnerUpName = isWinner1 ? game.team2 : game.team1;
+  const winnerPoints = Math.max(game.score1, game.score2);
+  const runnerUpPoints = Math.min(game.score1, game.score2);
 
   const board = el("div", { className: "scoreboard" }, [
     el("div", { className: "score-row leader" }, [
-      el("span", { className: "nm", text: `${winnerColor} ${winnerName}` }),
-      el("span", { className: "pts", text: `${Math.max(game.score1, game.score2)} points` })
+      el("div", { style: "display:flex; align-items:center; gap:8px;" }, [
+        el("span", { style: `width:12px; height:12px; border-radius:50%; background:${isWinner1 ? "#2196f3" : "#4caf50"}; display:inline-block;` }),
+        el("span", { className: "nm", text: winnerName })
+      ]),
+      el("span", { className: "pts", text: `${winnerPoints} points` })
     ]),
     el("div", { className: "score-row" }, [
-      el("span", { className: "nm", text: `${isWinner1 ? "🟢" : "🔵"} ${isWinner1 ? game.team2 : game.team1}` }),
-      el("span", { className: "pts", text: `${Math.min(game.score1, game.score2)} points` })
+      el("div", { style: "display:flex; align-items:center; gap:8px;" }, [
+        el("span", { style: `width:12px; height:12px; border-radius:50%; background:${isWinner1 ? "#4caf50" : "#2196f3"}; display:inline-block;` }),
+        el("span", { className: "nm", text: runnerUpName })
+      ]),
+      el("span", { className: "pts", text: `${runnerUpPoints} points` })
     ])
   ]);
 
@@ -1309,7 +1416,7 @@ function renderGameOver() {
       el("div", { className: "title", text: "Game Over" }),
     ]),
     el("div", { className: "panel center" }, [
-      el("div", { className: "big-emoji", text: "👑🏆" }),
+      el("div", { style: "width:64px; height:64px; margin:0 auto 10px; color:var(--sunset-soft);" }, [icons.star()]),
       el("h2", { text: `${winnerName} Wins the Match!` }),
       el("p", { className: "muted", text: "Absolute catchphrase legends!" })
     ]),

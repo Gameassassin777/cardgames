@@ -1,18 +1,19 @@
 // Generic "draw a card" engine, configured per game.
 // Card shape: { tag?, type?, text }. `tag` (or legacy `type`) shows as a pill.
 import { el, mount, shuffle, store } from "./ui.js";
+import { icons } from "./icons.js";
 
-const TAG_EMOJI = {
-  "Would You Rather": "🤔",
-  "Never Have I Ever": "🙊",
-  "Truth": "💬",
-  "Dare": "🔥",
-  "Most Likely To": "👉",
-  "Red or Green?": "🚩",
-  "Rizz Challenge": "😏",
-  "Confession": "🫣",
-  "Hot Take": "🌶️",
-  "Custom": "✍️",
+const TAG_ICON = {
+  "Would You Rather": icons.wyr,
+  "Never Have I Ever": icons.monkeys,
+  "Truth": icons.truths,
+  "Dare": icons.fire,
+  "Most Likely To": icons.speak,
+  "Red or Green?": icons.flags,
+  "Rizz Challenge": icons.rizz,
+  "Confession": icons.eyeOff,
+  "Hot Take": icons.sparkles,
+  "Custom": icons.pen,
 };
 
 export function makeGame({ title, source, saveKey }) {
@@ -44,7 +45,13 @@ export function makeGame({ title, source, saveKey }) {
           el("span", { style: "width:64px" }),
         ]),
         el("div", { className: "panel center" }, [
-          el("span", { className: "pill", text: `${TAG_EMOJI[tag] || "🎴"} ${tag}` }),
+          el("span", { 
+            className: "pill", 
+            style: "display:inline-flex; align-items:center; gap:6px; background:rgba(255,255,255,0.06); padding:4px 10px; border-radius:16px; font-weight:700;" 
+          }, [
+            el("span", { style: "width:14px; height:14px; display:inline-block;" }, [TAG_ICON[tag] ? TAG_ICON[tag]() : icons.doodles()]),
+            el("span", { text: tag })
+          ]),
           el("div", {
             className: "play-card response",
             style: "margin-top:14px; font-size:1.3rem; min-height:180px; justify-content:center; text-align:center;",
@@ -53,10 +60,31 @@ export function makeGame({ title, source, saveKey }) {
         ]),
         el("div", { className: "spacer" }),
         last
-          ? el("button", { className: "btn", text: "🔀 Reshuffle & keep going", onClick: reshuffle })
-          : el("button", { className: "btn", text: "Next card →", onClick: () => { pos++; render(); } }),
+          ? el("button", { 
+              className: "btn", 
+              style: "display:flex; align-items:center; justify-content:center; gap:6px; margin:0 auto;",
+              onClick: reshuffle 
+            }, [
+              el("span", { style: "width:18px; height:18px; display:inline-block;" }, [icons.refresh()]),
+              el("span", { text: "Reshuffle & keep going" })
+            ])
+          : el("button", { 
+              className: "btn", 
+              style: "display:flex; align-items:center; justify-content:center; gap:6px; margin:0 auto;",
+              onClick: () => { pos++; render(); } 
+            }, [
+              el("span", { style: "width:18px; height:18px; display:inline-block;" }, [icons.chevronRight()]),
+              el("span", { text: "Next card" })
+            ]),
         el("div", { className: "spacer" }),
-        el("button", { className: "btn ghost", text: "Shuffle now", onClick: reshuffle })
+        el("button", { 
+          className: "btn ghost", 
+          style: "display:flex; align-items:center; justify-content:center; gap:6px; margin:0 auto;",
+          onClick: reshuffle 
+        }, [
+          el("span", { style: "width:16px; height:16px; display:inline-block;" }, [icons.refresh()]),
+          el("span", { text: "Shuffle now" })
+        ])
       );
     }
 
