@@ -103,12 +103,18 @@ h1, h2, h3 { margin: 0 0 0.4em; line-height: 1.12; }
 }
 .brand .scene { font-size: 1.6rem; letter-spacing: 4px; margin-bottom: 4px; }
 
-/* ---------- Buttons ---------- */
+/* ---------- Buttons & Interactive ---------- */
+button, .btn, .tile, .play-card, .submission, input[type="text"], input[type="number"] {
+  touch-action: manipulation;
+}
+
 button {
   font-family: inherit;
   cursor: pointer;
   border: none;
-  font-size: 1rem;
+  font-size: 16px;
+  user-select: none;
+  -webkit-user-select: none;
 }
 
 .btn {
@@ -295,7 +301,7 @@ input[type="text"], input[type="number"] {
   border: 1.5px solid rgba(205,238,242,0.3);
   background: rgba(255,255,255,0.95);
   color: var(--ink);
-  font-size: 1rem;
+  font-size: 16px !important;
   font-family: inherit;
 }
 .player-row { display: flex; gap: 8px; margin-bottom: 8px; align-items: center; }
