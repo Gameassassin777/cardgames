@@ -12,27 +12,27 @@ export const BLANK = "_______";
 // Prompts written as questions have no blank and the answer is shown beneath.
 export const PROMPTS = [
   // --- Pick One ---
-  { text: `Welcome to my gooncave. Please ignore the LED lights, the smell, and the massive shrine dedicated to ${BLANK}.`, pick: 1 },
-  { text: `I just lost my 400-day edging streak because I accidentally caught a glimpse of ${BLANK}.`, pick: 1 },
+  { text: `Welcome to my gaming setup. Please ignore the RGB lights, the smell of energy drinks, and the massive shrine dedicated to ${BLANK}.`, pick: 1 },
+  { text: `I just lost my 400-day Duolingo streak because I accidentally caught a glimpse of ${BLANK}.`, pick: 1 },
   { text: `To achieve the ultimate sigma male grindset, you must supplement your daily mewing routine with ${BLANK}.`, pick: 1 },
-  { text: `What is the absolute necessary centerpiece of any respectable, multi-monitor gooncave?`, pick: 1 },
-  { text: `Bro couldn't handle the marathon gooning session. He took one look at ${BLANK} and completely tapped out.`, pick: 1 },
+  { text: `What is the absolute necessary centerpiece of any respectable, multi-monitor gaming setup?`, pick: 1 },
+  { text: `Bro couldn't handle the 24-hour Minecraft parkour marathon. He took one look at ${BLANK} and completely tapped out.`, pick: 1 },
   { text: `The TikTok rizz party was completely ruined when the host confidently brought out ${BLANK}.`, pick: 1 },
   { text: `My therapist said my crippling, chronic addiction to ${BLANK} is preventing me from becoming a true alpha.`, pick: 1 },
-  { text: `"I literally can't goon to this! Where is the ${BLANK}?!"`, pick: 1 },
-  { text: `They permanently banned me from the Discord server because my primary gooning material was literally just ${BLANK}.`, pick: 1 },
+  { text: `"I literally can't watch this without Subway Surfers gameplay! Where is the ${BLANK}?!"`, pick: 1 },
+  { text: `They permanently banned me from the Discord server because my primary meme format was literally just ${BLANK}.`, pick: 1 },
   { text: `Looksmaxxing is out. The new trend is improving your jawline by constantly chewing on ${BLANK}.`, pick: 1 },
   { text: `The group chat got completely silent after I dropped a 4K image of ${BLANK}.`, pick: 1 },
-  { text: `What's the only thing that can distract me during a highly focused, six-hour edging marathon?`, pick: 1 },
+  { text: `What's the only thing that can distract me during a highly focused, six-hour mewing marathon?`, pick: 1 },
 
   // --- Pick Two ---
-  { text: `You call yourself a goon commander? You can't even edge to ${BLANK} without immediately thinking about ${BLANK}.`, pick: 2 },
-  { text: `I entered the gooncave expecting ${BLANK}, but all I found was an ultrawide monitor displaying ${BLANK}.`, pick: 2 },
+  { text: `You call yourself a Discord mod? You can't even talk to ${BLANK} without immediately thinking about ${BLANK}.`, pick: 2 },
+  { text: `I entered the gaming room expecting ${BLANK}, but all I found was an ultrawide monitor displaying ${BLANK}.`, pick: 2 },
   { text: `The only thing standing between me and my ultimate looksmaxxing goals is ${BLANK} and a severe lack of ${BLANK}.`, pick: 2 },
   { text: `My absolute peak brain-rot setup requires three monitors: one for Subway Surfers gameplay, one for ${BLANK}, and one for ${BLANK}.`, pick: 2 },
   { text: `Instead of an intervention, my friends sat me down and tried to replace my addiction to ${BLANK} with ${BLANK}.`, pick: 2 },
   { text: `Forget astrology signs. Are you more of a ${BLANK} male, or a ${BLANK} male?`, pick: 2 },
-  { text: `I'm not just a gooner, I'm an innovator. I've discovered a way to combine ${BLANK} with ${BLANK} for maximum brain-rot.`, pick: 2 },
+  { text: `I'm not just a sigma, I'm an innovator. I've discovered a way to combine ${BLANK} with ${BLANK} for maximum brain-rot.`, pick: 2 },
 
   // --- Pick One (zesty/sussy) ---
   { text: `I knew bro was the impostor because he was acting way too zesty while ${BLANK}.`, pick: 1 },
@@ -41,17 +41,17 @@ export const PROMPTS = [
   { text: `Emergency meeting! I just saw Red venting, and honestly, they looked incredibly zesty while holding ${BLANK}.`, pick: 1 },
   { text: `I'm not a sussy baka, I swear! I was just in electrical doing a little dance with ${BLANK}.`, pick: 1 },
   { text: `The TikTok rizz party was immediately shut down when someone hit the most zesty ${BLANK} known to mankind.`, pick: 1 },
-  { text: `You can't call yourself a true gooner if your primary screen is just a 10-hour loop of ${BLANK}.`, pick: 1 },
+  { text: `You can't call yourself a true gamer if your primary screen is just a 10-hour loop of ${BLANK}.`, pick: 1 },
   { text: `Drake's new album features a 12-minute interlude where he just zestily whispers about ${BLANK}.`, pick: 1 },
   { text: `They caught me being a sussy baka in 4K. My only defense in court was ${BLANK}.`, pick: 1 },
-  { text: `What's the absolute zestiest thing you could possibly bring to a serious goon session?`, pick: 1 },
+  { text: `What's the absolute zestiest thing you could possibly bring to a serious Discord meeting?`, pick: 1 },
   { text: `It's impossible to maintain your sigma grindset when the group chat keeps sending you ${BLANK}.`, pick: 1 },
   { text: `Bro thought he had that W rizz, but honestly, it just gave off massive ${BLANK} energy.`, pick: 1 },
 
   // --- Pick Two (zesty/sussy) ---
   { text: `First I hit 'em with the zesty ${BLANK}, then I follow it up with a sussy ${BLANK}.`, pick: 2 },
   { text: `Forget the impostor. The real threat to this spaceship is ${BLANK} combined with ${BLANK}.`, pick: 2 },
-  { text: `You can't be a true goon commander if you let a sussy baka distract you with ${BLANK} and ${BLANK}.`, pick: 2 },
+  { text: `You can't be a true sigma male if you let a sussy baka distract you with ${BLANK} and ${BLANK}.`, pick: 2 },
   { text: `My ultra-zesty morning routine involves waking up, doing a little dance, and immediately interacting with ${BLANK} and ${BLANK}.`, pick: 2 },
   { text: `I entered the chat expecting some W rizz, but instead, I was hit with a profoundly sussy ${BLANK} and an even zestier ${BLANK}.`, pick: 2 },
   { text: `Listen, if you survive the Fanum tax, the only things left to worry about are ${BLANK} and ${BLANK}.`, pick: 2 },
@@ -116,7 +116,7 @@ export const RESPONSES = [
   "negative aura, but make it fashion",
   "an unhinged 4 a.m. grindset journal entry",
   "the forbidden second monitor",
-  "a girl who's never heard the word 'gooncave'",
+  "a girl who's never heard the word 'Skibidi'",
   "my untreated, unsupervised dopamine deficiency",
   "a single sock and a dream",
   "the entire bottom shelf of the gas station cooler",
@@ -182,6 +182,21 @@ export const RESPONSES = [
   "an NPC who only says 'sus' and 'zesty'",
   "the ultimate rizz that turned into an L speedrun",
   "a deeply suspicious amount of vibe",
+  "a sensible pair of slacks",
+  "a dog wearing a tiny hand-knit sweater",
+  "an exceptionally aggressive Canada goose",
+  "a basic-pitch starter pack containing three different hoodies",
+  "paying off my student loans",
+  "crying in the shower",
+  "free samples at Costco",
+  "the sweet release of sleep",
+  "dying of dysentery on the Oregon Trail",
+  "laying an egg",
+  "an oversized hoodie",
+  "a robust, midwestern work ethic",
+  "a micropig wearing a tiny raincoat",
+  "exactly what you'd expect",
+  "a low-budget sequel",
 ];
 
 /* ============================================================
@@ -192,8 +207,8 @@ export const RESPONSES = [
 
 export const NORMAL_PROMPTS = [
   // --- Pick One ---
-  { text: `My sleep paralysis demon showed up, took one look at ${BLANK}, and left out of respect.`, pick: 1 },
-  { text: `I don't have a personality anymore. I just have ${BLANK} and unresolved trauma.`, pick: 1 },
+  { text: `My local HOA president showed up, took one look at ${BLANK}, and left out of respect.`, pick: 1 },
+  { text: `I don't have a personality anymore. I just have ${BLANK} and a sensible pair of slacks.`, pick: 1 },
   { text: `Breaking: local man's entire bloodline ended by ${BLANK}.`, pick: 1 },
   { text: `My toxic trait is genuinely believing I can fix ${BLANK}.`, pick: 1 },
   { text: `The group chat has been eerily quiet ever since I sent ${BLANK}.`, pick: 1 },
@@ -248,7 +263,7 @@ export const NORMAL_PROMPTS = [
   { text: `My dating profile just reads: "into ${BLANK}, violently allergic to ${BLANK}."`, pick: 2 },
   { text: `The group project collapsed because Kevin brought ${BLANK} instead of ${BLANK}.`, pick: 2 },
   { text: `Evolution blessed me with ${BLANK} but cruelly denied me ${BLANK}.`, pick: 2 },
-  { text: `The séance summoned ${BLANK}, which immediately demanded ${BLANK}.`, pick: 2 },
+  { text: `The neighborhood council meeting approved ${BLANK}, which immediately demanded ${BLANK}.`, pick: 2 },
   { text: `My will leaves ${BLANK} to my enemies and ${BLANK} to my cat.`, pick: 2 },
   { text: `The wedding was perfect until the best man's speech brought up ${BLANK} and ${BLANK}.`, pick: 2 },
   { text: `Customs waved me through with ${BLANK} but somehow seized my ${BLANK}.`, pick: 2 },
@@ -363,8 +378,23 @@ export const NORMAL_RESPONSES = [
   "a stack of unopened Amazon boxes holding my dopamine hostage",
   "an unhinged voicemail left at 2 a.m.",
   "a fish that has clearly seen some things",
-  "generational trauma, but make it a personality",
+  "a basic-pitch starter pack containing three different hoodies",
   "the smell of a new car I will never own",
+  "a thermos of lukewarm vegetable soup",
+  "an overhead projector",
+  "the entire population of Denmark",
+  "a balanced breakfast",
+  "active listening",
+  "being a motherfucking sorcerer",
+  "a disappointing birthday party",
+  "a positive attitude",
+  "losing my keys immediately after locking the door",
+  "putting on a warm sweater straight out of the dryer",
+  "the sound of silence",
+  "accidentally copying the teacher on a text",
+  "a microwave that only heats the edges of your plate",
+  "a sensible, mid-sized sedan",
+  "the crushing weight of adulthood",
 ];
 
 /* ============================================================
@@ -417,13 +447,13 @@ export const WOULD_YOU_RATHER = [
   { tag: "Would You Rather", text: "Have everything you say auto-tuned by Drake, or auto-captioned as 'sus'?" },
   { tag: "Would You Rather", text: "Be the level 100 Discord mod nobody respects, or the new guy everyone calls 'baka'?" },
   { tag: "Would You Rather", text: "Get the W but it's the zestiest W imaginable, or take the L with maximum aura intact?" },
-  { tag: "Would You Rather", text: "Only goon-cave lighting for the rest of your life, or only fluorescent gas-station lighting?" },
+  { tag: "Would You Rather", text: "Only RGB-led lighting for the rest of your life, or only fluorescent gas-station lighting?" },
 ];
 
 // Red Flag / Green Flag — read a trait aloud, group debates and shouts the verdict.
 export const RED_GREEN = [
   { tag: "Red or Green?", text: "Their entire personality is one TikTok audio." },
-  { tag: "Red or Green?", text: "Refers to their bedroom, unironically, as 'the goon cave'." },
+  { tag: "Red or Green?", text: "Refers to their bedroom, unironically, as 'the command center'." },
   { tag: "Red or Green?", text: "Calls everyone 'little sussy baka', including their boss." },
   { tag: "Red or Green?", text: "Has a 400-day streak of something they refuse to explain." },
   { tag: "Red or Green?", text: "Hits the emergency meeting button over the smallest inconvenience." },
@@ -470,7 +500,7 @@ export const MOST_LIKELY = [
   "send the same TikTok to the group chat 40 times",
   "touch grass and immediately post about it",
   "rizz up an NPC and get rejected",
-  "defend their goon cave in a court of law",
+  "defend their search history in a court of law",
   "be the reason the group chat got muted",
 ];
 
