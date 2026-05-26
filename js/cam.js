@@ -27,6 +27,54 @@ let guestCustomPrompts = [];   // Temporary guest-submitted custom prompts in lo
 let connectionStatus = "offline"; // "offline" | "connecting" | "lobby"
 let hasSubmittedThisRound = false;
 
+// Online coordination
+let heartbeatInt = null;
+let roomBrowserRefresh = null;
+const HTTP_BASE = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1"
+  ? "http://localhost:3000"
+  : "https://lakehouse-cardgames-sync.gameassassin777.workers.dev";
+
+function startHeartbeat(playerCount = 1) {
+  stopHeartbeat();
+  const ping = () => fetch(`${HTTP_BASE}/rooms/heartbeat`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ code: roomCode, playerCount: onlinePlayers.length || playerCount })
+  }).catch(() => {});
+  ping();
+  heartbeatInt = setInterval(ping, 25000);
+}
+
+function stopHeartbeat() {
+  if (heartbeatInt) { clearInterval(heartbeatInt); heartbeatInt = null; }
+}
+
+async function registerRoom() {
+  const gameId = (cfg?.saveKey || "cam").split(".")[0];
+  try {
+    await fetch(`${HTTP_BASE}/rooms/register`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        code: roomCode, host: myName, playerCount: onlinePlayers.length || 1,
+        game: gameId, private: false,
+        lastPing: Date.now()
+      }),
+    });
+  } catch (_) {}
+}
+
+async function unregisterRoom() {
+  if (!roomCode) return;
+  try {
+    await fetch(`${HTTP_BASE}/rooms/unregister`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ code: roomCode }),
+    });
+  } catch (_) {}
+}
+
 export function makeGame(config) {
   return function start(home) {
     goHome = home;
@@ -43,21 +91,24 @@ export function makeGame(config) {
 }
 
 function resetOnlineState() {
+  onlineMode = false;
+  stopHeartbeat();
+  if (roomBrowserRefresh) { clearInterval(roomBrowserRefresh); roomBrowserRefresh = null; }
   if (socket) {
-    try { socket.close(); } catch(e) {}
+    try { socket.close(); } catch (e) {}
     socket = null;
   }
-  onlineMode = false;
   roomCode = "";
   myName = "";
   isHost = false;
   onlinePlayers = [];
-  onlineCustomCards = [];
+  playerTeams = {};
+  describerName = "";
+  state = null;
+  connectionStatus = "offline";
   guestCustomResponses = [];
   guestCustomPrompts = [];
-  connectionStatus = "offline";
   hasSubmittedThisRound = false;
-  state = null;
 }
 
 function topbar(title) {
@@ -240,7 +291,7 @@ function renderSetup() {
     setupCard.appendChild(el("label", { text: "2. Host a New Online Room" }));
     setupCard.appendChild(el("button", {
       className: "btn",
-      text: "🎮 Create Lobbies",
+      text: "🎮 Create Lobby",
       onClick: () => {
         const val = nameInput.value.trim();
         if (!val) { toast("Please enter a name first."); return; }
@@ -248,8 +299,20 @@ function renderSetup() {
         createRoom();
       }
     }));
+    setupCard.appendChild(el("label", { style: "margin-top:14px;", text: "👀 Or Browse Open Rooms" }));
+    setupCard.appendChild(el("button", {
+      className: "btn ghost",
+      style: "width:100%; margin-top:6px;",
+      text: "📋 Browse Rooms",
+      onClick: () => {
+        const val = nameInput.value.trim();
+        if (!val) { toast("Please enter a name first."); return; }
+        myName = val;
+        renderRoomBrowser();
+      }
+    }));
     setupCard.appendChild(el("hr", { className: "divider" }));
-    setupCard.appendChild(el("label", { text: "3. Or Join an Existing Room" }));
+    setupCard.appendChild(el("label", { text: "3. Or Join by Code" }));
     setupCard.appendChild(codeInput);
     setupCard.appendChild(el("button", {
       className: "btn ghost",
@@ -259,7 +322,7 @@ function renderSetup() {
         const nameVal = nameInput.value.trim();
         const codeVal = codeInput.value.trim().toUpperCase();
         if (!nameVal) { toast("Please enter a name first."); return; }
-        if (codeVal.length !== 4) { toast("Room code must be 4 letters."); return; }
+        if (codeVal.length !== 4) { toast("Room code must be exactly 4 letters."); return; }
         myName = nameVal;
         joinRoom(codeVal);
       }
@@ -369,29 +432,46 @@ function setupSocketListeners() {
         onlinePlayers = data.players;
         onlineCustomCards = data.customCards || [];
         connectionStatus = "lobby";
+        registerRoom();
+        startHeartbeat(data.players.length);
         renderOnlineLobby();
       } else if (data.type === "player_joined") {
         roomCode = data.code;
         onlinePlayers = data.players;
         onlineCustomCards = data.customCards || [];
+        isHost = (onlinePlayers[0] === myName);
         connectionStatus = "lobby";
-        renderOnlineLobby();
 
-        // If I am NOT the host, transmit my local custom cards/prompts to the host!
-        if (!isHost) {
-          const localCustoms = store.get(cfg.saveKey + ".custom_cards", []);
-          const localPrompts = store.get(cfg.saveKey + ".custom_prompts", []);
-          if (localCustoms.length > 0 || localPrompts.length > 0) {
-            sendSyncAction({
-              type: "GUEST_CUSTOM_SYNC",
-              customs: localCustoms,
-              prompts: localPrompts
-            });
+        if (state && state.phase && state.phase !== "lobby" && state.phase !== "over") {
+          // Send active state to rejoining player
+          sendSyncAction({ type: "STATE_SYNC", state });
+        } else {
+          if (isHost) {
+            registerRoom();
+            startHeartbeat(data.players.length);
+          }
+          renderOnlineLobby();
+
+          // If I am NOT the host, transmit my local custom cards/prompts to the host!
+          if (!isHost) {
+            const localCustoms = store.get(cfg.saveKey + ".custom_cards", []);
+            const localPrompts = store.get(cfg.saveKey + ".custom_prompts", []);
+            if (localCustoms.length > 0 || localPrompts.length > 0) {
+              sendSyncAction({
+                type: "GUEST_CUSTOM_SYNC",
+                customs: localCustoms,
+                prompts: localPrompts
+              });
+            }
           }
         }
       } else if (data.type === "player_left") {
         onlinePlayers = data.players;
-        renderOnlineLobby();
+        if (state && state.phase && state.phase !== "lobby" && state.phase !== "over") {
+          // Keep active game running smoothly on disconnect
+        } else {
+          renderOnlineLobby();
+        }
         toast(`${data.name} disconnected.`);
       } else if (data.type === "error") {
         toast(data.message);
@@ -407,6 +487,7 @@ function setupSocketListeners() {
 
   socket.onclose = () => {
     console.log("WebSocket disconnected.");
+    stopHeartbeat();
     if (connectionStatus !== "offline") {
       toast("Disconnected from match server.");
       resetOnlineState();
@@ -420,6 +501,60 @@ function setupSocketListeners() {
     resetOnlineState();
     renderSetup();
   };
+}
+
+function renderRoomBrowser() {
+  if (roomBrowserRefresh) { clearInterval(roomBrowserRefresh); roomBrowserRefresh = null; }
+
+  const listEl = el("div", { className: "room-browser-list", id: "room-list" });
+  const gameId = (cfg?.saveKey || "cam").split(".")[0];
+
+  const loadRooms = async () => {
+    try {
+      const res   = await fetch(`${HTTP_BASE}/rooms/list?game=${gameId}`, { signal: AbortSignal.timeout(5000) });
+      const rooms = await res.json();
+      listEl.innerHTML = "";
+      const visible = rooms.filter(r => !r.private); // only show public
+      if (visible.length === 0) {
+        listEl.appendChild(el("p", { className: "muted center", style: "margin:20px 0; font-style:italic;", text: "No open rooms right now — create one!" }));
+        return;
+      }
+      visible.forEach(r => {
+        const row = el("div", { className: "room-row" }, [
+          el("div", { className: "room-info" }, [
+            el("div", { style: "display:flex; align-items:baseline;" }, [
+              el("span", { style: "font-weight:700; color:#fff;", text: r.host }),
+              el("span", { style: "margin-left:8px; font-size:0.8rem; color:var(--lake-light);", text: `${r.playerCount} player${r.playerCount !== 1 ? "s" : ""}` })
+            ])
+          ]),
+          el("button", { className: "btn small", style: "margin:0; padding:6px 14px; font-size:0.85rem;", text: "Join",
+            onClick: () => { clearInterval(roomBrowserRefresh); joinRoom(r.code); }
+          })
+        ]);
+        listEl.appendChild(row);
+      });
+    } catch (e) {
+      listEl.innerHTML = `<p class="muted center" style="margin:16px 0;">Couldn't load rooms.</p>`;
+    }
+  };
+
+  loadRooms();
+  roomBrowserRefresh = setInterval(loadRooms, 8000);
+
+  mount(
+    el("div", { className: "topbar" }, [
+      el("button", { className: "back", text: "‹ Back", onClick: () => { clearInterval(roomBrowserRefresh); renderSetup(); } }),
+      el("div",    { className: "title", text: "Open Rooms" }),
+      el("span",   { style: "width:64px" })
+    ]),
+    el("div", { className: "panel center", style: "padding:10px 14px;" }, [
+      el("p", { className: "muted", style: "margin:0; font-size:0.82rem;", text: "Refreshes every 8s. Tap Join to enter." })
+    ]),
+    el("div", { className: "panel", style: "padding:10px;" }, [listEl]),
+    el("button", { className: "btn ghost", style: "margin-top:4px;", text: "🔄 Refresh",
+      onClick: () => loadRooms()
+    })
+  );
 }
 
 function renderLobbySpinner(msg) {
@@ -535,12 +670,24 @@ function startOnlineGame() {
   dealPrompt();
   
   sendSyncAction({ type: "START_GAME", state });
+  unregisterRoom();
+  stopHeartbeat();
   render();
 }
 
 function handleRelayedAction(action, sender) {
+  if (action.type === "STATE_SYNC" && (!state || !isHost)) {
+    state = action.state;
+    state.isOnline = true;
+    state.roomCode = roomCode;
+    state.myName = myName;
+    state.isHost = isHost;
+    render();
+    return;
+  }
+
   if (!isHost) {
-    if (action.type === "START_GAME" || action.type === "STATE_SYNC") {
+    if (action.type === "START_GAME") {
       state = action.state;
       state.isOnline = true;
       state.roomCode = roomCode;
@@ -915,6 +1062,28 @@ function renderOnlineResult() {
     text: "Waiting for host to start the next round..."
   });
 
+  const filledText = state.prompt.text.split(BLANK).map((part, i) => {
+    const card = w.cards[i] || "";
+    return part + (card ? ` ${card} ` : "");
+  }).join("");
+
+  const speak = () => {
+    if (!window.speechSynthesis) return;
+    window.speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance(filledText);
+    u.rate = 0.88; u.pitch = 1.0;
+    window.speechSynthesis.speak(u);
+  };
+
+  speak();
+
+  const speakBtn = el("button", {
+    className: "btn ghost small",
+    style: "display:inline-block; margin-top:8px; padding:4px 10px; font-size:0.75rem;",
+    text: "🔊 Read Aloud",
+    onClick: speak
+  });
+
   mount(
     topbar(`Round ${state.round} Results`),
     el("div", { className: "panel center" }, [
@@ -923,6 +1092,7 @@ function renderOnlineResult() {
       el("div", { className: "play-card prompt", style: "text-align:left" }, [
         fillPrompt(state.prompt.text, BLANK, w.cards || []),
       ]),
+      speakBtn
     ]),
     scoreboardEl(),
     el("div", { className: "spacer" }),
@@ -1096,7 +1266,21 @@ function render() {
 
   if (state && state.isOnline) {
     const myIdx = state.players.findIndex(p => p.name === myName);
-    if (myIdx === -1) return;
+    if (myIdx === -1) {
+      mount(
+        el("div", { className: "topbar" }, [
+          el("button", { className: "back", text: "‹ Leave", onClick: () => { resetOnlineState(); renderSetup(); } }),
+          el("div",    { className: "title", text: "👁️ Spectating" }),
+          el("span",   { style: "width:64px" })
+        ]),
+        el("div", { className: "panel center", style: "padding:40px 20px;" }, [
+          el("div", { style: "font-size:3rem; margin-bottom:12px;", text: "🍿" }),
+          el("h3",  { style: "margin:0 0 8px; color:var(--water-foam);", text: "Game in progress!" }),
+          el("p",   { className: "muted", style: "margin:0;", text: "You are spectating this game. You will be able to join in the next lobby!" })
+        ])
+      );
+      return;
+    }
 
     state.hands = state.hands.map((h, i) => i === myIdx ? h : []);
 
@@ -1408,6 +1592,28 @@ function renderResult() {
   const winnerName = state.players[w.player].name;
   const reached = state.players[w.player].score >= state.target;
 
+  const filledText = state.prompt.text.split(BLANK).map((part, i) => {
+    const card = w.cards[i] || "";
+    return part + (card ? ` ${card} ` : "");
+  }).join("");
+
+  const speak = () => {
+    if (!window.speechSynthesis) return;
+    window.speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance(filledText);
+    u.rate = 0.88; u.pitch = 1.0;
+    window.speechSynthesis.speak(u);
+  };
+
+  speak();
+
+  const speakBtn = el("button", {
+    className: "btn ghost small",
+    style: "display:inline-block; margin-top:8px; padding:4px 10px; font-size:0.75rem;",
+    text: "🔊 Read Aloud",
+    onClick: speak
+  });
+
   mount(
     topbar(`Round ${state.round}`),
     el("div", { className: "panel center" }, [
@@ -1416,6 +1622,7 @@ function renderResult() {
       el("div", { className: "play-card prompt", style: "text-align:left" }, [
         fillPrompt(state.prompt.text, BLANK, w.cards || []),
       ]),
+      speakBtn
     ]),
     scoreboardEl(),
     el("div", { className: "spacer" }),

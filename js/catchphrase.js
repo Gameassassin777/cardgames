@@ -61,6 +61,53 @@ let playerTeams = {}; // { player_name: team_id (1 or 2) }
 let describerName = ""; // who is currently describing
 let activePhase = "lobby"; // "lobby" | "play" | "buzzer" | "next_round" | "game_over"
 
+// Online coordination
+let heartbeatInt = null;
+let roomBrowserRefresh = null;
+const HTTP_BASE = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1"
+  ? "http://localhost:3000"
+  : "https://lakehouse-cardgames-sync.gameassassin777.workers.dev";
+
+function startHeartbeat(playerCount = 1) {
+  stopHeartbeat();
+  const ping = () => fetch(`${HTTP_BASE}/rooms/heartbeat`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ code: roomCode, playerCount: onlinePlayers.length || playerCount })
+  }).catch(() => {});
+  ping();
+  heartbeatInt = setInterval(ping, 25000);
+}
+
+function stopHeartbeat() {
+  if (heartbeatInt) { clearInterval(heartbeatInt); heartbeatInt = null; }
+}
+
+async function registerRoom() {
+  try {
+    await fetch(`${HTTP_BASE}/rooms/register`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        code: roomCode, host: myName, playerCount: onlinePlayers.length || 1,
+        game: "catchphrase", private: false,
+        lastPing: Date.now()
+      }),
+    });
+  } catch (_) {}
+}
+
+async function unregisterRoom() {
+  if (!roomCode) return;
+  try {
+    await fetch(`${HTTP_BASE}/rooms/unregister`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ code: roomCode }),
+    });
+  } catch (_) {}
+}
+
 export function start(homeCallback) {
   goHome = homeCallback;
   resetOnlineState();
@@ -82,6 +129,8 @@ function resetGame() {
 
 function resetOnlineState() {
   onlineMode = false;
+  stopHeartbeat();
+  if (roomBrowserRefresh) { clearInterval(roomBrowserRefresh); roomBrowserRefresh = null; }
   if (socket) {
     try { socket.close(); } catch (e) {}
     socket = null;
@@ -296,6 +345,16 @@ function renderOnlineJoinHost(modeTab) {
       el("hr", { className: "divider" }),
       el("label", { text: "2. Host a New Match" }),
       hostBtn,
+      el("label", { style: "margin-top:14px;", text: "👀 Or Browse Open Rooms" }),
+      el("button", {
+        className: "btn ghost",
+        style: "width:100%; margin-top:6px;",
+        text: "📋 Browse Rooms",
+        onClick: () => {
+          if (!myName) { toast("Please enter your display name first!"); return; }
+          renderRoomBrowser();
+        }
+      }),
       el("hr", { className: "divider" }),
       el("label", { text: "3. Or Join an Active Room" }),
       codeInput,
@@ -414,6 +473,8 @@ function renderOnlineLobby() {
             return;
           }
           sendRelay({ type: "start_game", wordPool: game.wordPool });
+          unregisterRoom();
+          stopHeartbeat();
           game.wordIndex = 0;
           game.activeTeam = 1;
           game.timeLeft = game.roundDuration;
@@ -474,18 +535,32 @@ function setupSocketListeners() {
         isHost = true;
         onlinePlayers = data.players;
         playerTeams[myName] = 1; // Default Blue
+        registerRoom();
+        startHeartbeat(data.players.length);
         renderSetup();
       } else if (data.type === "player_joined") {
         onlinePlayers = data.players;
+        isHost = (onlinePlayers[0] === myName);
         // Distribute player team
         onlinePlayers.forEach(p => {
-          if (!playerTeams[p.name]) {
-            const t1 = onlinePlayers.filter(pl => playerTeams[pl.name] === 1).length;
-            const t2 = onlinePlayers.filter(pl => playerTeams[pl.name] === 2).length;
-            playerTeams[p.name] = t1 <= t2 ? 1 : 2;
+          if (!playerTeams[p]) {
+            const t1 = onlinePlayers.filter(pl => playerTeams[pl] === 1).length;
+            const t2 = onlinePlayers.filter(pl => playerTeams[pl] === 2).length;
+            playerTeams[p] = t1 <= t2 ? 1 : 2;
           }
         });
-        if (isHost) {
+
+        if (activePhase !== "lobby") {
+          sendRelay({
+            type: "SYNC_FULL_GAME",
+            activePhase,
+            game,
+            describerName,
+            playerTeams
+          });
+        } else if (isHost) {
+          registerRoom();
+          startHeartbeat(data.players.length);
           syncLobbySettings();
         }
         renderSetup();
@@ -507,6 +582,7 @@ function setupSocketListeners() {
 
   socket.onclose = () => {
     console.log("WebSocket disconnected.");
+    stopHeartbeat();
     if (onlineMode && roomCode) {
       toast("Disconnected from match server.");
       resetOnlineState();
@@ -520,6 +596,59 @@ function setupSocketListeners() {
     resetOnlineState();
     renderSetup();
   };
+}
+
+function renderRoomBrowser() {
+  if (roomBrowserRefresh) { clearInterval(roomBrowserRefresh); roomBrowserRefresh = null; }
+
+  const listEl = el("div", { className: "room-browser-list", id: "room-list" });
+
+  const loadRooms = async () => {
+    try {
+      const res   = await fetch(`${HTTP_BASE}/rooms/list?game=catchphrase`, { signal: AbortSignal.timeout(5000) });
+      const rooms = await res.json();
+      listEl.innerHTML = "";
+      const visible = rooms.filter(r => !r.private); // only show public
+      if (visible.length === 0) {
+        listEl.appendChild(el("p", { className: "muted center", style: "margin:20px 0; font-style:italic;", text: "No open rooms right now — create one!" }));
+        return;
+      }
+      visible.forEach(r => {
+        const row = el("div", { className: "room-row" }, [
+          el("div", { className: "room-info" }, [
+            el("div", { style: "display:flex; align-items:baseline;" }, [
+              el("span", { style: "font-weight:700; color:#fff;", text: r.host }),
+              el("span", { style: "margin-left:8px; font-size:0.8rem; color:var(--lake-light);", text: `${r.playerCount} player${r.playerCount !== 1 ? "s" : ""}` })
+            ])
+          ]),
+          el("button", { className: "btn small", style: "margin:0; padding:6px 14px; font-size:0.85rem;", text: "Join",
+            onClick: () => { clearInterval(roomBrowserRefresh); joinRoom(r.code); }
+          })
+        ]);
+        listEl.appendChild(row);
+      });
+    } catch (e) {
+      listEl.innerHTML = `<p class="muted center" style="margin:16px 0;">Couldn't load rooms.</p>`;
+    }
+  };
+
+  loadRooms();
+  roomBrowserRefresh = setInterval(loadRooms, 8000);
+
+  mount(
+    el("div", { className: "topbar" }, [
+      el("button", { className: "back", text: "‹ Back", onClick: () => { clearInterval(roomBrowserRefresh); renderSetup(); } }),
+      el("div",    { className: "title", text: "Open Rooms" }),
+      el("span",   { style: "width:64px" })
+    ]),
+    el("div", { className: "panel center", style: "padding:10px 14px;" }, [
+      el("p", { className: "muted", style: "margin:0; font-size:0.82rem;", text: "Refreshes every 8s. Tap Join to enter." })
+    ]),
+    el("div", { className: "panel", style: "padding:10px;" }, [listEl]),
+    el("button", { className: "btn ghost", style: "margin-top:4px;", text: "🔄 Refresh",
+      onClick: () => loadRooms()
+    })
+  );
 }
 
 function renderLobbySpinner(msg) {
@@ -536,7 +665,23 @@ function renderLobbySpinner(msg) {
 }
 
 function handleRelayAction(action) {
-  if (action.type === "sync_setup") {
+  if (action.type === "SYNC_FULL_GAME") {
+    activePhase = action.activePhase;
+    game = action.game;
+    describerName = action.describerName;
+    playerTeams = action.playerTeams;
+    isHost = (onlinePlayers[0] === myName);
+
+    if (activePhase === "play") {
+      renderPlay();
+    } else if (activePhase === "buzzer" || activePhase === "next_round") {
+      renderBuzzer();
+    } else if (activePhase === "game_over") {
+      renderGameOver();
+    } else {
+      renderSetup();
+    }
+  } else if (action.type === "sync_setup") {
     game.targetScore = action.targetScore;
     game.roundDuration = action.roundDuration;
     game.category = action.category;
