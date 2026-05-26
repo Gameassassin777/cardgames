@@ -86,10 +86,46 @@ function renderGallery() {
       card.appendChild(placeholder);
     }
 
+    // Settings badges
+    const badgeElements = [];
+    if (game.settings) {
+      const chaos = game.settings.chaosMode;
+      const style = game.settings.drawStyle;
+      if (chaos && chaos !== "none") {
+        const labels = {
+          rorschach: "🔄 Rorschach",
+          whisper: "📵 Whisper",
+          classified: "📜 Classified",
+          threewords: "3️⃣ Three Words"
+        };
+        if (labels[chaos]) {
+          badgeElements.push(el("span", {
+            style: "display:inline-block; background:rgba(0,188,212,0.15); border:1px solid rgba(0,188,212,0.3); border-radius:4px; padding:1px 4px; font-size:0.65rem; color:var(--water-foam); font-weight:700; margin-right:4px; margin-top:4px;",
+            text: labels[chaos]
+          }));
+        }
+      }
+      if (style && style !== "normal") {
+        const labels = {
+          mirror: "🪞 Mirror",
+          night: "🌃 Night",
+          impressionist: "💥 Impressionist",
+          speeddemon: "⚡ Speed"
+        };
+        if (labels[style]) {
+          badgeElements.push(el("span", {
+            style: "display:inline-block; background:rgba(255,109,0,0.15); border:1px solid rgba(255,109,0,0.3); border-radius:4px; padding:1px 4px; font-size:0.65rem; color:var(--sunset); font-weight:700; margin-right:4px; margin-top:4px;",
+            text: labels[style]
+          }));
+        }
+      }
+    }
+
     const meta = el("div", { style: "padding:10px;" }, [
       el("p", { style: "margin:0 0 2px; font-size:0.78rem; color:var(--lake-light); font-weight:700;", text: dateStr }),
       el("p", { style: "margin:0 0 4px; font-size:0.88rem; color:#fff; font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;", text: players }),
-      el("p", { style: "margin:0; font-size:0.75rem; color:rgba(255,255,255,0.45);", text: `${game.chains.length} chains · ${totalEntries} entries` })
+      el("p", { style: "margin:0 0 4px; font-size:0.75rem; color:rgba(255,255,255,0.45);", text: `${game.chains.length} chains · ${totalEntries} entries` }),
+      badgeElements.length > 0 ? el("div", { style: "display:flex; flex-wrap:wrap; margin-top:2px;" }, badgeElements) : null
     ]);
 
     if (game.isMonkey) {

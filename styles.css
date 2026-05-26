@@ -478,3 +478,67 @@ hr.divider { border: none; border-top: 1px solid rgba(255,255,255,0.15); margin:
   background: rgba(255, 255, 255, 0.1);
   box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
 }
+
+/* ── Room browser ───────────────────────────────────────────────────────────── */
+
+.room-browser-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-height: 60px;
+}
+
+.room-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  padding: 10px 12px;
+  gap: 10px;
+}
+
+.room-info {
+  display: flex;
+  align-items: baseline;
+  gap: 0;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+}
+
+/* ── Gartic settings panel ──────────────────────────────────────────────────── */
+
+.settings-section {
+  margin-top: 10px;
+  padding: 14px;
+  border: 1px dashed rgba(205, 238, 242, 0.2);
+  background: rgba(255,255,255,0.03);
+}
+
+.settings-section label {
+  font-size: 0.82rem;
+  color: var(--lake-light);
+  display: block;
+  margin-bottom: 4px;
+}
+
+.settings-section input[type="range"] {
+  -webkit-appearance: none;
+  height: 4px;
+  border-radius: 2px;
+  background: rgba(255,255,255,0.2);
+  outline: none;
+  width: 100%;
+}
+
+.settings-section input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--water-foam);
+  cursor: pointer;
+  border: 2px solid var(--lake);
+}
