@@ -151,46 +151,105 @@ function playDoubleQuack() {
   setTimeout(playQuack, 130);
 }
 
-function rainDucks() {
+// Spawn `count` ducks flying in random directions from random edges.
+// Chaos level (angle spread, speed, spin) also increases with count.
+function rainDucks(count) {
   const container = document.body;
-  const count = 40;
+  const W = window.innerWidth;
+  const H = window.innerHeight;
+
+  // Above a certain count we let ducks fly in ALL directions (not just downward)
+  const omnidirectional = count > 20;
+
   for (let i = 0; i < count; i++) {
+    // Stagger more tightly for big bursts so they all feel simultaneous
+    const delay = i * Math.max(8, Math.floor(1200 / count));
     setTimeout(() => {
       const duck = document.createElement("div");
       duck.textContent = "🦆";
       duck.style.position = "fixed";
-      duck.style.left = `${Math.random() * 100}vw`;
-      duck.style.top = `-40px`;
-      duck.style.fontSize = `${1.2 + Math.random() * 2.5}rem`;
       duck.style.pointerEvents = "none";
       duck.style.zIndex = "99999";
-      duck.style.transition = "transform 1.8s linear, opacity 1.8s ease-out";
+
+      // Size: tiny swarm for big counts, bigger individuals for small counts
+      const minSize = omnidirectional ? 1.0 : 1.2;
+      const maxExtra = omnidirectional ? 1.8 : 2.5;
+      duck.style.fontSize = `${minSize + Math.random() * maxExtra}rem`;
+
+      // Travel duration varies slightly per duck for organic feel
+      const duration = 1400 + Math.random() * 800;
+      duck.style.transition = `transform ${duration}ms linear, opacity ${duration}ms ease-out`;
+
+      let startX, startY, targetX, targetY;
+
+      if (omnidirectional) {
+        // Pick a random edge to spawn from
+        const edge = Math.floor(Math.random() * 4); // 0=top 1=bottom 2=left 3=right
+        if (edge === 0) {
+          // Top edge → fly downward, diagonally
+          startX = Math.random() * W;
+          startY = -40;
+          targetX = (Math.random() - 0.5) * W * 1.2;
+          targetY = H + 60 + Math.random() * 100;
+        } else if (edge === 1) {
+          // Bottom edge → fly upward, diagonally
+          startX = Math.random() * W;
+          startY = H + 40;
+          targetX = (Math.random() - 0.5) * W * 1.2;
+          targetY = -(H + 60 + Math.random() * 100);
+        } else if (edge === 2) {
+          // Left edge → fly rightward, diagonally
+          startX = -40;
+          startY = Math.random() * H;
+          targetX = W + 60 + Math.random() * 100;
+          targetY = (Math.random() - 0.5) * H * 1.2;
+        } else {
+          // Right edge → fly leftward, diagonally
+          startX = W + 40;
+          startY = Math.random() * H;
+          targetX = -(W + 60 + Math.random() * 100);
+          targetY = (Math.random() - 0.5) * H * 1.2;
+        }
+      } else {
+        // Low count: classic rain from top, mild sway
+        startX = Math.random() * W;
+        startY = -40;
+        targetX = (Math.random() - 0.5) * 200;
+        targetY = H + 60;
+      }
+
+      duck.style.left = `${startX}px`;
+      duck.style.top = `${startY}px`;
       container.appendChild(duck);
 
-      // Force a reflow
+      // Force reflow before animating
       duck.offsetHeight;
 
-      const targetY = window.innerHeight + 60;
-      const targetX = (Math.random() - 0.5) * 200; // sway left/right
-      const rotate = (Math.random() - 0.5) * 720; // spin
+      // Spin amount grows with count
+      const maxSpin = Math.min(30 + count * 12, 1440);
+      const rotate = (Math.random() - 0.5) * maxSpin;
 
       duck.style.transform = `translate(${targetX}px, ${targetY}px) rotate(${rotate}deg)`;
       duck.style.opacity = "0";
 
-      // Cleanup
-      setTimeout(() => {
-        duck.remove();
-      }, 1850);
-    }, i * 45); // Stagger spawning for a waterfall effect
+      setTimeout(() => duck.remove(), duration + 50);
+    }, delay);
   }
 }
 
-function startQuackStorm() {
-  rainDucks();
+// textLen = length of wrong text typed into the duck prompt
+function startQuackStorm(textLen) {
+  // 1 char → 5 ducks, each extra char adds ~3 more, hard cap at 120
+  const count = Math.min(5 + (textLen || 0) * 3, 120);
+
+  rainDucks(count);
+
+  // More quacks for longer text
+  const quackCount = Math.min(2 + Math.floor(textLen / 3), 10);
   playDoubleQuack();
-  setTimeout(playDoubleQuack, 400);
-  setTimeout(playDoubleQuack, 800);
-  setTimeout(playDoubleQuack, 1200);
+  for (let q = 1; q < quackCount; q++) {
+    setTimeout(playDoubleQuack, q * 350);
+  }
 }
 
 function home() {
@@ -250,7 +309,7 @@ function home() {
           // Reset to wholesome normal mode and re-render instantly
           localStorage.setItem("lakehouse.weird_unlocked", "false");
           toast("🦆 *The duck stares at you blankly, then starts quacking hysterically!*");
-          startQuackStorm();
+          startQuackStorm(answer.trim().length);
           home(); // Re-render instantly to hide everything
         }
       }
