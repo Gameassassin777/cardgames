@@ -2,16 +2,16 @@
 import { el, mount, toast, store } from "./ui.js";
 
 const MANAGED_GAMES = [
-  { id: "family", name: "Cards Against the Family", icon: "👨‍👩‍👧‍👦", saveKey: "family.game.v1", hasPrompts: true, placeholder: "e.g. mom trying to buy sketchy bootleg fireworks off a guy named Slick" },
-  { id: "sibling", name: "Sibling Rivalry", icon: "🥊", saveKey: "sibling.game.v1", hasPrompts: false, placeholder: "e.g. Do a dramatic reenactment of buying a cursed energy drink behind a sketchy laser tag arena." },
-  { id: "roasts", name: "Family Roasts", icon: "🔥", saveKey: "roasts.game.v1", hasPrompts: false, placeholder: "e.g. Who in the family is secretly the biggest screen-time addict?" },
-  { id: "cam", name: "Cards Against Monkeys", icon: "🐒", saveKey: "cam.game.v1", hasPrompts: true, placeholder: "e.g. Subway Surfers gameplay during a funeral" },
-  { id: "cabin", name: "Cards Against the Cabin", icon: "🛖", saveKey: "cabin.game.v1", hasPrompts: true, placeholder: "e.g. bootleg Elmo in an alleyway surrounded by mysterious cloudy gas" },
-  { id: "rizz", name: "Rizz Roulette", icon: "😏", saveKey: "rizz.game.v1", hasPrompts: false, placeholder: "e.g. Say it with rizz: \"Are you Ohio? Because you make me act crazy.\"" },
-  { id: "wyr", name: "Would You Rather", icon: "🤔", saveKey: "wyr.game.v1", hasPrompts: false, placeholder: "e.g. Always step on a wet spot, OR chew on a dry sponge?" },
-  { id: "flags", name: "Red Flag / Green Flag", icon: "🚩", saveKey: "flags.game.v1", hasPrompts: false, placeholder: "e.g. They literally have zero internet presence." },
-  { id: "truths", name: "Lake House Truths", icon: "🛶", saveKey: "truths.game.v1", hasPrompts: false, placeholder: "e.g. Who in the cabin is secretly a duplicate agent?" },
-  { id: "catchphrase", name: "Lake House Catchphrase", icon: "🗣️", saveKey: "catchphrase.game.v1", hasPrompts: false, placeholder: "e.g. water skiing behind a rowboat" }
+  { id: "family", name: "Cards Against the Family", icon: "👨‍👩‍👧‍👦", saveKey: "family.game.v1", hasPrompts: true, placeholder: "e.g. mom trying to buy sketchy bootleg fireworks off a guy named Slick", familyFriendly: true },
+  { id: "sibling", name: "Sibling Rivalry", icon: "🥊", saveKey: "sibling.game.v1", hasPrompts: false, placeholder: "e.g. Do a dramatic reenactment of buying a cursed energy drink behind a sketchy laser tag arena.", familyFriendly: true },
+  { id: "roasts", name: "Family Roasts", icon: "🔥", saveKey: "roasts.game.v1", hasPrompts: false, placeholder: "e.g. Who in the family is secretly the biggest screen-time addict.", familyFriendly: true },
+  { id: "cam", name: "Cards Against Monkeys", icon: "🐒", saveKey: "cam.game.v1", hasPrompts: true, placeholder: "e.g. Subway Surfers gameplay during a funeral", familyFriendly: false },
+  { id: "cabin", name: "Cards Against the Cabin", icon: "🛖", saveKey: "cabin.game.v1", hasPrompts: true, placeholder: "e.g. bootleg Elmo in an alleyway surrounded by mysterious cloudy gas", familyFriendly: false },
+  { id: "rizz", name: "Rizz Roulette", icon: "😏", saveKey: "rizz.game.v1", hasPrompts: false, placeholder: "e.g. Say it with rizz: \"Are you Ohio? Because you make me act crazy.\"", familyFriendly: false },
+  { id: "wyr", name: "Would You Rather", icon: "🤔", saveKey: "wyr.game.v1", hasPrompts: false, placeholder: "e.g. Always step on a wet spot, OR chew on a dry sponge?", familyFriendly: false },
+  { id: "flags", name: "Red Flag / Green Flag", icon: "🚩", saveKey: "flags.game.v1", hasPrompts: false, placeholder: "e.g. They literally have zero internet presence.", familyFriendly: true },
+  { id: "truths", name: "Lake House Truths", icon: "🛶", saveKey: "truths.game.v1", hasPrompts: false, placeholder: "e.g. Who in the cabin is secretly a duplicate agent?", familyFriendly: true },
+  { id: "catchphrase", name: "Lake House Catchphrase", icon: "🗣️", saveKey: "catchphrase.game.v1", hasPrompts: false, placeholder: "e.g. water skiing behind a rowboat", familyFriendly: true }
 ];
 
 let activeGameId = "family";
@@ -25,7 +25,15 @@ export function openCustomCardsManager(homeCallback) {
 }
 
 function render() {
-  const activeGame = MANAGED_GAMES.find(g => g.id === activeGameId) || MANAGED_GAMES[0];
+  const weirdUnlocked = localStorage.getItem("lakehouse.weird_unlocked") === "true";
+  const visibleGames = MANAGED_GAMES.filter(g => weirdUnlocked || g.familyFriendly);
+
+  // If currently active game is not visible, fallback to first visible game
+  if (!visibleGames.some(g => g.id === activeGameId)) {
+    activeGameId = visibleGames[0].id;
+  }
+
+  const activeGame = visibleGames.find(g => g.id === activeGameId) || visibleGames[0];
   
   // Safe-guard tab
   if (!activeGame.hasPrompts && activeTab === "prompts") {
@@ -51,7 +59,7 @@ function render() {
     style: "margin-top: 10px; margin-bottom: 14px; gap: 8px; justify-content: center;"
   });
 
-  MANAGED_GAMES.forEach(g => {
+  visibleGames.forEach(g => {
     const isActive = g.id === activeGameId;
     const tabBtn = el("button", {
       className: "btn small" + (isActive ? "" : " ghost"),

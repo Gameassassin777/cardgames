@@ -275,9 +275,7 @@ function home() {
     menu
   ];
 
-  if (weirdUnlocked) {
-    nodes.push(settingsPanel);
-  }
+  nodes.push(settingsPanel);
 
   if (deferredInstall) nodes.push(installBanner());
 
