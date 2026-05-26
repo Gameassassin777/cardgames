@@ -6,6 +6,7 @@ import * as meeting from "./meeting.js";
 import { makeGame as makeDeck } from "./deckgame.js";
 import { PROMPTS, RESPONSES, NORMAL_PROMPTS, NORMAL_RESPONSES, FAMILY_PROMPTS, FAMILY_RESPONSES, SIBLING_RIVALRY, FAMILY_ROASTS, LAKE_TRUTHS, WOULD_YOU_RATHER, RED_GREEN, RIZZ_ROULETTE } from "./data.js";
 import { openCustomCardsManager } from "./custom_cards_ui.js";
+import * as catchphrase from "./catchphrase.js";
 
 let deferredInstall = null;
 
@@ -99,6 +100,12 @@ const GAMES = [
     id: "roasts", icon: "🔥", title: "Family Roasts", badge: "roast",
     blurb: "Campfire truths and lighthearted PG-13 family roasts. 3+ players.",
     start: familyRoasts,
+    familyFriendly: true,
+  },
+  {
+    id: "catchphrase", icon: "🗣️", title: "Lake House Catchphrase", badge: "active",
+    blurb: "Fast-paced hot-potato word guessing! Describe the phrase, guess, and pass before the timer buzzes! 4+ players.",
+    start: catchphrase.start,
     familyFriendly: true,
   },
 ];

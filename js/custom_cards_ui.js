@@ -10,7 +10,8 @@ const MANAGED_GAMES = [
   { id: "rizz", name: "Rizz Roulette", icon: "😏", saveKey: "rizz.game.v1", hasPrompts: false, placeholder: "e.g. Say it with rizz: \"Are you Ohio? Because you make me act crazy.\"" },
   { id: "wyr", name: "Would You Rather", icon: "🤔", saveKey: "wyr.game.v1", hasPrompts: false, placeholder: "e.g. Always step on a wet spot, OR chew on a dry sponge?" },
   { id: "flags", name: "Red Flag / Green Flag", icon: "🚩", saveKey: "flags.game.v1", hasPrompts: false, placeholder: "e.g. They literally have zero internet presence." },
-  { id: "truths", name: "Lake House Truths", icon: "🛶", saveKey: "truths.game.v1", hasPrompts: false, placeholder: "e.g. Who in the cabin is secretly a duplicate agent?" }
+  { id: "truths", name: "Lake House Truths", icon: "🛶", saveKey: "truths.game.v1", hasPrompts: false, placeholder: "e.g. Who in the cabin is secretly a duplicate agent?" },
+  { id: "catchphrase", name: "Lake House Catchphrase", icon: "🗣️", saveKey: "catchphrase.game.v1", hasPrompts: false, placeholder: "e.g. water skiing behind a rowboat" }
 ];
 
 let activeGameId = "family";
