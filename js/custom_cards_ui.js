@@ -143,7 +143,20 @@ function render() {
         ]),
         el("li", { text: "Each underscore represents 1 response card the players must submit (e.g. _ + _ = Pick 2)." }),
         el("li", { text: "You can use up to 4 underscores per prompt card." }),
-        el("li", { text: "If you don't type any underscores, the prompt will show as a simple question card." })
+        el("li", { text: "If you don't type any underscores, the prompt will show as a simple question card." }),
+        el("li", { text: "For TXT import, save each prompt on a new line using _ for blanks (no quotes)." })
+      ])
+    ]);
+  } else {
+    explanationBox = el("div", {
+      className: "panel",
+      style: "background:rgba(0,0,0,0.2); border:1px solid rgba(255,255,255,0.06); padding:12px; margin-top:8px;"
+    }, [
+      el("h4", { style: "margin:0 0 6px 0; font-size:0.9rem; color:var(--sunset);", text: "📤 TXT Import Instructions:" }),
+      el("ul", { style: "margin:0; padding-left:18px; font-size:0.82rem; line-height:1.4;" }, [
+        el("li", { text: "Prepare a plain text (.txt) file." }),
+        el("li", { text: "Write each response card on a new line (no quotes)." }),
+        el("li", { text: "Click the Import button below to batch upload them instantly!" })
       ])
     ]);
   }
@@ -194,10 +207,87 @@ function render() {
     }
   });
 
+  // Client-side TXT File Batch Importer
+  const fileInput = el("input", {
+    type: "file",
+    accept: ".txt",
+    style: "display:none;",
+    onChange: (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = (evt) => {
+        const content = evt.target.result;
+        const lines = content.split(/\r?\n/).map(line => line.trim()).filter(line => line.length > 0);
+        if (lines.length === 0) {
+          toast("The uploaded file is empty!");
+          return;
+        }
+
+        let addedCount = 0;
+        let duplicateCount = 0;
+        let errorCount = 0;
+
+        if (activeTab === "responses") {
+          lines.forEach(text => {
+            if (responses.includes(text)) {
+              duplicateCount++;
+            } else {
+              responses.push(text);
+              addedCount++;
+            }
+          });
+          store.set(responsesKey, responses);
+        } else {
+          lines.forEach(text => {
+            const count = (text.match(/_/g) || []).length;
+            if (count > 4) {
+              errorCount++;
+            } else {
+              const convertedText = text.replace(/_/g, "_______");
+              const existing = prompts.find(p => p.text === convertedText);
+              if (existing) {
+                duplicateCount++;
+              } else {
+                prompts.push({
+                  text: convertedText,
+                  pick: Math.max(1, count)
+                });
+                addedCount++;
+              }
+            }
+          });
+          store.set(promptsKey, prompts);
+        }
+
+        let msg = `🎉 successfully imported ${addedCount} card(s)!`;
+        if (duplicateCount > 0) msg += ` (${duplicateCount} duplicate(s) skipped)`;
+        if (errorCount > 0) msg += ` (${errorCount} prompt(s) skipped due to exceeding 4 blanks)`;
+        toast(msg);
+
+        fileInput.value = ""; // Reset
+        render();
+      };
+      reader.readAsText(file);
+    }
+  });
+
+  const importBtn = el("button", {
+    className: "btn ghost small",
+    style: "width:100%; font-weight:700; margin-top:8px; display:flex; align-items:center; justify-content:center; gap:8px; border-radius:12px;",
+    onClick: () => fileInput.click()
+  }, [
+    el("span", { style: "font-size:1.1rem", text: "📤" }),
+    el("span", { text: "Import Cards from .txt File" })
+  ]);
+
   const addPanel = el("div", { className: "panel" }, [
     el("label", { text: labelText }),
     el("div", { style: "display:flex; align-items:center;" }, [newCardInput, addBtn]),
-    explanationBox
+    explanationBox,
+    fileInput,
+    importBtn
   ]);
 
   // List of items
