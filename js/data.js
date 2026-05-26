@@ -543,3 +543,63 @@ export const RIZZ_ROULETTE = [
   { tag: "Hot Take", text: "Defend it: \"Pineapple on pizza is elite and this is genuinely non-negotiable.\"" },
   { tag: "Hot Take", text: "Defend it: \"Touching grass is overrated; the indoors has never betrayed me.\"" },
 ];
+
+/* ============================================================
+ * CARDS AGAINST THE FAMILY — wholesome, silly, cabin-themed.
+ * ============================================================ */
+export const FAMILY_PROMPTS = [
+  { text: "Mom's secret ingredient in her award-winning campfire chili is actually _.", pick: 1 },
+  { text: "Dad spent six hours in the hardware store looking for the perfect _.", pick: 1 },
+  { text: "What is secretly hiding under the back seat of the family minivan?", pick: 1 },
+  { text: "Our dog ran away into the woods because he caught a glimpse of _.", pick: 1 },
+  { text: "The local park ranger warned us to lock up our coolers because the bears have developed a taste for _.", pick: 1 },
+  { text: "My teacher didn't believe me when I told her my homework was destroyed by _.", pick: 1 },
+  { text: "Instead of chores this weekend, dad surprised us by organizing a family contest of _.", pick: 1 },
+  { text: "What's the absolute worst thing you could accidentally drop into the campfire?", pick: 1 },
+  { text: "Grandma's favorite cabin activity is sitting on the porch and complaining about _.", pick: 1 },
+  { text: "We knew the lake water was freezing when dad jumped in and screamed about _.", pick: 1 },
+  { text: "First comes the smell of _, then comes the sound of _.", pick: 2 },
+  { text: "I tried to build a custom treehouse using nothing but _ and _.", pick: 2 },
+  { text: "Instead of clean laundry, my suitcase was completely filled with _ and _.", pick: 2 },
+  { text: "The ultimate campfire s'more contains two graham crackers, a toasted marshmallow, and a slice of _.", pick: 1 },
+  { text: "What did the fisherman accidentally reel in instead of a trout?", pick: 1 },
+  { text: "My sibling got grounded for a week because they tried to feed the raccoons _.", pick: 1 },
+  { text: "What is the secret cabin rule that nobody actually follows?", pick: 1 }
+];
+
+export const FAMILY_RESPONSES = [
+  "✍️ [Write your own answer...]",
+  "a canoe full of melted marshmallows",
+  "dad's terrible, off-beat dance moves",
+  "a squirrel wearing tiny sunglasses",
+  "wet socks that have been sitting in a bag for three days",
+  "an absolute overload of maple syrup",
+  "a family board game that ends in an argument",
+  "a raccoon wearing a detective hat",
+  "accidentally eating a bug while riding a bicycle",
+  "dad's cheesy, laugh-at-his-own-jokes humor",
+  "an extremely muddy pair of boots",
+  "trying to catch a frog with bare hands",
+  "a massive pile of sticky pinecones",
+  "the absolute loudest snore in the cabin",
+  "stealing the last marshmallow from the bag",
+  "a fish that looks like it's judging my life choices",
+  "accidentally dropping my phone in the lake",
+  "a mountain of unwashed beach towels",
+  "sleeping in a tent that has a tiny leak",
+  "an army of very polite ants",
+  "a soggy peanut butter and jelly sandwich",
+  "trying to skip a flat stone but splashing myself",
+  "a cooler full of nothing but broccoli",
+  "mom's famous burnt hot dogs",
+  "a mosquito that just won't leave me alone",
+  "singing campfire songs completely out of tune",
+  "a very confused duck in a life jacket",
+  "wearing my shirt inside out all day without realizing",
+  "a massive splash from a clumsy cannonball jump",
+  "grandma's secret stash of chocolate chip cookies",
+  "a tree branch that looks exactly like a dinosaur",
+  "getting a marshmallow stuck to my forehead",
+  "an entire day spent entirely in wet swimsuits",
+  "a very ambitious beaver with a tiny hardhat"
+];

@@ -4,7 +4,7 @@ import { APP_VERSION } from "./version.js";
 import { makeGame as makeCardGame } from "./cam.js";
 import * as meeting from "./meeting.js";
 import { makeGame as makeDeck } from "./deckgame.js";
-import { PROMPTS, RESPONSES, NORMAL_PROMPTS, NORMAL_RESPONSES, LAKE_TRUTHS, WOULD_YOU_RATHER, RED_GREEN, RIZZ_ROULETTE } from "./data.js";
+import { PROMPTS, RESPONSES, NORMAL_PROMPTS, NORMAL_RESPONSES, FAMILY_PROMPTS, FAMILY_RESPONSES, LAKE_TRUTHS, WOULD_YOU_RATHER, RED_GREEN, RIZZ_ROULETTE } from "./data.js";
 import { openCustomCardsManager } from "./custom_cards_ui.js";
 
 let deferredInstall = null;
@@ -25,6 +25,14 @@ const cabin = makeCardGame({
   footer: "A more normal deck. Still an adult party game.",
   saveKey: "cabin.game.v1", namesKey: "cabin.names.v1", targetKey: "cabin.target", physicalKey: "cabin.physical",
 });
+const family = makeCardGame({
+  title: "Cards Against the Family", icon: "👨‍👩‍👧‍👦",
+  prompts: FAMILY_PROMPTS, responses: FAMILY_RESPONSES,
+  winnerTitle: "Family Champion",
+  blurb: "A wholesome, silly, campfire fill-in-the-blanks party game. Perfect for kids, parents, and cabin nights.",
+  footer: "100% wholesome, goofy fun for the whole family.",
+  saveKey: "family.game.v1", namesKey: "family.names.v1", targetKey: "family.target", physicalKey: "family.physical",
+});
 const rizzRoulette = makeDeck({ title: "Rizz Roulette", source: RIZZ_ROULETTE, saveKey: "rizz.game.v1" });
 const wouldYouRather = makeDeck({ title: "Would You Rather", source: WOULD_YOU_RATHER, saveKey: "wyr.game.v1" });
 const redGreen = makeDeck({ title: "Red Flag / Green Flag", source: RED_GREEN, saveKey: "flags.game.v1" });
@@ -32,45 +40,64 @@ const lakeTruths = makeDeck({ title: "Lake House Truths", source: LAKE_TRUTHS, s
 
 const GAMES = [
   {
+    id: "family", icon: "👨‍👩‍👧‍👦", title: "Cards Against the Family", badge: "family",
+    blurb: "A wholesome campfire fill-in-the-blanks game. Silly, PG prompts. Perfect for kids and parents. 3+ players.",
+    start: family,
+    familyFriendly: true,
+  },
+  {
     id: "cam", icon: "🐒", title: "Cards Against Monkeys", badge: "18+",
     blurb: "Max-sus, chronically-online deck. Fill in the blanks, crown the funniest. 3+ players.",
     start: monkeys,
+    familyFriendly: false,
   },
   {
     id: "cabin", icon: "🛖", title: "Cards Against the Cabin", badge: "normal",
     blurb: "Same game, tamer deck — dark/absurd lake-house humor. Fill the blanks, crown the funniest. 3+ players.",
     start: cabin,
+    familyFriendly: false,
   },
   {
     id: "meeting", icon: "🚨", title: "Emergency Meeting", badge: "sus",
     blurb: "Vote on who's most likely to… then eject the sussiest baka. 3+ players.",
     start: meeting.start,
+    familyFriendly: false,
   },
   {
     id: "rizz", icon: "😏", title: "Rizz Roulette", badge: "spicy",
     blurb: "Draw and do it: deliver the rizz, spill the confession, take the dare, defend the hot take.",
     start: rizzRoulette,
+    familyFriendly: false,
   },
   {
     id: "wyr", icon: "🤔", title: "Would You Rather", badge: "unhinged",
     blurb: "Impossible, chronically-online dilemmas. Read both, everyone picks a side.",
     start: wouldYouRather,
+    familyFriendly: false,
   },
   {
     id: "flags", icon: "🚩", title: "Red Flag / Green Flag",
     blurb: "Judge the most cursed traits. Shout your verdict. Argue about it.",
     start: redGreen,
+    familyFriendly: true,
   },
   {
     id: "truths", icon: "🛶", title: "Lake House Truths",
     blurb: "Would-you-rather, truths & dares for around the firepit. Any group size.",
     start: lakeTruths,
+    familyFriendly: true,
   },
 ];
 
+let logoClicks = 0;
+
 function home() {
+  const weirdUnlocked = localStorage.getItem("lakehouse.weird_unlocked") === "true";
+
+  const activeGames = GAMES.filter(g => weirdUnlocked || g.familyFriendly);
+
   const menu = el("div", { className: "menu" });
-  GAMES.forEach((g) => {
+  activeGames.forEach((g) => {
     menu.appendChild(el("button", { className: "tile", onClick: () => g.start(home) }, [
       el("div", { className: "icon", text: g.icon }),
       el("div", { className: "meta" }, [
@@ -97,11 +124,47 @@ function home() {
     ])
   ]);
 
+  // Clickable Duck Easter Egg to unlock secret adult/weird modes!
+  const duckSpan = el("span", {
+    style: "cursor: pointer; display: inline-block; transition: transform 0.2s;",
+    text: "🦆",
+    onClick: (e) => {
+      e.stopPropagation();
+      e.target.style.transform = "scale(1.4) rotate(15deg)";
+      setTimeout(() => { e.target.style.transform = "scale(1)"; }, 150);
+
+      logoClicks++;
+      if (logoClicks >= 5) {
+        logoClicks = 0;
+        const nowUnlocked = !weirdUnlocked;
+        localStorage.setItem("lakehouse.weird_unlocked", String(nowUnlocked));
+        if (nowUnlocked) {
+          toast("🎉 Sus & Chronically Online modes unlocked! 🤫");
+        } else {
+          toast("🔒 Wholesome Family Lock Activated! 👨‍👩‍👧‍👦");
+        }
+        home(); // Re-render!
+      } else {
+        const remaining = 5 - logoClicks;
+        toast(`🦆 Quack! ${remaining} click${remaining === 1 ? "" : "s"} left to toggle secret modes...`);
+      }
+    }
+  });
+
+  const logoScene = el("div", { className: "scene" }, [
+    document.createTextNode("🌙  🛶  🌲🏠🌲  "),
+    duckSpan
+  ]);
+
+  const taglineText = weirdUnlocked 
+    ? "Cozy by the water. Unhinged at the table. 🤫" 
+    : "Cozy by the water. Playful at the table. 👨‍👩‍👧‍👦";
+
   const nodes = [
     el("div", { className: "brand" }, [
-      el("div", { className: "scene", text: "🌙  🛶  🌲🏠🌲  🦆" }),
+      logoScene,
       el("div", { className: "logo", html: 'Lake House <span class="em">Card Games</span>' }),
-      el("div", { className: "tagline", text: "Cozy by the water. Unhinged at the table." }),
+      el("div", { className: "tagline", text: taglineText }),
     ]),
     menu,
     settingsPanel
@@ -109,7 +172,7 @@ function home() {
 
   if (deferredInstall) nodes.push(installBanner());
 
-  nodes.push(el("div", { className: "footer-note", html: `7 games • works offline • add to your home screen 🏕️ &nbsp;·&nbsp; v${APP_VERSION}` }));
+  nodes.push(el("div", { className: "footer-note", html: `${activeGames.length} games • works offline • add to your home screen 🏕️ &nbsp;·&nbsp; v${APP_VERSION}` }));
 
   mount(...nodes);
 }
