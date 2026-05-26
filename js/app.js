@@ -8,6 +8,8 @@ import { PROMPTS, RESPONSES, NORMAL_PROMPTS, NORMAL_RESPONSES, FAMILY_PROMPTS, F
 import { openCustomCardsManager } from "./custom_cards_ui.js";
 import * as catchphrase from "./catchphrase.js";
 import { pullFromCloud } from "./cloud_sync.js";
+import * as gartic from "./gartic.js";
+import * as gallery from "./gallery.js";
 
 // Force wholesome normal mode on every app restart/page load
 localStorage.setItem("lakehouse.weird_unlocked", "false");
@@ -113,6 +115,12 @@ const GAMES = [
     id: "catchphrase", icon: "🗣️", title: "Lake House Catchphrase", badge: "active",
     blurb: "Fast-paced hot-potato word guessing! Describe the phrase, guess, and pass before the timer buzzes! 4+ players.",
     start: catchphrase.start,
+    familyFriendly: true,
+  },
+  {
+    id: "doodles", icon: "🎨", title: "Lake House Doodles", badge: "new",
+    blurb: "Gartic Phone for the lake house! Write a phrase, someone draws it, someone guesses... watch it transform. 3+ players online.",
+    start: (home) => gartic.start(home),
     familyFriendly: true,
   },
 ];
@@ -281,11 +289,19 @@ function home() {
   }, [
     el("button", {
       className: "btn ghost small",
-      style: "width:100%; display:flex; align-items:center; justify-content:center; gap:8px; font-weight:700; border-radius:12px; box-shadow:none; padding:10px 14px; margin: 0;",
+      style: "width:100%; display:flex; align-items:center; justify-content:center; gap:8px; font-weight:700; border-radius:12px; box-shadow:none; padding:10px 14px; margin: 0 0 8px;",
       onClick: () => openCustomCardsManager(home)
     }, [
       el("span", { style: "font-size:1.15rem", text: "⚙️" }),
       el("span", { text: "Manage Custom Cards & Decks" })
+    ]),
+    el("button", {
+      className: "btn ghost small",
+      style: "width:100%; display:flex; align-items:center; justify-content:center; gap:8px; font-weight:700; border-radius:12px; box-shadow:none; padding:10px 14px; margin: 0; background:rgba(255,215,0,0.06); border-color:rgba(255,215,0,0.3);",
+      onClick: () => gallery.start(home)
+    }, [
+      el("span", { style: "font-size:1.15rem", text: "🖼️" }),
+      el("span", { text: "Art Gallery (🎨 Past Doodles)" })
     ])
   ]);
 

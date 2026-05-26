@@ -419,3 +419,62 @@ hr.divider { border: none; border-top: 1px solid rgba(255,255,255,0.15); margin:
   from { opacity: 0; transform: translateY(-4px); }
   to { opacity: 1; transform: translateY(0); }
 }
+
+/* ── Lake House Doodles (Gartic Phone) ──────────────────────────────────────── */
+
+.gartic-toolbar {
+  background: rgba(0, 0, 0, 0.35);
+  border-radius: 10px 10px 0 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  padding: 8px 8px 6px;
+  user-select: none;
+}
+
+.gartic-chain {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.gartic-entry {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 14px;
+  padding: 12px 14px;
+}
+
+.gartic-entry-in {
+  animation: gartic_pop 0.35s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@keyframes gartic_pop {
+  from { opacity: 0; transform: translateY(12px) scale(0.97); }
+  to   { opacity: 1; transform: translateY(0)    scale(1);    }
+}
+
+.gartic-gallery-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+  padding: 0 0 20px;
+}
+
+@media (min-width: 520px) {
+  .gartic-gallery-grid { grid-template-columns: repeat(3, 1fr); }
+}
+
+.gartic-gallery-card {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 14px;
+  overflow: hidden;
+  cursor: pointer;
+  transition: transform 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
+}
+
+.gartic-gallery-card:hover,
+.gartic-gallery-card:active {
+  transform: translateY(-2px) scale(1.02);
+  background: rgba(255, 255, 255, 0.1);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
+}

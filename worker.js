@@ -55,6 +55,39 @@ export default {
         }
       }
 
+      // GET /gartic/gallery → array of saved gartic games
+      if (path === "/gartic/gallery" && request.method === "GET") {
+        try {
+          const id = env.GLOBAL_STORE.idFromName("global");
+          const store = env.GLOBAL_STORE.get(id);
+          const res = await store.fetch("http://global/gartic-gallery");
+          const data = await res.text();
+          return new Response(data, { headers: { ...CORS, "Content-Type": "application/json" } });
+        } catch (e) {
+          return new Response("[]", { headers: { ...CORS, "Content-Type": "application/json" } });
+        }
+      }
+
+      // POST /gartic/save  body: { id, date, players, isMonkey, chains }
+      if (path === "/gartic/save" && request.method === "POST") {
+        try {
+          const body = await request.json();
+          const id = env.GLOBAL_STORE.idFromName("global");
+          const store = env.GLOBAL_STORE.get(id);
+          const res = await store.fetch("http://global/gartic-save", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(body),
+          });
+          const data = await res.text();
+          return new Response(data, { headers: { ...CORS, "Content-Type": "application/json" } });
+        } catch (e) {
+          return new Response(JSON.stringify({ error: String(e) }), {
+            status: 500, headers: { ...CORS, "Content-Type": "application/json" }
+          });
+        }
+      }
+
       return new Response("Lake House Card Games — sync server is active.", {
         status: 200, headers: { ...CORS, "Content-Type": "text/plain" }
       });
@@ -140,6 +173,26 @@ export class GlobalStore {
       }
 
       return new Response(JSON.stringify({ success: true, addedCards, addedPrompts }), {
+        headers: { "Content-Type": "application/json" }
+      });
+    }
+
+    // ── /gartic-gallery ────────────────────────────────────────────────────────
+    if (url.pathname === "/gartic-gallery") {
+      const games = await this.state.storage.get("gartic_games") || [];
+      return new Response(JSON.stringify(games), { headers: { "Content-Type": "application/json" } });
+    }
+
+    // ── /gartic-save  (POST) ──────────────────────────────────────────────────
+    if (url.pathname === "/gartic-save" && request.method === "POST") {
+      const game = await request.json();
+      if (!game || !game.id) return new Response("Missing id", { status: 400 });
+      const games = await this.state.storage.get("gartic_games") || [];
+      // Prepend newest first, cap at 40
+      games.unshift(game);
+      if (games.length > 40) games.length = 40;
+      await this.state.storage.put("gartic_games", games);
+      return new Response(JSON.stringify({ success: true, total: games.length }), {
         headers: { "Content-Type": "application/json" }
       });
     }
