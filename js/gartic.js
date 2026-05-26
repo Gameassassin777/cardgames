@@ -133,17 +133,60 @@ function renderRoomBrowser() {
       const rooms = await res.json();
       listEl.innerHTML = "";
       const weirdOn = localStorage.getItem("lakehouse.weird_unlocked") === "true";
-      const visible = rooms.filter(r => !r.private); // only show public
+      // Filter out private rooms and hide Monkey Mode rooms if weird mode is not unlocked
+      const visible = rooms.filter(r => !r.private && (!r.isMonkey || weirdOn));
       if (visible.length === 0) {
         listEl.appendChild(el("p", { className: "muted center", style: "margin:20px 0; font-style:italic;", text: "No open rooms right now — create one!" }));
         return;
       }
       visible.forEach(r => {
-        const row = el("div", { className: "room-row" }, [
-          el("div", { className: "room-info" }, [
+        // Build settings badges
+        const badgeElements = [];
+        if (r.chaosMode && r.chaosMode !== "none") {
+          const labels = {
+            rorschach: "🔄 Rorschach",
+            whisper: "📵 Whisper",
+            classified: "📜 Classified",
+            threewords: "3️⃣ 3 Words"
+          };
+          if (labels[r.chaosMode]) {
+            badgeElements.push(el("span", {
+              style: "display:inline-block; background:rgba(0,188,212,0.15); border:1px solid rgba(0,188,212,0.3); border-radius:4px; padding:1px 4px; font-size:0.65rem; color:var(--water-foam); font-weight:700; margin-right:4px; margin-top:4px;",
+              text: labels[r.chaosMode]
+            }));
+          }
+        }
+        if (r.drawStyle && r.drawStyle !== "normal") {
+          const labels = {
+            mirror: "🪞 Mirror",
+            night: "🌃 Night",
+            impressionist: "💥 Impressionist",
+            speeddemon: "⚡ Speed"
+          };
+          if (labels[r.drawStyle]) {
+            badgeElements.push(el("span", {
+              style: "display:inline-block; background:rgba(255,109,0,0.15); border:1px solid rgba(255,109,0,0.3); border-radius:4px; padding:1px 4px; font-size:0.65rem; color:var(--sunset); font-weight:700; margin-right:4px; margin-top:4px;",
+              text: labels[r.drawStyle]
+            }));
+          }
+        }
+        if (r.isMonkey) {
+          badgeElements.push(el("span", {
+            style: "display:inline-block; background:rgba(255,215,0,0.1); border:1px solid rgba(255,215,0,0.3); border-radius:4px; padding:1px 4px; font-size:0.65rem; color:var(--sunset); font-weight:700; margin-right:4px; margin-top:4px;",
+            text: "🐒 Monkey"
+          }));
+        }
+
+        const info = el("div", { className: "room-info" }, [
+          el("div", { style: "display:flex; align-items:baseline;" }, [
             el("span", { style: "font-weight:700; color:#fff;", text: r.host }),
-            el("span", { style: "margin-left:8px; font-size:0.8rem; color:var(--lake-light);", text: `${r.playerCount} player${r.playerCount !== 1 ? "s" : ""}` }),
+            el("span", { style: "margin-left:8px; font-size:0.8rem; color:var(--lake-light);", text: `${r.playerCount} player${r.playerCount !== 1 ? "s" : ""}` })
           ]),
+          badgeElements.length > 0 ? el("div", { style: "display:flex; flex-wrap:wrap; margin-top:2px;" }, badgeElements) : null
+        ]);
+
+        const row = el("div", { className: "room-row" }, [
+          info,
           el("button", { className: "btn small", style: "margin:0; padding:6px 14px; font-size:0.85rem;", text: "Join",
             onClick: () => { clearInterval(roomBrowserRefresh); connectRoom("join", r.code); }
           })
@@ -233,8 +276,11 @@ async function registerRoom(settings) {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        code: roomCode, host: myName, playerCount: 1,
+        code: roomCode, host: myName, playerCount: gState?.players?.length || 1,
         game: "gartic", private: settings.privateRoom,
+        isMonkey: localStorage.getItem("lakehouse.weird_unlocked") === "true",
+        chaosMode: settings.chaosMode,
+        drawStyle: settings.drawStyle,
         lastPing: Date.now()
       }),
     });
@@ -333,6 +379,7 @@ function buildSettingsPanel() {
         // re-highlight all in group
         group.querySelectorAll("button").forEach(b => { b.style.background = ""; b.style.borderColor = "rgba(255,255,255,0.15)"; });
         btn.style.background = "var(--lake)"; btn.style.borderColor = "var(--water-foam)";
+        registerRoom(s);
       }
     });
     return btn;
@@ -347,9 +394,8 @@ function buildSettingsPanel() {
         s[key] = !s[key];
         btn.style.background   = s[key] ? "var(--lake)" : "";
         btn.style.borderColor  = s[key] ? "var(--water-foam)" : "rgba(255,255,255,0.15)";
+        registerRoom(s);
         if (key === "privateRoom") {
-          // Re-register room with updated privacy setting
-          registerRoom(s);
           // Re-render lobby to update the room code display
           renderLobby();
         }
@@ -534,9 +580,18 @@ function renderWritePhase() {
 
   // Classified mode: if describing a drawing, show redacted version placeholder
   if (cfg.chaosMode === "classified" && lastEntry?.type === "text") {
-    const words = lastEntry.content.split(" ");
-    // Randomly black out ~half the words
-    const redacted = words.map(w => Math.random() < 0.5 ? `${"█".repeat(w.length)}` : w).join(" ");
+    const text = lastEntry.content;
+    const words = text.split(" ");
+    const redacted = words.map((w, idx) => {
+      // Deterministic hash based on word content, index and round
+      const key = text + idx + gState.round;
+      let hash = 0;
+      for (let i = 0; i < key.length; i++) {
+        hash = (hash << 5) - hash + key.charCodeAt(i);
+        hash |= 0;
+      }
+      return Math.abs(hash) % 100 < 45 ? "█".repeat(w.length) : w;
+    }).join(" ");
     promptEl = el("div", { className: "panel center", style: "padding:14px;" }, [
       el("p", { style: "margin:0 0 6px; font-weight:700; color:var(--sunset); font-size:0.88rem;", text: "📜 [CLASSIFIED] DESCRIBE THIS:" }),
       el("div", { style: "font-size:1.1rem; font-weight:700; color:#fff; letter-spacing:2px; word-break:break-all; line-height:1.8;", text: redacted })
