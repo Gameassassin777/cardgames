@@ -110,7 +110,85 @@ const GAMES = [
   },
 ];
 
-let logoClicks = 0;
+function playQuack() {
+  try {
+    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    const osc = audioCtx.createOscillator();
+    const filter = audioCtx.createBiquadFilter();
+    const gain = audioCtx.createGain();
+
+    osc.type = "sawtooth";
+    osc.frequency.setValueAtTime(280, audioCtx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(450, audioCtx.currentTime + 0.05);
+    osc.frequency.exponentialRampToValueAtTime(260, audioCtx.currentTime + 0.18);
+
+    filter.type = "bandpass";
+    filter.frequency.setValueAtTime(800, audioCtx.currentTime);
+    filter.frequency.exponentialRampToValueAtTime(1000, audioCtx.currentTime + 0.05);
+    filter.frequency.exponentialRampToValueAtTime(700, audioCtx.currentTime + 0.18);
+    filter.Q.setValueAtTime(4, audioCtx.currentTime);
+
+    gain.gain.setValueAtTime(0.01, audioCtx.currentTime);
+    gain.gain.linearRampToValueAtTime(0.25, audioCtx.currentTime + 0.03);
+    gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.18);
+
+    osc.connect(filter);
+    filter.connect(gain);
+    gain.connect(audioCtx.destination);
+
+    osc.start();
+    osc.stop(audioCtx.currentTime + 0.2);
+  } catch (e) {
+    console.warn("Web Audio API is not supported or was blocked by browser autoplay policy:", e);
+  }
+}
+
+function playDoubleQuack() {
+  playQuack();
+  setTimeout(playQuack, 130);
+}
+
+function rainDucks() {
+  const container = document.body;
+  const count = 40;
+  for (let i = 0; i < count; i++) {
+    setTimeout(() => {
+      const duck = document.createElement("div");
+      duck.textContent = "🦆";
+      duck.style.position = "fixed";
+      duck.style.left = `${Math.random() * 100}vw`;
+      duck.style.top = `-40px`;
+      duck.style.fontSize = `${1.2 + Math.random() * 2.5}rem`;
+      duck.style.pointerEvents = "none";
+      duck.style.zIndex = "99999";
+      duck.style.transition = "transform 1.8s linear, opacity 1.8s ease-out";
+      container.appendChild(duck);
+
+      // Force a reflow
+      duck.offsetHeight;
+
+      const targetY = window.innerHeight + 60;
+      const targetX = (Math.random() - 0.5) * 200; // sway left/right
+      const rotate = (Math.random() - 0.5) * 720; // spin
+
+      duck.style.transform = `translate(${targetX}px, ${targetY}px) rotate(${rotate}deg)`;
+      duck.style.opacity = "0";
+
+      // Cleanup
+      setTimeout(() => {
+        duck.remove();
+      }, 1850);
+    }, i * 45); // Stagger spawning for a waterfall effect
+  }
+}
+
+function startQuackStorm() {
+  rainDucks();
+  playDoubleQuack();
+  setTimeout(playDoubleQuack, 400);
+  setTimeout(playDoubleQuack, 800);
+  setTimeout(playDoubleQuack, 1200);
+}
 
 function home() {
   const weirdUnlocked = localStorage.getItem("lakehouse.weird_unlocked") === "true";
@@ -154,20 +232,21 @@ function home() {
       e.target.style.transform = "scale(1.4) rotate(15deg)";
       setTimeout(() => { e.target.style.transform = "scale(1)"; }, 150);
 
-      logoClicks++;
-      if (logoClicks >= 5) {
-        logoClicks = 0;
-        const nowUnlocked = !weirdUnlocked;
-        localStorage.setItem("lakehouse.weird_unlocked", String(nowUnlocked));
-        if (nowUnlocked) {
-          toast("🎉 Sus & Chronically Online modes unlocked! 🤫");
+      const answer = prompt("💬 What do you want to say to the duck?");
+      if (answer !== null) {
+        if (answer.trim().toLowerCase() === "monkeys") {
+          const nowUnlocked = !weirdUnlocked;
+          localStorage.setItem("lakehouse.weird_unlocked", String(nowUnlocked));
+          if (nowUnlocked) {
+            toast("🎉 Sus & Chronically Online modes unlocked! 🤫");
+          } else {
+            toast("🔒 Wholesome Family Lock Activated! 👨‍👩‍👧‍👦");
+          }
+          home(); // Re-render!
         } else {
-          toast("🔒 Wholesome Family Lock Activated! 👨‍👩‍👧‍👦");
+          toast("🦆 *The duck stares at you blankly, then starts quacking hysterically!*");
+          startQuackStorm();
         }
-        home(); // Re-render!
-      } else {
-        const remaining = 5 - logoClicks;
-        toast(`🦆 Quack! ${remaining} click${remaining === 1 ? "" : "s"} left to toggle secret modes...`);
       }
     }
   });
