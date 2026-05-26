@@ -250,7 +250,11 @@ function beginGame(rawNames, target, physical) {
 
   // Mix persistent custom cards from localStorage for local mode!
   const localCustoms = store.get(cfg.saveKey + ".custom_cards", []);
-  const fullResponses = cfg.responses.concat(localCustoms);
+  
+  // Filter out any existing blank card and inject exactly 6 clean blanks
+  const baseResponses = cfg.responses.filter(c => c !== CUSTOM_CARD_TEXT);
+  const blankCopies = Array(6).fill(CUSTOM_CARD_TEXT);
+  const fullResponses = baseResponses.concat(localCustoms).concat(blankCopies);
 
   state = {
     isOnline: false,
@@ -273,7 +277,11 @@ function beginGame(rawNames, target, physical) {
     chosen: null,
     phase: "intro",
   };
-  if (!physical) state.hands = state.players.map(() => drawCards(HAND_SIZE));
+  if (!physical) {
+    state.players.forEach((_, idx) => {
+      state.hands[idx] = drawCards(HAND_SIZE);
+    });
+  }
   dealPrompt();
   render();
 }
@@ -413,7 +421,10 @@ function startOnlineGame() {
   if (onlinePlayers.length < 3) return;
 
   // Mix persistent custom cards from DO GlobalStore
-  const fullResponses = cfg.responses.concat(onlineCustomCards);
+  // Filter out any existing blank card and inject exactly 6 clean blanks
+  const baseResponses = cfg.responses.filter(c => c !== CUSTOM_CARD_TEXT);
+  const blankCopies = Array(6).fill(CUSTOM_CARD_TEXT);
+  const fullResponses = baseResponses.concat(onlineCustomCards).concat(blankCopies);
 
   state = {
     isOnline: true,
@@ -437,7 +448,9 @@ function startOnlineGame() {
     phase: "submit", // directly start with submissions
   };
   
-  state.hands = state.players.map(() => drawCards(HAND_SIZE));
+  state.players.forEach((_, idx) => {
+    state.hands[idx] = drawCards(HAND_SIZE);
+  });
   dealPrompt();
   
   sendSyncAction({ type: "START_GAME", state });
@@ -881,8 +894,11 @@ function renderOnlineGameOver() {
 }
 
 function playAgainOnline() {
-  // Clear persistent custom cards fetched from Cloudflare GlobalStore
-  const fullResponses = cfg.responses.concat(onlineCustomCards);
+  // Mix persistent custom cards from Cloudflare GlobalStore
+  // Filter out any existing blank card and inject exactly 6 clean blanks
+  const baseResponses = cfg.responses.filter(c => c !== CUSTOM_CARD_TEXT);
+  const blankCopies = Array(6).fill(CUSTOM_CARD_TEXT);
+  const fullResponses = baseResponses.concat(onlineCustomCards).concat(blankCopies);
 
   state = {
     isOnline: true,
@@ -905,12 +921,14 @@ function playAgainOnline() {
     chosen: null,
     phase: "submit",
   };
-  state.hands = state.players.map(() => drawCards(HAND_SIZE));
+  state.players.forEach((_, idx) => {
+    state.hands[idx] = drawCards(HAND_SIZE);
+  });
   dealPrompt();
   
   hasSubmittedThisRound = false;
 
-  sendSyncAction({ type: "STATE_SYNC", state });
+  sendSyncAction({ type: "START_GAME", state });
   render();
 }
 
@@ -923,7 +941,19 @@ function drawCards(n) {
       state.deck = shuffle(state.discard);
       state.discard = [];
     }
-    out.push(state.deck.pop());
+    let card = state.deck.pop();
+    // Guarantee uniqueness: if another player already holds this non-blank card in their hand, skip/discard it
+    if (card && card !== CUSTOM_CARD_TEXT) {
+      let isDuplicate = state.hands.some(hand => hand && hand.includes(card));
+      let attempts = 0;
+      while (isDuplicate && state.deck.length > 0 && attempts < 100) {
+        state.discard.push(card);
+        card = state.deck.pop();
+        isDuplicate = state.hands.some(hand => hand && hand.includes(card));
+        attempts++;
+      }
+    }
+    if (card) out.push(card);
   }
   return out;
 }
