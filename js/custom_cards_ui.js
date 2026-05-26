@@ -3,6 +3,8 @@ import { el, mount, toast, store } from "./ui.js";
 
 const MANAGED_GAMES = [
   { id: "family", name: "Cards Against the Family", icon: "👨‍👩‍👧‍👦", saveKey: "family.game.v1", hasPrompts: true, placeholder: "e.g. a squirrel wearing tiny sunglasses" },
+  { id: "sibling", name: "Sibling Rivalry", icon: "🥊", saveKey: "sibling.game.v1", hasPrompts: false, placeholder: "e.g. Imitate how your sibling sounds when they are whining." },
+  { id: "roasts", name: "Family Roasts", icon: "🔥", saveKey: "roasts.game.v1", hasPrompts: false, placeholder: "e.g. Who in the family is secretly the biggest screen-time addict?" },
   { id: "cam", name: "Cards Against Monkeys", icon: "🐒", saveKey: "cam.game.v1", hasPrompts: true, placeholder: "e.g. Subway Surfers gameplay during a funeral" },
   { id: "cabin", name: "Cards Against the Cabin", icon: "🛖", saveKey: "cabin.game.v1", hasPrompts: true, placeholder: "e.g. an aggressive beaver defending the dock" },
   { id: "rizz", name: "Rizz Roulette", icon: "😏", saveKey: "rizz.game.v1", hasPrompts: false, placeholder: "e.g. Say it with rizz: \"Are you Ohio? Because you make me act crazy.\"" },

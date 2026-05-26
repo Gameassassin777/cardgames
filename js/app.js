@@ -4,7 +4,7 @@ import { APP_VERSION } from "./version.js";
 import { makeGame as makeCardGame } from "./cam.js";
 import * as meeting from "./meeting.js";
 import { makeGame as makeDeck } from "./deckgame.js";
-import { PROMPTS, RESPONSES, NORMAL_PROMPTS, NORMAL_RESPONSES, FAMILY_PROMPTS, FAMILY_RESPONSES, LAKE_TRUTHS, WOULD_YOU_RATHER, RED_GREEN, RIZZ_ROULETTE } from "./data.js";
+import { PROMPTS, RESPONSES, NORMAL_PROMPTS, NORMAL_RESPONSES, FAMILY_PROMPTS, FAMILY_RESPONSES, SIBLING_RIVALRY, FAMILY_ROASTS, LAKE_TRUTHS, WOULD_YOU_RATHER, RED_GREEN, RIZZ_ROULETTE } from "./data.js";
 import { openCustomCardsManager } from "./custom_cards_ui.js";
 
 let deferredInstall = null;
@@ -37,6 +37,8 @@ const rizzRoulette = makeDeck({ title: "Rizz Roulette", source: RIZZ_ROULETTE, s
 const wouldYouRather = makeDeck({ title: "Would You Rather", source: WOULD_YOU_RATHER, saveKey: "wyr.game.v1" });
 const redGreen = makeDeck({ title: "Red Flag / Green Flag", source: RED_GREEN, saveKey: "flags.game.v1" });
 const lakeTruths = makeDeck({ title: "Lake House Truths", source: LAKE_TRUTHS, saveKey: "truths.game.v1" });
+const siblingRivalry = makeDeck({ title: "Sibling Rivalry", source: SIBLING_RIVALRY, saveKey: "sibling.game.v1" });
+const familyRoasts = makeDeck({ title: "Family Roasts", source: FAMILY_ROASTS, saveKey: "roasts.game.v1" });
 
 const GAMES = [
   {
@@ -85,6 +87,18 @@ const GAMES = [
     id: "truths", icon: "🛶", title: "Lake House Truths",
     blurb: "Would-you-rather, truths & dares for around the firepit. Any group size.",
     start: lakeTruths,
+    familyFriendly: true,
+  },
+  {
+    id: "sibling", icon: "🥊", title: "Sibling Rivalry", badge: "rivalry",
+    blurb: "Edgy PG-13 sibling roasts, goofy dares, and funny dilemmas. 2+ players.",
+    start: siblingRivalry,
+    familyFriendly: true,
+  },
+  {
+    id: "roasts", icon: "🔥", title: "Family Roasts", badge: "roast",
+    blurb: "Campfire truths and lighthearted PG-13 family roasts. 3+ players.",
+    start: familyRoasts,
     familyFriendly: true,
   },
 ];
