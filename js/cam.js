@@ -1,9 +1,9 @@
 // Game engine for Cards Against Monkeys / Cabin.
 // Supports: Local Pass-and-Play, Physical Cards, and Real-Time Online Play (Cloudflare Worker).
 import { el, mount, shuffle, toast, store, fillPrompt } from "./ui.js";
-import { BLANK } from "./data.js";
+import { BLANK, CUSTOM_CARD_TEXT } from "./data.js";
 
-const HAND_SIZE = 10;
+const HAND_SIZE = 4; // High-intensity, strategic hand size
 
 // Dynamic WebSockets Server Discovery
 const wsUrl = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1"
@@ -21,6 +21,7 @@ let roomCode = "";
 let myName = "";
 let isHost = false;
 let onlinePlayers = [];
+let onlineCustomCards = []; // Store persistent custom cards fetched from Cloudflare GlobalStore
 let connectionStatus = "offline"; // "offline" | "connecting" | "lobby"
 let hasSubmittedThisRound = false;
 
@@ -49,6 +50,7 @@ function resetOnlineState() {
   myName = "";
   isHost = false;
   onlinePlayers = [];
+  onlineCustomCards = [];
   connectionStatus = "offline";
   hasSubmittedThisRound = false;
   state = null;
@@ -134,13 +136,12 @@ function renderSetup() {
     physicalBtn.className = p ? "btn" : "btn ghost";
     modeDesc.textContent = p
       ? "You play with real cards. The app shows each prompt, runs the Card Czar, and keeps score."
-      : "The app deals everyone a hand on this device and passes around to play. No physical cards needed.";
+      : "The app deals everyone a 4-card hand on this device and passes around to play. Discard unwanted cards freely.";
   }
   digitalBtn.onclick = () => setMode(false);
   physicalBtn.onclick = () => setMode(true);
   setMode(physical);
 
-  // LOBBY MODE TOGGLE: Pass & Play vs Online Multiplayer
   const localTab = el("button", {
     className: "btn" + (!onlineMode ? " secondary" : " ghost"),
     text: "📱 Pass & Play",
@@ -155,7 +156,6 @@ function renderSetup() {
   const setupCard = el("div", { className: "panel" });
 
   if (!onlineMode) {
-    // PASS & PLAY SETUP SCREEN
     setupCard.appendChild(el("label", { text: "Players (3+)" }));
     setupCard.appendChild(listWrap);
     setupCard.appendChild(el("button", {
@@ -178,7 +178,6 @@ function renderSetup() {
       onClick: () => beginGame(names, target, physical)
     }));
   } else {
-    // ONLINE MULTIPLAYER SETUP SCREEN
     const nameInput = el("input", {
       type: "text",
       id: "onlineName",
@@ -249,6 +248,10 @@ function beginGame(rawNames, target, physical) {
   store.set(cfg.targetKey, target);
   store.set(cfg.physicalKey, !!physical);
 
+  // Mix persistent custom cards from localStorage for local mode!
+  const localCustoms = store.get(cfg.saveKey + ".custom_cards", []);
+  const fullResponses = cfg.responses.concat(localCustoms);
+
   state = {
     isOnline: false,
     players: players.map((name) => ({ name, score: 0 })),
@@ -256,7 +259,7 @@ function beginGame(rawNames, target, physical) {
     physical: !!physical,
     czar: 0,
     round: 1,
-    deck: physical ? [] : shuffle(cfg.responses),
+    deck: physical ? [] : shuffle(fullResponses),
     discard: [],
     promptDeck: shuffle(cfg.prompts.map((_, i) => i)),
     promptUsed: [],
@@ -305,11 +308,13 @@ function setupSocketListeners() {
         roomCode = data.code;
         isHost = true;
         onlinePlayers = data.players;
+        onlineCustomCards = data.customCards || [];
         connectionStatus = "lobby";
         renderOnlineLobby();
       } else if (data.type === "player_joined") {
         roomCode = data.code;
         onlinePlayers = data.players;
+        onlineCustomCards = data.customCards || [];
         connectionStatus = "lobby";
         renderOnlineLobby();
       } else if (data.type === "player_left") {
@@ -407,6 +412,9 @@ function renderOnlineLobby() {
 function startOnlineGame() {
   if (onlinePlayers.length < 3) return;
 
+  // Mix persistent custom cards from DO GlobalStore
+  const fullResponses = cfg.responses.concat(onlineCustomCards);
+
   state = {
     isOnline: true,
     players: onlinePlayers.map(name => ({ name, score: 0 })),
@@ -414,7 +422,7 @@ function startOnlineGame() {
     physical: false,
     czar: 0,
     round: 1,
-    deck: shuffle(cfg.responses),
+    deck: shuffle(fullResponses),
     discard: [],
     promptDeck: shuffle(cfg.prompts.map((_, i) => i)),
     promptUsed: [],
@@ -429,17 +437,14 @@ function startOnlineGame() {
     phase: "submit", // directly start with submissions
   };
   
-  // Deal opening hands to everyone
   state.hands = state.players.map(() => drawCards(HAND_SIZE));
   dealPrompt();
   
-  // Sync starting state to all players
   sendSyncAction({ type: "START_GAME", state });
   render();
 }
 
 function handleRelayedAction(action, sender) {
-  // GUEST SPECIFIC REACTIONS
   if (!isHost) {
     if (action.type === "START_GAME" || action.type === "STATE_SYNC") {
       state = action.state;
@@ -452,18 +457,15 @@ function handleRelayedAction(action, sender) {
     return;
   }
 
-  // HOST SPECIFIC ACTIONS (Authoritative Client logic)
+  // Host Action handlers
   if (action.type === "SUBMIT_CARDS") {
-    // Process guest cards submissions
     const playerIdx = state.players.findIndex(p => p.name === sender);
     if (playerIdx === -1 || playerIdx === state.czar) return;
 
-    // Check if player already submitted
     if (state.submissions.find(s => s.player === playerIdx)) return;
 
     state.submissions.push({ player: playerIdx, cards: action.cards });
     
-    // Discard played cards from host representation of their hand
     const hand = state.hands[playerIdx];
     action.cards.forEach(c => {
       const idx = hand.indexOf(c);
@@ -473,7 +475,6 @@ function handleRelayedAction(action, sender) {
       }
     });
 
-    // Check if all submitters have played
     const expectedSubmissionsCount = state.players.length - 1;
     if (state.submissions.length >= expectedSubmissionsCount) {
       state.order = shuffle(state.submissions.map((_, i) => i));
@@ -484,20 +485,46 @@ function handleRelayedAction(action, sender) {
     render();
   }
 
+  else if (action.type === "DISCARD_CARD") {
+    // Process guest discarding a card during draft
+    const playerIdx = state.players.findIndex(p => p.name === sender);
+    if (playerIdx !== -1) {
+      const hand = state.hands[playerIdx];
+      const card = hand.splice(action.cardIndex, 1)[0];
+      if (card) {
+        state.discard.push(card);
+        console.log(`Host: Player ${sender} discarded: "${card}"`);
+      }
+      sendSyncAction({ type: "STATE_SYNC", state });
+      render();
+    }
+  }
+
   else if (action.type === "CZAR_CHOSE") {
-    // Process Czar winner choice
     const subIdx = state.order[action.chosenIdx];
     const sub = state.submissions[subIdx];
     state.players[sub.player].score++;
     state.winner = { player: sub.player, cards: sub.cards };
     state.phase = "result";
 
+    // Detect if a custom-written card won and permanently save it!
+    const winningCardText = sub.cards[0] || "";
+    const isCustom = !cfg.responses.includes(winningCardText);
+    
+    if (isCustom && winningCardText.trim()) {
+      // Save globally on Cloudflare DO database!
+      sendSyncAction({
+        type: "ADD_CUSTOM_CARD",
+        card: winningCardText
+      });
+      toast("🎉 Custom card saved permanently to the Cloud!");
+    }
+
     sendSyncAction({ type: "STATE_SYNC", state });
     render();
   }
 }
 
-// Relays socket payload to the room
 function sendSyncAction(action) {
   if (!socket || socket.readyState !== 1) return;
   socket.send(JSON.stringify({
@@ -547,19 +574,56 @@ function renderOnlineCzarWaiting() {
 }
 
 function renderOnlineSubmitterWaiting() {
+  const myIdx = state.players.findIndex(p => p.name === myName);
+  const hand = state.hands[myIdx];
+
   const promptCard = el("div", { className: "play-card prompt" }, [
     fillPrompt(state.prompt.text, BLANK, state.selectedCards || []),
     el("div", { className: "corner", text: "Submitting..." }),
   ]);
+
+  // Trash panel for post-submission trashing/discarding
+  const trashWrap = el("div", { className: "panel" });
+  trashWrap.appendChild(el("label", { text: "Trash any cards you don't want for next round:" }));
+  
+  if (hand.length === 0) {
+    trashWrap.appendChild(el("p", { className: "muted center", style: "margin: 0;", text: "Hand is empty." }));
+  } else {
+    const trashGrid = el("div", { className: "scoreboard" });
+    hand.forEach((card, i) => {
+      trashGrid.appendChild(el("div", { className: "score-row", style: "padding:8px 12px;" }, [
+        el("span", { style: "font-size:0.95rem; font-weight:700; color:#fff;", text: card }),
+        el("button", {
+          className: "btn small",
+          style: "width:auto; padding:4px 10px; background:#c62828; color:#fff; font-size:0.8rem; box-shadow:none;",
+          text: "🗑️ Discard",
+          onClick: () => {
+            // Remove locally and sync to host
+            hand.splice(i, 1);
+            const discardAction = { type: "DISCARD_CARD", cardIndex: i };
+            if (isHost) {
+              handleRelayedAction(discardAction, myName);
+            } else {
+              sendSyncAction(discardAction);
+            }
+            render();
+            toast("Card discarded. Fresh card dealt next round!");
+          }
+        })
+      ]));
+    });
+    trashWrap.appendChild(trashGrid);
+  }
 
   mount(
     topbar(`Round ${state.round}`),
     el("div", { className: "handoff panel center" }, [
       el("div", { className: "big-emoji", text: "🤫" }),
       el("h3", { text: "Submission Locked 🔒" }),
-      el("p", { className: "muted", text: "Your cards were sent to the Host. Waiting for other Sigmas to finish..." }),
+      el("p", { className: "muted", text: "Your cards were sent to the Host. Review your hand below." }),
     ]),
     promptCard,
+    trashWrap,
     scoreboardEl()
   );
 }
@@ -578,11 +642,36 @@ function renderOnlineSubmitterPick() {
   hand.forEach((card, i) => {
     const order = state.selected.indexOf(i);
     const selected = order !== -1;
+    
+    const cardEl = el("span", { text: card });
     const node = el("div", {
       className: "play-card response" + (selected ? " selected" : ""),
       onClick: () => toggleSelect(i, need),
-    }, [ el("span", { text: card }) ]);
+    }, [ cardEl ]);
     
+    // Add small Discard button on unselected cards for strategic trashing!
+    if (!selected) {
+      const trashBtn = el("button", {
+        className: "icon-btn",
+        style: "position:absolute; top:4px; right:4px; width:28px; height:28px; font-size:0.85rem; border-radius:50%; background:rgba(0,0,0,0.1); border:none; box-shadow:none; padding:0; display:grid; place-items:center;",
+        text: "🗑️",
+        title: "Discard card",
+        onClick: (e) => {
+          e.stopPropagation(); // Prevent card selection toggle!
+          hand.splice(i, 1);
+          const discardAction = { type: "DISCARD_CARD", cardIndex: i };
+          if (isHost) {
+            handleRelayedAction(discardAction, myName);
+          } else {
+            sendSyncAction(discardAction);
+          }
+          render();
+          toast("Card discarded.");
+        }
+      });
+      node.appendChild(trashBtn);
+    }
+
     if (selected && need === 2) {
       node.appendChild(el("div", { className: "pick-order", text: String(order + 1) }));
     }
@@ -611,10 +700,8 @@ function submitCardsOnline() {
   const hand = state.hands[myIdx];
   const cards = state.selected.map((i) => hand[i]);
 
-  // Keep a local cache of submitted cards to render previews
   state.selectedCards = cards;
 
-  // Send action to Host (or process locally if Host)
   const submitAction = {
     type: "SUBMIT_CARDS",
     cards
@@ -730,13 +817,11 @@ function renderOnlineResult() {
 }
 
 function nextRoundOnline() {
-  // 1. Replenish hands
   state.queue.forEach((pIdx) => {
     const need = HAND_SIZE - state.hands[pIdx].length;
     if (need > 0) state.hands[pIdx].push(...drawCards(need));
   });
 
-  // 2. Advance Czar
   state.czar = (state.czar + 1) % state.players.length;
   state.round++;
   state.submissions = [];
@@ -748,7 +833,6 @@ function nextRoundOnline() {
 
   hasSubmittedThisRound = false;
 
-  // Sync to players
   sendSyncAction({ type: "STATE_SYNC", state });
   render();
 }
@@ -797,6 +881,9 @@ function renderOnlineGameOver() {
 }
 
 function playAgainOnline() {
+  // Clear persistent custom cards fetched from Cloudflare GlobalStore
+  const fullResponses = cfg.responses.concat(onlineCustomCards);
+
   state = {
     isOnline: true,
     players: onlinePlayers.map(name => ({ name, score: 0 })),
@@ -804,7 +891,7 @@ function playAgainOnline() {
     physical: false,
     czar: 0,
     round: 1,
-    deck: shuffle(cfg.responses),
+    deck: shuffle(fullResponses),
     discard: [],
     promptDeck: shuffle(cfg.prompts.map((_, i) => i)),
     promptUsed: [],
@@ -826,7 +913,6 @@ function playAgainOnline() {
   sendSyncAction({ type: "STATE_SYNC", state });
   render();
 }
-
 
 /* ---------------- Deck helpers ---------------- */
 function drawCards(n) {
@@ -862,16 +948,10 @@ function save() {
 function render() {
   save();
 
-  // Route to Online Mode Views
   if (state && state.isOnline) {
-    // Re-verify my presence inside state hands mapping
     const myIdx = state.players.findIndex(p => p.name === myName);
-    if (myIdx === -1) {
-      // Something broke or spectator
-      return;
-    }
+    if (myIdx === -1) return;
 
-    // Mask hands for other players client-side to prevent peaking console
     state.hands = state.hands.map((h, i) => i === myIdx ? h : []);
 
     const isCzar = myIdx === state.czar;
@@ -891,7 +971,7 @@ function render() {
     return;
   }
 
-  // Fallback to traditional Pass & Play
+  // Pass & Play Mode
   switch (state.phase) {
     case "intro": return state.physical ? renderPhysicalIntro() : renderRoundIntro();
     case "pick": return renderPhysicalPick();
@@ -1025,6 +1105,24 @@ function renderSubmit() {
       className: "play-card response" + (selected ? " selected" : ""),
       onClick: () => toggleSelect(i, need),
     }, [ el("span", { text: card }) ]);
+
+    // Discard trash button on unselected cards for strategic Pass-and-play discarding!
+    if (!selected) {
+      const trashBtn = el("button", {
+        className: "icon-btn",
+        style: "position:absolute; top:4px; right:4px; width:28px; height:28px; font-size:0.85rem; border-radius:50%; background:rgba(0,0,0,0.1); border:none; box-shadow:none; padding:0; display:grid; place-items:center;",
+        text: "🗑️",
+        onClick: (e) => {
+          e.stopPropagation();
+          state.discard.push(hand[i]);
+          hand.splice(i, 1);
+          renderSubmit();
+          toast("Card discarded.");
+        }
+      });
+      node.appendChild(trashBtn);
+    }
+
     if (selected && need === 2) {
       node.appendChild(el("div", { className: "pick-order", text: String(order + 1) }));
     }
@@ -1043,6 +1141,20 @@ function renderSubmit() {
 }
 
 function toggleSelect(i, need) {
+  const pIdx = state.isOnline ? state.players.findIndex(p => p.name === myName) : state.queue[state.qi];
+  const hand = state.hands[pIdx];
+  const cardValue = hand[i];
+
+  // Intercept the custom Blank card and prompt the player for input!
+  if (cardValue === CUSTOM_CARD_TEXT) {
+    const answer = prompt("✍️ Write your own custom card response (edgy but simple!):");
+    if (answer && answer.trim()) {
+      hand[i] = answer.trim(); // Replace placeholder in hand with their typed text
+    } else {
+      return; // Do nothing if cancelled
+    }
+  }
+
   const at = state.selected.indexOf(i);
   if (at !== -1) { state.selected.splice(at, 1); }
   else {
@@ -1051,7 +1163,12 @@ function toggleSelect(i, need) {
       else { toast(`Only pick ${need}.`); return; }
     } else state.selected.push(i);
   }
-  renderSubmit();
+  
+  if (state.isOnline) {
+    renderOnlineSubmitterPick();
+  } else {
+    renderSubmit();
+  }
 }
 
 function submitCards() {
@@ -1123,6 +1240,19 @@ function crownWinner() {
   state.players[sub.player].score++;
   state.winner = { player: sub.player, cards: sub.cards };
   state.phase = "result";
+
+  // Check if a custom-written card won locally and permanently save it!
+  const winningCardText = sub.cards[0] || "";
+  const isCustom = !cfg.responses.includes(winningCardText);
+  if (isCustom && winningCardText.trim()) {
+    const localCustoms = store.get(cfg.saveKey + ".custom_cards", []);
+    if (!localCustoms.includes(winningCardText)) {
+      localCustoms.push(winningCardText);
+      store.set(cfg.saveKey + ".custom_cards", localCustoms);
+      toast("🎉 Custom card saved permanently!");
+    }
+  }
+
   render();
 }
 

@@ -7,10 +7,18 @@ compatibility_date = "2026-05-25"
 name = "ROOM_LOBBY"
 class_name = "RoomLobby"
 
+[[durable_objects.bindings]]
+name = "GLOBAL_STORE"
+class_name = "GlobalStore"
+
 # Database/Classes migration history
 [[migrations]]
 tag = "v1"
 new_sqlite_classes = ["RoomLobby"]
+
+[[migrations]]
+tag = "v2"
+new_sqlite_classes = ["GlobalStore"]
 
 [observability]
 enabled = true

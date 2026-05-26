@@ -4,6 +4,9 @@
 
 import http from "http";
 import { WebSocketServer } from "ws";
+import fs from "fs";
+import path from "path";
+import { fileURLToPath } from "url";
 
 const PORT = 3000;
 const server = http.createServer((req, res) => {
@@ -13,11 +16,43 @@ const server = http.createServer((req, res) => {
 
 const wss = new WebSocketServer({ server });
 
-// Map: roomCode (string) -> Set of WebSocket client connections
+// Room structures
 const rooms = new Map();
-
-// Map: socket -> { roomCode, name }
 const socketMetadata = new Map();
+
+// Local persistent store path
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const customCardsPath = path.join(__dirname, "custom_cards.json");
+
+// Helper to load custom cards
+function loadCustomCards() {
+  try {
+    if (fs.existsSync(customCardsPath)) {
+      const data = fs.readFileSync(customCardsPath, "utf8");
+      return JSON.parse(data);
+    }
+  } catch (e) {
+    console.error("Local Server: Error reading custom cards file:", e);
+  }
+  return [];
+}
+
+// Helper to save custom cards
+function saveCustomCard(cardText) {
+  if (!cardText || !cardText.trim()) return;
+  const text = cardText.trim();
+  const cards = loadCustomCards();
+  if (!cards.includes(text)) {
+    cards.push(text);
+    try {
+      fs.writeFileSync(customCardsPath, JSON.stringify(cards, null, 2), "utf8");
+      console.log(`Local Server: Saved custom card permanently: "${text}"`);
+    } catch (e) {
+      console.error("Local Server: Error writing custom cards file:", e);
+    }
+  }
+}
 
 function generateRoomCode() {
   const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
@@ -25,7 +60,6 @@ function generateRoomCode() {
   for (let i = 0; i < 4; i++) {
     code += chars.charAt(Math.floor(Math.random() * chars.length));
   }
-  // Ensure uniqueness
   if (rooms.has(code)) return generateRoomCode();
   return code;
 }
@@ -38,6 +72,8 @@ wss.on("connection", (ws) => {
       const data = JSON.parse(rawMessage);
       console.log("Received action:", data.type, "from room:", data.code);
 
+      const customCards = loadCustomCards();
+
       switch (data.type) {
         case "create": {
           const code = generateRoomCode();
@@ -47,7 +83,8 @@ wss.on("connection", (ws) => {
           ws.send(JSON.stringify({
             type: "created",
             code,
-            players: [data.name || "Host"]
+            players: [data.name || "Host"],
+            customCards // Include local custom cards database
           }));
           console.log(`Room ${code} created by ${data.name || "Host"}`);
           break;
@@ -66,23 +103,23 @@ wss.on("connection", (ws) => {
           clients.add(ws);
           socketMetadata.set(ws, { roomCode: code, name });
 
-          // Gather all player names currently in the room
           const playerNames = [];
           clients.forEach(client => {
             const meta = socketMetadata.get(client);
             if (meta) playerNames.push(meta.name);
           });
 
-          // Broadcast to everyone in the room that a player joined
+          // Broadcast join + custom cards to room
           const joinNotification = JSON.stringify({
             type: "player_joined",
             code,
             name,
-            players: playerNames
+            players: playerNames,
+            customCards // Include custom cards database
           });
 
           clients.forEach(client => {
-            if (client.readyState === 1) { // OPEN
+            if (client.readyState === 1) {
               client.send(joinNotification);
             }
           });
@@ -95,14 +132,18 @@ wss.on("connection", (ws) => {
           const code = (data.code || "").toUpperCase();
           if (!rooms.has(code)) return;
 
+          // Check if game action contains a winning custom card to permanently add to database
+          if (data.action && data.action.type === "ADD_CUSTOM_CARD") {
+            saveCustomCard(data.action.card);
+          }
+
           const clients = rooms.get(code);
           const relayPayload = JSON.stringify({
             type: "relay",
             sender: data.sender || "Unknown",
-            action: data.action // the actual game event (e.g. SUBMIT, Czar selection)
+            action: data.action
           });
 
-          // Send to everyone in the room EXCEPT the sender
           clients.forEach(client => {
             if (client !== ws && client.readyState === 1) {
               client.send(relayPayload);
@@ -140,14 +181,12 @@ wss.on("connection", (ws) => {
         rooms.delete(roomCode);
         console.log(`Room ${roomCode} has been closed (all players left).`);
       } else {
-        // Gather remaining player names
         const playerNames = [];
         clients.forEach(client => {
           const m = socketMetadata.get(client);
           if (m) playerNames.push(m.name);
         });
 
-        // Notify remaining players
         const leaveNotification = JSON.stringify({
           type: "player_left",
           name,

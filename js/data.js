@@ -3,6 +3,7 @@
 
 // Blank marker used in prompt text. The UI replaces these with the chosen card(s).
 export const BLANK = "_______";
+export const CUSTOM_CARD_TEXT = "✍️ [Write your own answer...]";
 
 /* ============================================================
  * CARDS AGAINST MONKEYS — the sussy / brain-rot deck.
@@ -60,6 +61,7 @@ export const PROMPTS = [
 
 // Response cards — chronically-online brain-rot answers.
 export const RESPONSES = [
+  "✍️ [Write your own answer...]",
   "Subway Surfers gameplay",
   "an unskippable 4K Skibidi Toilet cutscene",
   "the Ohio final boss",
@@ -292,6 +294,7 @@ export const NORMAL_PROMPTS = [
 ];
 
 export const NORMAL_RESPONSES = [
+  "✍️ [Write your own answer...]",
   // lake-house / cabin flavored
   "a canoe full of regret",
   "the dock where I lost my last shred of dignity",

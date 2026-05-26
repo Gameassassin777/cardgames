@@ -17,14 +17,12 @@ export default {
     const path = url.pathname;
     
     if (path.startsWith("/ws/")) {
-      // Extract room code
       let code = url.searchParams.get("code") || "";
       code = code.toUpperCase().trim();
 
       const type = path.includes("create") ? "create" : "join";
 
       if (type === "create") {
-        // Generate a random room code
         code = generateRoomCode();
       }
 
@@ -53,11 +51,48 @@ function generateRoomCode() {
   return code;
 }
 
-// Durable Object class coordinating sockets inside an isolated in-memory execution context
+// Global Custom Cards Store Durable Object
+export class GlobalStore {
+  constructor(state, env) {
+    this.state = state;
+  }
+
+  async fetch(request) {
+    const url = new URL(request.url);
+
+    if (url.pathname === "/add") {
+      const card = url.searchParams.get("card");
+      if (card && card.trim()) {
+        const text = card.trim();
+        // Load existing custom cards
+        const cards = await this.state.storage.get("custom_cards") || [];
+        if (!cards.includes(text)) {
+          cards.push(text);
+          await this.state.storage.put("custom_cards", cards);
+        }
+        return new Response(JSON.stringify({ success: true, count: cards.length }), {
+          headers: { "Content-Type": "application/json" }
+        });
+      }
+      return new Response("Missing card", { status: 400 });
+    }
+
+    if (url.pathname === "/get") {
+      const cards = await this.state.storage.get("custom_cards") || [];
+      return new Response(JSON.stringify(cards), {
+        headers: { "Content-Type": "application/json" }
+      });
+    }
+
+    return new Response("Not Found", { status: 404 });
+  }
+}
+
+// Room Lobby Durable Object class coordinating sockets inside an isolated room
 export class RoomLobby {
   constructor(state, env) {
     this.state = state;
-    // Map: socket -> { name }
+    this.env = env;
     this.sessions = new Map();
   }
 
@@ -70,7 +105,6 @@ export class RoomLobby {
     const pair = new WebSocketPair();
     const [client, server] = Object.values(pair);
 
-    // Accept the WebSocket connection on the server side
     await this.handleSession(server, code, name, type);
 
     return new Response(null, {
@@ -82,43 +116,66 @@ export class RoomLobby {
   async handleSession(ws, code, name, type) {
     ws.accept();
 
-    // Register session
     this.sessions.set(ws, { name });
 
-    // Handle handshake confirmation
+    // Fetch custom cards permanently saved on Global Store Durable Object
+    let customCards = [];
+    try {
+      const globalId = this.env.GLOBAL_STORE.idFromName("global");
+      const globalStore = this.env.GLOBAL_STORE.get(globalId);
+      const res = await globalStore.fetch("http://global/get");
+      customCards = await res.json();
+    } catch(e) {
+      console.error("DO: Failed to query GlobalStore:", e);
+    }
+
     if (type === "create") {
       ws.send(JSON.stringify({
         type: "created",
         code,
-        players: [name]
+        players: [name],
+        customCards // Send the custom cards list directly to host on creation
       }));
       console.log(`Cloudflare DO: Room ${code} created by host ${name}`);
     } else {
-      // Gather all players currently in DO session
       const playerNames = [];
       this.sessions.forEach(session => {
         playerNames.push(session.name);
       });
 
-      // Broadcast player joined to ALL sessions in DO
       const joinNotification = JSON.stringify({
         type: "player_joined",
         code,
         name,
-        players: playerNames
+        players: playerNames,
+        customCards // Send the custom cards to guests as well
       });
 
       this.broadcast(joinNotification);
       console.log(`Cloudflare DO: Player ${name} joined room ${code}`);
     }
 
-    // Set message listener
-    ws.addEventListener("message", (msg) => {
+    ws.addEventListener("message", async (msg) => {
       try {
         const data = JSON.parse(msg.data);
 
         if (data.type === "relay") {
-          // Relays the action to all other sockets in this DO instance
+          // If a custom card has won and needs to be permanently added to the cloud
+          if (data.action && data.action.type === "ADD_CUSTOM_CARD") {
+            const cardText = data.action.card;
+            if (cardText && cardText.trim()) {
+              try {
+                // Forward the custom card to our global persistent DO store!
+                const globalId = this.env.GLOBAL_STORE.idFromName("global");
+                const globalStore = this.env.GLOBAL_STORE.get(globalId);
+                await globalStore.fetch(`http://global/add?card=${encodeURIComponent(cardText.trim())}`);
+                console.log(`Cloudflare DO: Saved custom card globally: "${cardText}"`);
+              } catch(e) {
+                console.error("DO: Failed to save custom card:", e);
+              }
+            }
+          }
+
           const relayPayload = JSON.stringify({
             type: "relay",
             sender: data.sender || name,
@@ -132,7 +189,6 @@ export class RoomLobby {
       }
     });
 
-    // Set close / error listeners
     const closeHandler = () => {
       this.sessions.delete(ws);
       console.log(`Cloudflare DO: Connection closed for ${name}`);
@@ -140,13 +196,11 @@ export class RoomLobby {
       if (this.sessions.size === 0) {
         console.log(`Cloudflare DO: Room ${code} is empty, purging memory.`);
       } else {
-        // Recalculate players
         const playerNames = [];
         this.sessions.forEach(session => {
           playerNames.push(session.name);
         });
 
-        // Notify remaining
         const leaveNotification = JSON.stringify({
           type: "player_left",
           name,
