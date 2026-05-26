@@ -52,67 +52,67 @@ const campfireRoasts = makeDeck({ title: "Roast Me", source: CAMPFIRE_ROASTS, sa
 
 const GAMES = [
   {
-    id: "family", icon: icons.family, title: "Fill in the Blank", badge: "Family",
+    id: "family", icon: icons.family, title: "Fill in the Blank",
     blurb: "Everyone picks the funniest response card to complete a prompt. The judge decides the winner. Family-friendly deck. 3+ players.",
     start: family,
     familyFriendly: true,
   },
   {
-    id: "cam", icon: icons.monkeys, title: "Cards Against Monkeys", badge: "Internet",
+    id: "cam", icon: icons.monkeys, title: "Cards Against Monkeys",
     blurb: "Fill in the blanks to complete prompts using response cards. Features internet culture topics. 3+ players.",
     start: monkeys,
     familyFriendly: false,
   },
   {
-    id: "cabin", icon: icons.cabin, title: "Fill in the Blank", badge: "Adult",
+    id: "cabin", icon: icons.cabin, title: "Fill in the Blank",
     blurb: "Everyone picks the funniest response card to complete a prompt. The judge decides the winner. Adult deck. 3+ players.",
     start: cabin,
     familyFriendly: false,
   },
   {
-    id: "meeting", icon: icons.meeting, title: "Most Likely To", badge: "Voting",
+    id: "meeting", icon: icons.meeting, title: "Most Likely To",
     blurb: "Vote on which player is most likely to match a given prompt. 3+ players.",
     start: meeting.start,
     familyFriendly: false,
   },
   {
-    id: "rizz", icon: icons.rizz, title: "Rizz Roulette", badge: "Social",
+    id: "rizz", icon: icons.rizz, title: "Rizz Roulette",
     blurb: "Draw cards to complete interactive dares, answer questions, or discuss conversational prompts. 2+ players.",
     start: rizzRoulette,
     familyFriendly: false,
   },
   {
-    id: "wyr", icon: icons.wyr, title: "Would You Rather", badge: "Dilemma",
+    id: "wyr", icon: icons.wyr, title: "Would You Rather",
     blurb: "Read a dilemma with two choices, and have players vote on their preference. 2+ players.",
     start: wouldYouRather,
     familyFriendly: false,
   },
   {
-    id: "flags", icon: icons.flags, title: "Red Flag / Green Flag", badge: "Social",
+    id: "flags", icon: icons.flags, title: "Red Flag / Green Flag",
     blurb: "Discuss and judge character traits as positive, negative, or neutral. 2+ players.",
     start: redGreen,
     familyFriendly: true,
   },
   {
-    id: "truths", icon: icons.truths, title: "Truth or Dare", badge: "Social",
+    id: "truths", icon: icons.truths, title: "Truth or Dare",
     blurb: "Choose between answering a truth question or completing a dare. Suitable for any group size.",
     start: lakeTruths,
     familyFriendly: true,
   },
   {
-    id: "roasts", icon: icons.roasts, title: "Roast Me", badge: "Social",
+    id: "roasts", icon: icons.roasts, title: "Roast Me",
     blurb: "Lighthearted group roasts, goofy dares, and funny social dilemmas. 3+ players.",
     start: campfireRoasts,
     familyFriendly: true,
   },
   {
-    id: "catchphrase", icon: icons.catchphrase, title: "Catchphrase", badge: "Word",
+    id: "catchphrase", icon: icons.catchphrase, title: "Catchphrase",
     blurb: "Teams race to guess secret words described by their teammates before the round timer runs out. 4+ players.",
     start: catchphrase.start,
     familyFriendly: true,
   },
   {
-    id: "doodles", icon: icons.doodles, title: "Telephone Doodles", badge: "Drawing",
+    id: "doodles", icon: icons.doodles, title: "Telephone Doodles",
     blurb: "Players alternate between writing prompts and drawing scenes — see how the message changes! 3+ players.",
     start: (home) => gartic.start(home),
     familyFriendly: true,
@@ -280,7 +280,6 @@ function home() {
         el("div", { className: "meta" }, [
           el("h3", {}, [
             document.createTextNode(g.title),
-            g.badge ? el("span", { className: "badge", text: g.badge }) : null,
           ]),
           el("p", { text: g.blurb }),
         ]),
