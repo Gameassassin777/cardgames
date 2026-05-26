@@ -1,16 +1,17 @@
-// Custom Cards Settings manager — visually edit, delete, and manually add custom cards for all games.
+// Custom Cards Settings manager — visually edit, delete, and manually add custom responses and prompts.
 import { el, mount, toast, store } from "./ui.js";
 
 const MANAGED_GAMES = [
-  { id: "cam", name: "Cards Against Monkeys", icon: "🐒", saveKey: "cam.game.v1", placeholder: "e.g. Subway Surfers gameplay during a funeral" },
-  { id: "cabin", name: "Cards Against the Cabin", icon: "🛖", saveKey: "cabin.game.v1", placeholder: "e.g. an aggressive beaver defending the dock" },
-  { id: "rizz", name: "Rizz Roulette", icon: "😏", saveKey: "rizz.game.v1", placeholder: "e.g. Say it with rizz: \"Are you Ohio? Because you make me act crazy.\"" },
-  { id: "wyr", name: "Would You Rather", icon: "🤔", saveKey: "wyr.game.v1", placeholder: "e.g. Always step on a wet spot, OR chew on a dry sponge?" },
-  { id: "flags", name: "Red Flag / Green Flag", icon: "🚩", saveKey: "flags.game.v1", placeholder: "e.g. They literally have zero internet presence." },
-  { id: "truths", name: "Lake House Truths", icon: "🛶", saveKey: "truths.game.v1", placeholder: "e.g. Who in the cabin is secretly a duplicate agent?" }
+  { id: "cam", name: "Cards Against Monkeys", icon: "🐒", saveKey: "cam.game.v1", hasPrompts: true, placeholder: "e.g. Subway Surfers gameplay during a funeral" },
+  { id: "cabin", name: "Cards Against the Cabin", icon: "🛖", saveKey: "cabin.game.v1", hasPrompts: true, placeholder: "e.g. an aggressive beaver defending the dock" },
+  { id: "rizz", name: "Rizz Roulette", icon: "😏", saveKey: "rizz.game.v1", hasPrompts: false, placeholder: "e.g. Say it with rizz: \"Are you Ohio? Because you make me act crazy.\"" },
+  { id: "wyr", name: "Would You Rather", icon: "🤔", saveKey: "wyr.game.v1", hasPrompts: false, placeholder: "e.g. Always step on a wet spot, OR chew on a dry sponge?" },
+  { id: "flags", name: "Red Flag / Green Flag", icon: "🚩", saveKey: "flags.game.v1", hasPrompts: false, placeholder: "e.g. They literally have zero internet presence." },
+  { id: "truths", name: "Lake House Truths", icon: "🛶", saveKey: "truths.game.v1", hasPrompts: false, placeholder: "e.g. Who in the cabin is secretly a duplicate agent?" }
 ];
 
 let activeGameId = "cam";
+let activeTab = "responses"; // "responses" | "prompts"
 let editingIndex = null; // index of the card being edited
 let currentHomeCallback = null;
 
@@ -21,8 +22,17 @@ export function openCustomCardsManager(homeCallback) {
 
 function render() {
   const activeGame = MANAGED_GAMES.find(g => g.id === activeGameId) || MANAGED_GAMES[0];
-  const saveKey = activeGame.saveKey + ".custom_cards";
-  const cards = store.get(saveKey, []);
+  
+  // Safe-guard tab
+  if (!activeGame.hasPrompts && activeTab === "prompts") {
+    activeTab = "responses";
+  }
+
+  const responsesKey = activeGame.saveKey + ".custom_cards";
+  const promptsKey = activeGame.saveKey + ".custom_prompts";
+
+  const responses = store.get(responsesKey, []);
+  const prompts = store.get(promptsKey, []);
 
   // Topbar
   const topbar = el("div", { className: "topbar" }, [
@@ -31,7 +41,7 @@ function render() {
     el("span", { style: "width:64px" })
   ]);
 
-  // Tab row selectors
+  // Tab row selectors (Monkey, Cabin, Rizz...)
   const tabRow = el("div", {
     className: "btn-row",
     style: "margin-top: 10px; margin-bottom: 14px; gap: 8px; justify-content: center;"
@@ -44,6 +54,7 @@ function render() {
       style: "flex:1; min-width:60px; padding:8px 10px; font-size:0.85rem; font-weight:700; white-space:nowrap; display:flex; align-items:center; justify-content:center; gap:4px;",
       onClick: () => {
         activeGameId = g.id;
+        activeTab = "responses";
         editingIndex = null;
         render();
       }
@@ -63,14 +74,71 @@ function render() {
     el("p", {
       className: "muted",
       style: "margin:0; font-size:0.85rem;",
-      text: `Manage custom winning cards that show up in subsequent games. (Saved cards: ${cards.length})`
+      text: `Expand or modify custom decks that show up in subsequent games.`
     })
   ]);
 
-  // Create card input section
+  // Secondary sub-tab selectors (Responses vs Prompts)
+  let subTabRow = null;
+  if (activeGame.hasPrompts) {
+    const respSub = el("button", {
+      className: "btn small" + (activeTab === "responses" ? " secondary" : " ghost"),
+      style: "flex:1; font-weight:700; padding:6px 12px; font-size:0.85rem; margin:0;",
+      text: `⚪ Custom Responses (${responses.length})`,
+      onClick: () => {
+        activeTab = "responses";
+        editingIndex = null;
+        render();
+      }
+    });
+
+    const promptSub = el("button", {
+      className: "btn small" + (activeTab === "prompts" ? " secondary" : " ghost"),
+      style: "flex:1; font-weight:700; padding:6px 12px; font-size:0.85rem; margin:0;",
+      text: `⚫ Custom Prompts (${prompts.length})`,
+      onClick: () => {
+        activeTab = "prompts";
+        editingIndex = null;
+        render();
+      }
+    });
+
+    subTabRow = el("div", {
+      className: "btn-row",
+      style: "margin-bottom: 12px; gap:10px; background:rgba(0,0,0,0.15); padding:6px; border-radius:12px;"
+    }, [respSub, promptSub]);
+  }
+
+  // Define input section
+  let labelText = "Add New Custom Card Manually";
+  let inputPlaceholder = activeGame.placeholder;
+  let explanationBox = null;
+
+  if (activeTab === "prompts") {
+    labelText = "Add Custom Prompt Card (Black)";
+    inputPlaceholder = "e.g. My favorite looksmaxxing technique involves cheating on _.";
+    
+    explanationBox = el("div", {
+      className: "panel",
+      style: "background:rgba(0,0,0,0.2); border:1px solid rgba(255,255,255,0.06); padding:12px; margin-top:8px;"
+    }, [
+      el("h4", { style: "margin:0 0 6px 0; font-size:0.9rem; color:var(--sunset);", text: "✍️ Prompt Formatting Instructions:" }),
+      el("ul", { style: "margin:0; padding-left:18px; font-size:0.82rem; line-height:1.4;" }, [
+        el("li", {}, [
+          document.createTextNode("Use the underscore symbol "),
+          el("code", { style: "background:rgba(255,255,255,0.1); padding:1px 4px; border-radius:4px; font-weight:bold; color:#fff;", text: "_" }),
+          document.createTextNode(" to represent a blank card space.")
+        ]),
+        el("li", { text: "Each underscore represents 1 response card the players must submit (e.g. _ + _ = Pick 2)." }),
+        el("li", { text: "You can use up to 4 underscores per prompt card." }),
+        el("li", { text: "If you don't type any underscores, the prompt will show as a simple question card." })
+      ])
+    ]);
+  }
+
   const newCardInput = el("input", {
     type: "text",
-    placeholder: activeGame.placeholder,
+    placeholder: inputPlaceholder,
     style: "flex:1; border-radius:12px; font-size:0.95rem; margin-right:8px;"
   });
 
@@ -81,41 +149,65 @@ function render() {
     onClick: () => {
       const text = newCardInput.value.trim();
       if (!text) { toast("Please enter some card text first!"); return; }
-      
-      if (cards.includes(text)) {
-        toast("This custom card already exists!");
-        return;
+
+      if (activeTab === "responses") {
+        if (responses.includes(text)) { toast("This card already exists!"); return; }
+        responses.push(text);
+        store.set(responsesKey, responses);
+        toast("Response card added!");
+      } else {
+        // Count underscores
+        const count = (text.match(/_/g) || []).length;
+        if (count > 4) {
+          toast("At most 4 blank blanks (_) allowed per prompt card!");
+          return;
+        }
+
+        // Convert underscores to standard blank representation
+        const convertedText = text.replace(/_/g, "_______");
+        const existing = prompts.find(p => p.text === convertedText);
+        if (existing) { toast("This prompt card already exists!"); return; }
+
+        prompts.push({
+          text: convertedText,
+          pick: Math.max(1, count)
+        });
+        store.set(promptsKey, prompts);
+        toast("Prompt card added!");
       }
-      
-      cards.push(text);
-      store.set(saveKey, cards);
+
       newCardInput.value = "";
       editingIndex = null;
       render();
-      toast("Card added successfully!");
     }
   });
 
   const addPanel = el("div", { className: "panel" }, [
-    el("label", { text: "Add New Custom Card Manually" }),
-    el("div", { style: "display:flex; align-items:center;" }, [newCardInput, addBtn])
+    el("label", { text: labelText }),
+    el("div", { style: "display:flex; align-items:center;" }, [newCardInput, addBtn]),
+    explanationBox
   ]);
 
-  // List of Custom Cards
+  // List of items
+  const items = activeTab === "responses" ? responses : prompts;
   const listPanel = el("div", { className: "panel" });
-  listPanel.appendChild(el("label", { text: `Active Custom Deck (${cards.length} card${cards.length === 1 ? "" : "s"})` }));
+  listPanel.appendChild(el("label", { text: `Custom Deck List (${items.length} card${items.length === 1 ? "" : "s"})` }));
 
-  if (cards.length === 0) {
+  if (items.length === 0) {
     listPanel.appendChild(el("p", {
       className: "muted center",
       style: "margin:16px 0; font-style:italic;",
-      text: "No custom cards in this deck yet. Win a round with a blank card or type one in above!"
+      text: "No custom cards added yet in this list. Enter one above!"
     }));
   } else {
     const listContainer = el("div", { className: "scoreboard", style: "max-height: 380px; overflow-y: auto;" });
     
-    cards.forEach((card, idx) => {
+    items.forEach((item, idx) => {
       const isEditing = editingIndex === idx;
+      let cardTextRaw = activeTab === "responses" ? item : item.text;
+      
+      // Convert standard blanks _______ back to simple underscores _ for editing/display ease
+      const displayCardText = cardTextRaw.replace(/_______/g, "_");
 
       let cardContent;
       let actionButtons;
@@ -123,7 +215,7 @@ function render() {
       if (isEditing) {
         const editInput = el("input", {
           type: "text",
-          value: card,
+          value: displayCardText,
           style: "flex:1; border-radius:8px; font-size:0.9rem; padding:6px 10px; margin-right:6px;"
         });
 
@@ -135,15 +227,34 @@ function render() {
           onClick: () => {
             const updatedText = editInput.value.trim();
             if (!updatedText) { toast("Card text cannot be empty!"); return; }
-            if (cards.includes(updatedText) && cards[idx] !== updatedText) {
-              toast("This card already exists!");
-              return;
+
+            if (activeTab === "responses") {
+              if (responses.includes(updatedText) && responses[idx] !== updatedText) {
+                toast("This card already exists!");
+                return;
+              }
+              responses[idx] = updatedText;
+              store.set(responsesKey, responses);
+            } else {
+              const count = (updatedText.match(/_/g) || []).length;
+              if (count > 4) {
+                toast("At most 4 blank blanks (_) allowed per prompt!");
+                return;
+              }
+              const convertedText = updatedText.replace(/_/g, "_______");
+              const duplicate = prompts.find((p, pIdx) => p.text === convertedText && pIdx !== idx);
+              if (duplicate) { toast("This prompt card already exists!"); return; }
+
+              prompts[idx] = {
+                text: convertedText,
+                pick: Math.max(1, count)
+              };
+              store.set(promptsKey, prompts);
             }
-            cards[idx] = updatedText;
-            store.set(saveKey, cards);
+
             editingIndex = null;
             render();
-            toast("Card updated successfully!");
+            toast("Card updated!");
           }
         });
 
@@ -161,10 +272,20 @@ function render() {
         cardContent = editInput;
         actionButtons = el("div", { style: "display:flex; align-items:center;" }, [saveBtn, cancelBtn]);
       } else {
-        const cardText = el("span", {
+        const textSpan = el("span", {
           style: "font-size:0.95rem; font-weight:700; color:#fff; word-break:break-word; flex:1;",
-          text: card
+          text: displayCardText
         });
+
+        // Add a small tag showing how many blanks a prompt requires
+        let pickTag = null;
+        if (activeTab === "prompts") {
+          pickTag = el("span", {
+            className: "badge",
+            style: "background:rgba(0,0,0,0.3); color:var(--water-foam); font-size:0.7rem; font-weight:700; margin:0 8px 0 0; padding:2px 6px; border:1px solid rgba(255,255,255,0.1);",
+            text: `Pick ${item.pick}`
+          });
+        }
 
         const editBtn = el("button", {
           className: "icon-btn",
@@ -183,9 +304,9 @@ function render() {
           text: "🗑️",
           title: "Delete Card",
           onClick: () => {
-            if (confirm(`Are you sure you want to permanently delete: "${card}"?`)) {
-              cards.splice(idx, 1);
-              store.set(saveKey, cards);
+            if (confirm(`Are you sure you want to permanently delete this custom card?`)) {
+              items.splice(idx, 1);
+              store.set(activeTab === "responses" ? responsesKey : promptsKey, items);
               editingIndex = null;
               render();
               toast("Card deleted!");
@@ -193,7 +314,10 @@ function render() {
           }
         });
 
-        cardContent = cardText;
+        cardContent = el("div", { style: "display:flex; align-items:center; flex:1; margin-right:8px;" }, [
+          pickTag,
+          textSpan
+        ]);
         actionButtons = el("div", { style: "display:flex; align-items:center;" }, [editBtn, deleteBtn]);
       }
 
@@ -207,17 +331,17 @@ function render() {
 
     listPanel.appendChild(listContainer);
 
-    // Clear All / Reset Button
+    // Clear All Button
     const clearBtn = el("button", {
       className: "btn ghost small",
       style: "width:100%; margin-top: 14px; background:rgba(198,40,40,0.1); border:1px dashed #c62828; color:#ef5350; font-weight:700; box-shadow:none;",
-      text: "🧹 Reset/Delete All Custom Cards",
+      text: `🧹 Delete All Custom ${activeTab.toUpperCase()}`,
       onClick: () => {
-        if (confirm(`⚠️ WARNING: This will permanently delete ALL ${cards.length} custom cards in ${activeGame.name}! This cannot be undone. Proceed?`)) {
-          store.del(saveKey);
+        if (confirm(`⚠️ WARNING: This will permanently delete ALL custom ${activeTab} in this deck! Proceed?`)) {
+          store.del(activeTab === "responses" ? responsesKey : promptsKey);
           editingIndex = null;
           render();
-          toast("Deck reset successfully!");
+          toast("Wiped successfully!");
         }
       }
     });
@@ -228,6 +352,7 @@ function render() {
     topbar,
     tabRow,
     introHeader,
+    subTabRow,
     addPanel,
     listPanel
   );

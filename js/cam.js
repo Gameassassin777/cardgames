@@ -167,10 +167,28 @@ function renderSetup() {
     setupCard.appendChild(el("hr", { className: "divider" }));
     setupCard.appendChild(el("label", { text: "Score to Win" }));
     setupCard.appendChild(stepper);
+    const disPrompts = store.get(cfg.saveKey + ".disabled_prompts", []);
+    const disResponses = store.get(cfg.saveKey + ".disabled_responses", []);
+    const totalDisabled = disPrompts.length + disResponses.length;
+
+    const customizeBtn = el("button", {
+      className: "btn ghost small",
+      style: "width:100%; display:flex; align-items:center; justify-content:center; gap:6px; font-weight:700; border: 1.5px dashed var(--water-foam); border-radius:12px; padding:10px; margin-bottom:12px; margin-top:4px;",
+      onClick: () => openDeckCustomizer()
+    }, [
+      el("span", { text: "🎴" }),
+      el("span", { text: "Customize Playable Deck" }),
+      totalDisabled > 0 
+        ? el("span", { className: "badge", style: "background:#c62828; color:#fff; margin-left:4px; font-size:0.65rem; padding:1px 6px;", text: `${totalDisabled} filtered` })
+        : el("span", { className: "badge", style: "background:#2e7d32; color:#fff; margin-left:4px; font-size:0.65rem; padding:1px 6px;", text: "Full Deck Active" })
+    ]);
+
     setupCard.appendChild(el("hr", { className: "divider" }));
     setupCard.appendChild(el("label", { text: "Card Mode" }));
     setupCard.appendChild(el("div", { className: "btn-row" }, [digitalBtn, physicalBtn]));
     setupCard.appendChild(modeDesc);
+    setupCard.appendChild(el("hr", { className: "divider" }));
+    setupCard.appendChild(customizeBtn);
     setupCard.appendChild(el("hr", { className: "divider" }));
     setupCard.appendChild(el("button", {
       className: "btn",
@@ -194,8 +212,26 @@ function renderSetup() {
       style: "text-transform: uppercase;"
     });
 
+    const disPrompts = store.get(cfg.saveKey + ".disabled_prompts", []);
+    const disResponses = store.get(cfg.saveKey + ".disabled_responses", []);
+    const totalDisabled = disPrompts.length + disResponses.length;
+
+    const customizeBtn = el("button", {
+      className: "btn ghost small",
+      style: "width:100%; display:flex; align-items:center; justify-content:center; gap:6px; font-weight:700; border: 1.5px dashed var(--water-foam); border-radius:12px; padding:10px; margin-bottom:12px; margin-top:4px;",
+      onClick: () => openDeckCustomizer()
+    }, [
+      el("span", { text: "🎴" }),
+      el("span", { text: "Customize Playable Deck" }),
+      totalDisabled > 0 
+        ? el("span", { className: "badge", style: "background:#c62828; color:#fff; margin-left:4px; font-size:0.65rem; padding:1px 6px;", text: `${totalDisabled} filtered` })
+        : el("span", { className: "badge", style: "background:#2e7d32; color:#fff; margin-left:4px; font-size:0.65rem; padding:1px 6px;", text: "Full Deck Active" })
+    ]);
+
     setupCard.appendChild(el("label", { text: "1. Enter Your Name" }));
     setupCard.appendChild(nameInput);
+    setupCard.appendChild(el("hr", { className: "divider" }));
+    setupCard.appendChild(customizeBtn);
     setupCard.appendChild(el("hr", { className: "divider" }));
     setupCard.appendChild(el("label", { text: "2. Host a New Online Room" }));
     setupCard.appendChild(el("button", {
@@ -248,13 +284,23 @@ function beginGame(rawNames, target, physical) {
   store.set(cfg.targetKey, target);
   store.set(cfg.physicalKey, !!physical);
 
-  // Mix persistent custom cards from localStorage for local mode!
+  // Mix persistent custom prompts from localStorage and filter out disabled ones
+  const localPrompts = store.get(cfg.saveKey + ".custom_prompts", []);
+  const disabledPrompts = store.get(cfg.saveKey + ".disabled_prompts", []);
+  
+  const activeCorePrompts = cfg.prompts.filter(p => !disabledPrompts.includes(p.text));
+  const activeCustomPrompts = localPrompts.filter(p => !disabledPrompts.includes(p.text));
+  const fullPrompts = activeCorePrompts.concat(activeCustomPrompts);
+
+  // Mix persistent custom cards from localStorage and filter out disabled ones
   const localCustoms = store.get(cfg.saveKey + ".custom_cards", []);
+  const disabledResponses = store.get(cfg.saveKey + ".disabled_responses", []);
   
   // Filter out any existing blank card and inject exactly 6 clean blanks
-  const baseResponses = cfg.responses.filter(c => c !== CUSTOM_CARD_TEXT);
+  const baseResponses = cfg.responses.filter(c => c !== CUSTOM_CARD_TEXT && !disabledResponses.includes(c));
+  const activeCustoms = localCustoms.filter(c => !disabledResponses.includes(c));
   const blankCopies = Array(6).fill(CUSTOM_CARD_TEXT);
-  const fullResponses = baseResponses.concat(localCustoms).concat(blankCopies);
+  const fullResponses = baseResponses.concat(activeCustoms).concat(blankCopies);
 
   state = {
     isOnline: false,
@@ -263,9 +309,10 @@ function beginGame(rawNames, target, physical) {
     physical: !!physical,
     czar: 0,
     round: 1,
+    prompts: fullPrompts, // Store combined active prompts in state
     deck: physical ? [] : shuffle(fullResponses),
     discard: [],
-    promptDeck: shuffle(cfg.prompts.map((_, i) => i)),
+    promptDeck: shuffle(fullPrompts.map((_, i) => i)),
     promptUsed: [],
     hands: players.map(() => []),
     prompt: null,
@@ -420,11 +467,22 @@ function renderOnlineLobby() {
 function startOnlineGame() {
   if (onlinePlayers.length < 3) return;
 
-  // Mix persistent custom cards from DO GlobalStore
+  // Mix persistent custom prompts and filter out disabled ones
+  const localPrompts = store.get(cfg.saveKey + ".custom_prompts", []);
+  const disabledPrompts = store.get(cfg.saveKey + ".disabled_prompts", []);
+  
+  const activeCorePrompts = cfg.prompts.filter(p => !disabledPrompts.includes(p.text));
+  const activeCustomPrompts = localPrompts.filter(p => !disabledPrompts.includes(p.text));
+  const fullPrompts = activeCorePrompts.concat(activeCustomPrompts);
+
+  // Mix persistent custom cards and filter out disabled ones
+  const disabledResponses = store.get(cfg.saveKey + ".disabled_responses", []);
+  
   // Filter out any existing blank card and inject exactly 6 clean blanks
-  const baseResponses = cfg.responses.filter(c => c !== CUSTOM_CARD_TEXT);
+  const baseResponses = cfg.responses.filter(c => c !== CUSTOM_CARD_TEXT && !disabledResponses.includes(c));
+  const activeCustoms = onlineCustomCards.filter(c => !disabledResponses.includes(c));
   const blankCopies = Array(6).fill(CUSTOM_CARD_TEXT);
-  const fullResponses = baseResponses.concat(onlineCustomCards).concat(blankCopies);
+  const fullResponses = baseResponses.concat(activeCustoms).concat(blankCopies);
 
   state = {
     isOnline: true,
@@ -433,9 +491,10 @@ function startOnlineGame() {
     physical: false,
     czar: 0,
     round: 1,
+    prompts: fullPrompts, // Store combined active prompts in state
     deck: shuffle(fullResponses),
     discard: [],
-    promptDeck: shuffle(cfg.prompts.map((_, i) => i)),
+    promptDeck: shuffle(fullPrompts.map((_, i) => i)),
     promptUsed: [],
     hands: onlinePlayers.map(() => []),
     prompt: null,
@@ -894,11 +953,22 @@ function renderOnlineGameOver() {
 }
 
 function playAgainOnline() {
-  // Mix persistent custom cards from Cloudflare GlobalStore
+  // Mix persistent custom prompts and filter out disabled ones
+  const localPrompts = store.get(cfg.saveKey + ".custom_prompts", []);
+  const disabledPrompts = store.get(cfg.saveKey + ".disabled_prompts", []);
+  
+  const activeCorePrompts = cfg.prompts.filter(p => !disabledPrompts.includes(p.text));
+  const activeCustomPrompts = localPrompts.filter(p => !disabledPrompts.includes(p.text));
+  const fullPrompts = activeCorePrompts.concat(activeCustomPrompts);
+
+  // Mix persistent custom cards and filter out disabled ones
+  const disabledResponses = store.get(cfg.saveKey + ".disabled_responses", []);
+  
   // Filter out any existing blank card and inject exactly 6 clean blanks
-  const baseResponses = cfg.responses.filter(c => c !== CUSTOM_CARD_TEXT);
+  const baseResponses = cfg.responses.filter(c => c !== CUSTOM_CARD_TEXT && !disabledResponses.includes(c));
+  const activeCustoms = onlineCustomCards.filter(c => !disabledResponses.includes(c));
   const blankCopies = Array(6).fill(CUSTOM_CARD_TEXT);
-  const fullResponses = baseResponses.concat(onlineCustomCards).concat(blankCopies);
+  const fullResponses = baseResponses.concat(activeCustoms).concat(blankCopies);
 
   state = {
     isOnline: true,
@@ -907,9 +977,10 @@ function playAgainOnline() {
     physical: false,
     czar: 0,
     round: 1,
+    prompts: fullPrompts, // Store combined active prompts in state
     deck: shuffle(fullResponses),
     discard: [],
-    promptDeck: shuffle(cfg.prompts.map((_, i) => i)),
+    promptDeck: shuffle(fullPrompts.map((_, i) => i)),
     promptUsed: [],
     hands: onlinePlayers.map(() => []),
     prompt: null,
@@ -959,13 +1030,14 @@ function drawCards(n) {
 }
 
 function dealPrompt() {
+  const promptsList = (state && state.prompts) ? state.prompts : cfg.prompts;
   if (state.promptDeck.length === 0) {
     state.promptDeck = shuffle(state.promptUsed);
     state.promptUsed = [];
   }
   const idx = state.promptDeck.pop();
   state.promptUsed.push(idx);
-  state.prompt = cfg.prompts[idx];
+  state.prompt = promptsList[idx];
 }
 
 function save() {
@@ -1371,4 +1443,192 @@ function scoreboardEl() {
     ]));
   });
   return el("div", { className: "panel" }, [el("label", { text: "Scores" }), board]);
+}
+
+/* ---------------- Playable Deck Customizer Overlay ---------------- */
+let customizerTab = "responses"; // "responses" | "prompts"
+let customizerSearch = "";
+
+function openDeckCustomizer() {
+  customizerSearch = "";
+  renderCustomizer();
+}
+
+function renderCustomizer() {
+  const localPrompts = store.get(cfg.saveKey + ".custom_prompts", []);
+  const localCustoms = store.get(cfg.saveKey + ".custom_cards", []);
+
+  const disabledPrompts = store.get(cfg.saveKey + ".disabled_prompts", []);
+  const disabledResponses = store.get(cfg.saveKey + ".disabled_responses", []);
+
+  // Topbar
+  const topbarEl = el("div", { className: "topbar" }, [
+    el("button", { className: "back", text: "‹ Setup", onClick: renderSetup }),
+    el("div", { className: "title", text: "Customize Playable Deck" }),
+    el("span", { style: "width:64px" })
+  ]);
+
+  // Tab buttons
+  const tabRow = el("div", { className: "btn-row", style: "margin-bottom:12px; gap:8px;" }, [
+    el("button", {
+      className: "btn small" + (customizerTab === "responses" ? "" : " ghost"),
+      style: "flex:1; font-weight:700; margin:0; padding:10px;",
+      text: `⚪ White Cards (Responses)`,
+      onClick: () => { customizerTab = "responses"; renderCustomizer(); }
+    }),
+    el("button", {
+      className: "btn small" + (customizerTab === "prompts" ? "" : " ghost"),
+      style: "flex:1; font-weight:700; margin:0; padding:10px;",
+      text: `⚫ Black Cards (Prompts)`,
+      onClick: () => { customizerTab = "prompts"; renderCustomizer(); }
+    })
+  ]);
+
+  // Search input
+  const searchBar = el("input", {
+    type: "text",
+    placeholder: "🔍 Search deck cards...",
+    value: customizerSearch,
+    style: "border-radius:12px; font-size:0.95rem; margin-bottom:12px;",
+    onInput: (e) => {
+      customizerSearch = e.target.value;
+      filterCardRows();
+    }
+  });
+
+  // Bulk Actions
+  const bulkRow = el("div", { className: "btn-row", style: "margin-bottom:12px; gap:10px;" }, [
+    el("button", {
+      className: "btn small ghost",
+      style: "flex:1; padding:6px; font-size:0.8rem; border-color:#2e7d32; color:#a5d6a7; margin:0;",
+      text: "✅ Enable All",
+      onClick: () => {
+        if (customizerTab === "responses") {
+          store.set(cfg.saveKey + ".disabled_responses", []);
+        } else {
+          store.set(cfg.saveKey + ".disabled_prompts", []);
+        }
+        renderCustomizer();
+        toast("All cards active!");
+      }
+    }),
+    el("button", {
+      className: "btn small ghost",
+      style: "flex:1; padding:6px; font-size:0.8rem; border-color:#c62828; color:#ef5350; margin:0;",
+      text: "❌ Filter All",
+      onClick: () => {
+        if (customizerTab === "responses") {
+          const allResp = cfg.responses.filter(c => c !== CUSTOM_CARD_TEXT).concat(localCustoms);
+          store.set(cfg.saveKey + ".disabled_responses", allResp);
+        } else {
+          const allPromptsText = cfg.prompts.concat(localPrompts).map(p => p.text);
+          store.set(cfg.saveKey + ".disabled_prompts", allPromptsText);
+        }
+        renderCustomizer();
+        toast("All cards filtered out!");
+      }
+    })
+  ]);
+
+  // Create list wrap
+  const listWrap = el("div", { className: "scoreboard", style: "max-height: 420px; overflow-y: auto;" });
+
+  function filterCardRows() {
+    listWrap.innerHTML = "";
+    const term = customizerSearch.toLowerCase().trim();
+
+    if (customizerTab === "responses") {
+      const allResponses = cfg.responses.filter(c => c !== CUSTOM_CARD_TEXT).concat(localCustoms);
+      
+      allResponses.forEach(cardText => {
+        if (term && !cardText.toLowerCase().includes(term)) return;
+
+        const isDisabled = disabledResponses.includes(cardText);
+        const toggleBtn = el("button", {
+          className: "btn small" + (isDisabled ? " ghost" : ""),
+          style: `width:92px; margin:0; padding:4px 8px; font-size:0.78rem; font-weight:700; ${isDisabled ? "border-color:#ef9a9a; color:#ef5350; background:rgba(198,40,40,0.05);" : "background:#2e7d32; color:#fff;"}`,
+          text: isDisabled ? "❌ Filtered" : "✅ Active",
+          onClick: () => {
+            const list = store.get(cfg.saveKey + ".disabled_responses", []);
+            if (isDisabled) {
+              const idx = list.indexOf(cardText);
+              if (idx !== -1) list.splice(idx, 1);
+            } else {
+              if (!list.includes(cardText)) list.push(cardText);
+            }
+            store.set(cfg.saveKey + ".disabled_responses", list);
+            renderCustomizer();
+          }
+        });
+
+        listWrap.appendChild(el("div", {
+          className: "score-row",
+          style: "padding:8px 10px; display:flex; align-items:center; justify-content:space-between;"
+        }, [
+          el("span", { style: "font-size:0.92rem; font-weight:700; color:#fff; word-break:break-word; flex:1; margin-right:8px;", text: cardText }),
+          toggleBtn
+        ]));
+      });
+    } else {
+      const allPrompts = cfg.prompts.concat(localPrompts);
+
+      allPrompts.forEach(p => {
+        const displayPrompt = p.text.replace(/_______/g, "_");
+        if (term && !displayPrompt.toLowerCase().includes(term)) return;
+
+        const isDisabled = disabledPrompts.includes(p.text);
+        const toggleBtn = el("button", {
+          className: "btn small" + (isDisabled ? " ghost" : ""),
+          style: `width:92px; margin:0; padding:4px 8px; font-size:0.78rem; font-weight:700; ${isDisabled ? "border-color:#ef9a9a; color:#ef5350; background:rgba(198,40,40,0.05);" : "background:#2e7d32; color:#fff;"}`,
+          text: isDisabled ? "❌ Filtered" : "✅ Active",
+          onClick: () => {
+            const list = store.get(cfg.saveKey + ".disabled_prompts", []);
+            if (isDisabled) {
+              const idx = list.indexOf(p.text);
+              if (idx !== -1) list.splice(idx, 1);
+            } else {
+              if (!list.includes(p.text)) list.push(p.text);
+            }
+            store.set(cfg.saveKey + ".disabled_prompts", list);
+            renderCustomizer();
+          }
+        });
+
+        const pickBadge = el("span", {
+          className: "badge",
+          style: "background:rgba(0,0,0,0.3); color:var(--water-foam); font-size:0.7rem; font-weight:700; margin:0 8px 0 0; padding:2px 6px; border:1px solid rgba(255,255,255,0.1);",
+          text: `Pick ${p.pick}`
+        });
+
+        listWrap.appendChild(el("div", {
+          className: "score-row",
+          style: "padding:8px 10px; display:flex; align-items:center; justify-content:space-between;"
+        }, [
+          el("div", { style: "display:flex; align-items:center; flex:1; margin-right:8px;" }, [
+            pickBadge,
+            el("span", { style: "font-size:0.92rem; font-weight:700; color:#fff; word-break:break-word;", text: displayPrompt })
+          ]),
+          toggleBtn
+        ]));
+      });
+    }
+
+    if (listWrap.children.length === 0) {
+      listWrap.appendChild(el("p", {
+        className: "muted center",
+        style: "margin:16px 0; font-style:italic;",
+        text: "No matching cards found."
+      }));
+    }
+  }
+
+  filterCardRows();
+
+  mount(
+    topbarEl,
+    tabRow,
+    searchBar,
+    bulkRow,
+    listWrap
+  );
 }
