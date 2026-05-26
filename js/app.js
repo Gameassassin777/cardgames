@@ -56,77 +56,66 @@ const GAMES = [
     blurb: "Fill in the blanks with prompt and response cards. Family-friendly edition. 3+ players.",
     start: family,
     familyFriendly: true,
-    banner: "./icons/family_game_banner.png",
   },
   {
     id: "cam", icon: icons.monkeys, title: "Cards Against Monkeys", badge: "Internet",
     blurb: "Fill in the blanks to complete prompts using response cards. Features internet culture topics. 3+ players.",
     start: monkeys,
     familyFriendly: false,
-    banner: "./icons/monkeys_cah_banner.png",
   },
   {
     id: "cabin", icon: icons.cabin, title: "Cards Against the Cabin", badge: "Adult",
     blurb: "Fill in the blanks using prompt and response cards featuring dry and absurd lake-house humor. 3+ players.",
     start: cabin,
     familyFriendly: false,
-    banner: "./icons/monkeys_cah_banner.png",
   },
   {
     id: "meeting", icon: icons.meeting, title: "Emergency Meeting", badge: "Voting",
     blurb: "Vote on which player is most likely to match a given prompt. 3+ players.",
     start: meeting.start,
     familyFriendly: false,
-    banner: "./icons/emergency_meeting_button.png",
   },
   {
     id: "rizz", icon: icons.rizz, title: "Rizz Roulette", badge: "Social",
     blurb: "Draw cards to complete interactive dares, answer questions, or discuss conversational prompts. 2+ players.",
     start: rizzRoulette,
     familyFriendly: false,
-    banner: "./icons/rizz_roulette_banner.png",
   },
   {
     id: "wyr", icon: icons.wyr, title: "Would You Rather", badge: "Dilemma",
     blurb: "Read a dilemma with two choices, and have players vote on their preference. 2+ players.",
     start: wouldYouRather,
     familyFriendly: false,
-    banner: "./icons/would_you_rather_banner.png",
   },
   {
     id: "flags", icon: icons.flags, title: "Red Flag / Green Flag", badge: "Social",
     blurb: "Discuss and judge character traits as positive, negative, or neutral. 2+ players.",
     start: redGreen,
     familyFriendly: true,
-    banner: "./icons/red_green_flag_banner.png",
   },
   {
     id: "truths", icon: icons.truths, title: "Lake House Truths", badge: "Social",
     blurb: "Choose between answering truth questions or completing dare challenges. Suitable for any group size.",
     start: lakeTruths,
     familyFriendly: true,
-    banner: "./icons/lake_truths_banner.png",
   },
   {
     id: "roasts", icon: icons.roasts, title: "Campfire Roasts", badge: "Social",
     blurb: "Lighthearted group roasts, goofy dares, and funny social dilemmas. Perfect for friends and family alike. 3+ players.",
     start: campfireRoasts,
     familyFriendly: true,
-    banner: "./icons/campfire_roasts_banner.png",
   },
   {
     id: "catchphrase", icon: icons.catchphrase, title: "Lake House Catchphrase", badge: "Word",
     blurb: "Teams compete to guess secret words described by teammates before the ticking round timer runs out. 4+ players.",
     start: catchphrase.start,
     familyFriendly: true,
-    banner: "./icons/catchphrase_timer.png",
   },
   {
     id: "doodles", icon: icons.doodles, title: "Lake House Doodles", badge: "Drawing",
     blurb: "A multiplayer telephone game where players alternate between writing prompts and drawing scenes. 3+ players.",
     start: (home) => gartic.start(home),
     familyFriendly: true,
-    banner: "./icons/doodles_splash.png",
   },
 ];
 
@@ -284,11 +273,8 @@ function home() {
 
   const menu = el("div", { className: "menu" });
   activeGames.forEach((g) => {
-    const tileChildren = [];
-    if (g.banner) {
-      tileChildren.push(el("img", { className: "tile-banner", src: g.banner, alt: g.title }));
-    }
-    tileChildren.push(
+    const tileChildren = [
+      el("div", { className: "tile-art" }),
       el("div", { className: "tile-content" }, [
         el("div", { className: "icon" }, [g.icon()]),
         el("div", { className: "meta" }, [
@@ -298,9 +284,11 @@ function home() {
           ]),
           el("p", { text: g.blurb }),
         ]),
-      ])
-    );
-    menu.appendChild(el("button", { className: "tile" + (g.banner ? " has-banner" : ""), onClick: () => g.start(home) }, tileChildren));
+      ]),
+    ];
+    const tile = el("button", { className: "tile has-art", onClick: () => g.start(home) }, tileChildren);
+    tile.dataset.game = g.id;
+    menu.appendChild(tile);
   });
 
   const settingsPanel = el("div", {
