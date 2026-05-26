@@ -301,7 +301,13 @@ async function unregisterRoom() {
 
 // ── Lobby ─────────────────────────────────────────────────────────────────────
 function applyLobby(players) {
-  if (gState && gState.phase !== "lobby") return;
+  if (gState && gState.phase !== "lobby") {
+    // If the game is in progress and we receive a player_joined notification,
+    // broadcast the current active state to let the rejoining player recover!
+    // This works even if the host is the one rejoining, as any active client will sync them.
+    relay({ type: "GARTIC_SYNC", state: gState });
+    return;
+  }
   gState = { phase: "lobby", players };
   myIdx  = players.indexOf(myName);
 
@@ -492,6 +498,7 @@ function handleRelay(action, sender) {
 function applyState(state) {
   gState       = state;
   myIdx        = gState.players.indexOf(myName);
+  isHost       = (myIdx === 0); // host is always the first player in the list
   hasSubmitted = gState.submissions[myIdx] !== undefined;
 
   if (timerHandle)   { clearInterval(timerHandle);  timerHandle = null; }
@@ -518,6 +525,18 @@ function tickTimer() {
 }
 
 function renderPhase() {
+  if (gState.phase !== "lobby" && gState.phase !== "done" && myIdx === -1) {
+    mount(
+      topbar("👁️ Spectating"),
+      el("div", { className: "panel center", style: "padding:40px 20px;" }, [
+        el("div", { style: "font-size:3rem; margin-bottom:12px;", text: "🍿" }),
+        el("h3",  { style: "margin:0 0 8px; color:var(--water-foam);", text: "Game in progress!" }),
+        el("p",   { className: "muted", style: "margin:0;", text: "You are spectating this game. You will be able to play in the next lobby!" })
+      ])
+    );
+    return;
+  }
+
   switch (gState.phase) {
     case "lobby":  return renderLobby();
     case "write":  return renderWritePhase();
