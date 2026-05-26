@@ -6,6 +6,7 @@ import * as meeting from "./meeting.js";
 import { makeGame as makeDeck } from "./deckgame.js";
 import { PROMPTS, RESPONSES, NORMAL_PROMPTS, NORMAL_RESPONSES, LAKE_TRUTHS, WOULD_YOU_RATHER, RED_GREEN, RIZZ_ROULETTE } from "./data.js";
 import { openEvaluator } from "./evaluator_ui.js";
+import { openCustomCardsManager } from "./custom_cards_ui.js";
 
 let deferredInstall = null;
 
@@ -25,10 +26,10 @@ const cabin = makeCardGame({
   footer: "A more normal deck. Still an adult party game.",
   saveKey: "cabin.game.v1", namesKey: "cabin.names.v1", targetKey: "cabin.target", physicalKey: "cabin.physical",
 });
-const rizzRoulette = makeDeck({ title: "Rizz Roulette", source: RIZZ_ROULETTE });
-const wouldYouRather = makeDeck({ title: "Would You Rather", source: WOULD_YOU_RATHER });
-const redGreen = makeDeck({ title: "Red Flag / Green Flag", source: RED_GREEN });
-const lakeTruths = makeDeck({ title: "Lake House Truths", source: LAKE_TRUTHS });
+const rizzRoulette = makeDeck({ title: "Rizz Roulette", source: RIZZ_ROULETTE, saveKey: "rizz.game.v1" });
+const wouldYouRather = makeDeck({ title: "Would You Rather", source: WOULD_YOU_RATHER, saveKey: "wyr.game.v1" });
+const redGreen = makeDeck({ title: "Red Flag / Green Flag", source: RED_GREEN, saveKey: "flags.game.v1" });
+const lakeTruths = makeDeck({ title: "Lake House Truths", source: LAKE_TRUTHS, saveKey: "truths.game.v1" });
 
 const GAMES = [
   {
@@ -88,6 +89,20 @@ function home() {
     ]));
   });
 
+  const settingsPanel = el("div", {
+    className: "panel center",
+    style: "margin-top: 18px; padding: 12px; background: rgba(255,255,255,0.03); border: 1px dashed rgba(205, 238, 242, 0.2); border-radius: 16px;"
+  }, [
+    el("button", {
+      className: "btn ghost small",
+      style: "width:100%; display:flex; align-items:center; justify-content:center; gap:8px; font-weight:700; border-radius:12px; box-shadow:none; padding:10px 14px; margin: 0;",
+      onClick: () => openCustomCardsManager(home)
+    }, [
+      el("span", { style: "font-size:1.15rem", text: "⚙️" }),
+      el("span", { text: "Manage Custom Cards & Decks" })
+    ])
+  ]);
+
   const nodes = [
     el("div", { className: "brand" }, [
       el("div", { className: "scene", text: "🌙  🛶  🌲🏠🌲  🦆" }),
@@ -95,6 +110,7 @@ function home() {
       el("div", { className: "tagline", text: "Cozy by the water. Unhinged at the table." }),
     ]),
     menu,
+    settingsPanel
   ];
 
   if (deferredInstall) nodes.push(installBanner());

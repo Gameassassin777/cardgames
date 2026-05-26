@@ -1,6 +1,6 @@
 // Generic "draw a card" engine, configured per game.
 // Card shape: { tag?, type?, text }. `tag` (or legacy `type`) shows as a pill.
-import { el, mount, shuffle } from "./ui.js";
+import { el, mount, shuffle, store } from "./ui.js";
 
 const TAG_EMOJI = {
   "Would You Rather": "🤔",
@@ -12,14 +12,24 @@ const TAG_EMOJI = {
   "Rizz Challenge": "😏",
   "Confession": "🫣",
   "Hot Take": "🌶️",
+  "Custom": "✍️",
 };
 
-export function makeGame({ title, source }) {
+export function makeGame({ title, source, saveKey }) {
   return function start(home) {
-    let deck = shuffle(source);
+    function getFullSource() {
+      const customs = saveKey ? store.get(saveKey + ".custom_cards", []) : [];
+      const customObjects = customs.map(text => ({
+        tag: "Custom",
+        text: text
+      }));
+      return source.concat(customObjects);
+    }
+
+    let deck = shuffle(getFullSource());
     let pos = 0;
 
-    function reshuffle() { deck = shuffle(source); pos = 0; render(); }
+    function reshuffle() { deck = shuffle(getFullSource()); pos = 0; render(); }
 
     function render() {
       const card = deck[pos];
