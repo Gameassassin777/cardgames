@@ -28,21 +28,21 @@ const monkeys = makeCardGame({
   footer: "Chronically online humor. Best with friends who can take a joke.",
   saveKey: "cam.game.v1", namesKey: "cam.names.v1", targetKey: "cam.target", physicalKey: "cam.physical",
 });
+
+const combinedCabinPrompts = [...NORMAL_PROMPTS, ...FAMILY_PROMPTS];
+const combinedCabinResponses = [
+  "✍️ [Write your own answer...]",
+  ...NORMAL_RESPONSES.filter(r => r !== "✍️ [Write your own answer...]"),
+  ...FAMILY_RESPONSES.filter(r => r !== "✍️ [Write your own answer...]")
+];
+
 const cabin = makeCardGame({
   title: "Fill in the Blank", icon: icons.cabin,
-  prompts: NORMAL_PROMPTS, responses: NORMAL_RESPONSES,
+  prompts: combinedCabinPrompts, responses: combinedCabinResponses,
   winnerTitle: "Round Winner",
-  blurb: "A fill-in-the-blank party game with a dry, absurd adult deck. One Card Czar judges each round; pass the device, hands stay secret.",
-  footer: "Dark and absurd humor. Adult party game.",
+  blurb: "A fill-in-the-blank party game. Everyone picks the funniest response card to complete a prompt; the judge decides the winner. Pass the device, hands stay secret.",
+  footer: "Absurd, witty, and cozy card-game humor.",
   saveKey: "cabin.game.v1", namesKey: "cabin.names.v1", targetKey: "cabin.target", physicalKey: "cabin.physical",
-});
-const family = makeCardGame({
-  title: "Fill in the Blank", icon: icons.family,
-  prompts: FAMILY_PROMPTS, responses: FAMILY_RESPONSES,
-  winnerTitle: "Round Winner",
-  blurb: "A wholesome, silly fill-in-the-blank party game. Everyone picks the funniest response card; the judge decides. Great for all ages.",
-  footer: "Family-friendly fill-in-the-blank fun.",
-  saveKey: "family.game.v1", namesKey: "family.names.v1", targetKey: "family.target", physicalKey: "family.physical",
 });
 const rizzRoulette = makeDeck({ title: "Rizz Roulette", source: RIZZ_ROULETTE, saveKey: "rizz.game.v1" });
 const wouldYouRather = makeDeck({ title: "Would You Rather", source: WOULD_YOU_RATHER, saveKey: "wyr.game.v1" });
@@ -52,21 +52,15 @@ const campfireRoasts = makeDeck({ title: "Roast Me", source: CAMPFIRE_ROASTS, sa
 
 const GAMES = [
   {
-    id: "family", icon: icons.family, title: "Fill in the Blank",
+    id: "cabin", icon: icons.cabin, title: "Fill in the Blank",
     blurb: "Everyone picks the funniest response card to complete a prompt. The judge decides the winner. 3+ players.",
-    start: family,
+    start: cabin,
     familyFriendly: true,
   },
   {
     id: "cam", icon: icons.monkeys, title: "Cards Against Monkeys",
     blurb: "Fill in the blanks to complete prompts using response cards. Features internet culture topics. 3+ players.",
     start: monkeys,
-    familyFriendly: false,
-  },
-  {
-    id: "cabin", icon: icons.cabin, title: "Fill in the Blank",
-    blurb: "Everyone picks the funniest response card to complete a prompt. The judge decides the winner. 3+ players.",
-    start: cabin,
     familyFriendly: false,
   },
   {
