@@ -1,26 +1,57 @@
-// Pass-and-play "fill in the blank" party game (Cards Against Humanity style).
-// One engine, configured per deck via makeGame() — e.g. Monkeys (sussy) and Cabin (normal).
+// Game engine for Cards Against Monkeys / Cabin.
+// Supports: Local Pass-and-Play, Physical Cards, and Real-Time Online Play (Cloudflare Worker).
 import { el, mount, shuffle, toast, store, fillPrompt } from "./ui.js";
 import { BLANK } from "./data.js";
 
 const HAND_SIZE = 10;
 
+// Dynamic WebSockets Server Discovery
+const wsUrl = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1"
+  ? "ws://localhost:3000"
+  : "wss://lakehouse-cardgames-sync.gameassassin777.workers.dev";
+
 let goHome = () => {};
 let state = null;
 let cfg = null;
 
-// cfg: { title, icon, prompts, responses, winnerTitle, blurb, footer, saveKey, namesKey, targetKey }
+// Online specific states
+let onlineMode = false;
+let socket = null;
+let roomCode = "";
+let myName = "";
+let isHost = false;
+let onlinePlayers = [];
+let connectionStatus = "offline"; // "offline" | "connecting" | "lobby"
+let hasSubmittedThisRound = false;
+
 export function makeGame(config) {
   return function start(home) {
     goHome = home;
     cfg = config;
+    resetOnlineState();
+
     const saved = store.get(cfg.saveKey, null);
-    if (saved && saved.phase && saved.phase !== "over") {
+    if (saved && saved.phase && saved.phase !== "over" && !saved.isOnline) {
       renderResume(saved);
     } else {
       renderSetup();
     }
   };
+}
+
+function resetOnlineState() {
+  if (socket) {
+    try { socket.close(); } catch(e) {}
+    socket = null;
+  }
+  onlineMode = false;
+  roomCode = "";
+  myName = "";
+  isHost = false;
+  onlinePlayers = [];
+  connectionStatus = "offline";
+  hasSubmittedThisRound = false;
+  state = null;
 }
 
 function topbar(title) {
@@ -32,7 +63,7 @@ function topbar(title) {
 }
 
 function confirmQuit() {
-  // Leaving mid-game keeps the save so it can be resumed.
+  resetOnlineState();
   goHome();
 }
 
@@ -92,49 +123,122 @@ function renderSetup() {
     el("span", { className: "muted", text: "points to win", style: "margin-left:6px" }),
   ]);
 
-  // Card mode: digital (deal hands on device) vs physical (play with real cards).
   let physical = store.get(cfg.physicalKey, false);
-  const digitalBtn = el("button", { className: "btn", text: "📱 Digital" });
-  const physicalBtn = el("button", { className: "btn ghost", text: "🃏 Physical cards" });
-  const modeDesc = el("p", { className: "muted", style: "margin:8px 0 0" });
+  const digitalBtn = el("button", { className: "btn", text: "📱 Digital Hand" });
+  const physicalBtn = el("button", { className: "btn ghost", text: "🃏 Physical Cards" });
+  const modeDesc = el("p", { className: "muted", style: "margin:8px 0 0; font-size:0.85rem;" });
+  
   function setMode(p) {
     physical = p;
     digitalBtn.className = p ? "btn ghost" : "btn";
     physicalBtn.className = p ? "btn" : "btn ghost";
     modeDesc.textContent = p
-      ? "You play with real cards. The app shows each prompt, runs the Card Czar, and keeps score — tap the winner each round."
+      ? "You play with real cards. The app shows each prompt, runs the Card Czar, and keeps score."
       : "The app deals everyone a hand on this device and passes around to play. No physical cards needed.";
   }
   digitalBtn.onclick = () => setMode(false);
   physicalBtn.onclick = () => setMode(true);
   setMode(physical);
 
+  // LOBBY MODE TOGGLE: Pass & Play vs Online Multiplayer
+  const localTab = el("button", {
+    className: "btn" + (!onlineMode ? " secondary" : " ghost"),
+    text: "📱 Pass & Play",
+    onClick: () => { onlineMode = false; renderSetup(); }
+  });
+  const onlineTab = el("button", {
+    className: "btn" + (onlineMode ? " secondary" : " ghost"),
+    text: "🌐 Play Online",
+    onClick: () => { onlineMode = true; renderSetup(); }
+  });
+
+  const setupCard = el("div", { className: "panel" });
+
+  if (!onlineMode) {
+    // PASS & PLAY SETUP SCREEN
+    setupCard.appendChild(el("label", { text: "Players (3+)" }));
+    setupCard.appendChild(listWrap);
+    setupCard.appendChild(el("button", {
+      className: "btn ghost small",
+      style: "margin-bottom: 12px;",
+      text: "+ Add Player",
+      onClick: () => { if (names.length < 12) { names.push(""); drawList(); } else toast("12 players max."); }
+    }));
+    setupCard.appendChild(el("hr", { className: "divider" }));
+    setupCard.appendChild(el("label", { text: "Score to Win" }));
+    setupCard.appendChild(stepper);
+    setupCard.appendChild(el("hr", { className: "divider" }));
+    setupCard.appendChild(el("label", { text: "Card Mode" }));
+    setupCard.appendChild(el("div", { className: "btn-row" }, [digitalBtn, physicalBtn]));
+    setupCard.appendChild(modeDesc);
+    setupCard.appendChild(el("hr", { className: "divider" }));
+    setupCard.appendChild(el("button", {
+      className: "btn",
+      text: `Start local game ${cfg.icon}`,
+      onClick: () => beginGame(names, target, physical)
+    }));
+  } else {
+    // ONLINE MULTIPLAYER SETUP SCREEN
+    const nameInput = el("input", {
+      type: "text",
+      id: "onlineName",
+      maxlength: "14",
+      placeholder: "Your Username",
+      value: myName
+    });
+
+    const codeInput = el("input", {
+      type: "text",
+      id: "roomCodeInput",
+      maxlength: "4",
+      placeholder: "LOBBY CODE (e.g. ABCD)",
+      style: "text-transform: uppercase;"
+    });
+
+    setupCard.appendChild(el("label", { text: "1. Enter Your Name" }));
+    setupCard.appendChild(nameInput);
+    setupCard.appendChild(el("hr", { className: "divider" }));
+    setupCard.appendChild(el("label", { text: "2. Host a New Online Room" }));
+    setupCard.appendChild(el("button", {
+      className: "btn",
+      text: "🎮 Create Lobbies",
+      onClick: () => {
+        const val = nameInput.value.trim();
+        if (!val) { toast("Please enter a name first."); return; }
+        myName = val;
+        createRoom();
+      }
+    }));
+    setupCard.appendChild(el("hr", { className: "divider" }));
+    setupCard.appendChild(el("label", { text: "3. Or Join an Existing Room" }));
+    setupCard.appendChild(codeInput);
+    setupCard.appendChild(el("button", {
+      className: "btn ghost",
+      style: "margin-top: 8px;",
+      text: "🔗 Join Lobby",
+      onClick: () => {
+        const nameVal = nameInput.value.trim();
+        const codeVal = codeInput.value.trim().toUpperCase();
+        if (!nameVal) { toast("Please enter a name first."); return; }
+        if (codeVal.length !== 4) { toast("Room code must be 4 letters."); return; }
+        myName = nameVal;
+        joinRoom(codeVal);
+      }
+    }));
+  }
+
   mount(
     topbar(cfg.title),
-    el("div", { className: "panel" }, [
+    el("div", { className: "panel center" }, [
       el("p", { className: "muted", html: cfg.blurb }),
+      el("div", { className: "btn-row", style: "margin-top:10px" }, [localTab, onlineTab])
     ]),
-    el("div", { className: "panel" }, [
-      el("label", { text: "Players (3+)" }),
-      listWrap,
-      el("button", {
-        className: "btn ghost small",
-        text: "+ Add player",
-        onClick: () => { if (names.length < 12) { names.push(""); drawList(); } else toast("12 players max."); },
-      }),
-      el("hr", { className: "divider" }),
-      el("label", { text: "Score to win" }),
-      stepper,
-      el("hr", { className: "divider" }),
-      el("label", { text: "Card mode" }),
-      el("div", { className: "btn-row" }, [digitalBtn, physicalBtn]),
-      modeDesc,
-    ]),
-    el("button", { className: "btn", text: `Start game ${cfg.icon}`, onClick: () => beginGame(names, target, physical) }),
+    setupCard,
     el("div", { className: "footer-note", text: cfg.footer })
   );
 }
 
+/* ---------------- Local Game Engine Initiator ---------------- */
 function beginGame(rawNames, target, physical) {
   const players = rawNames.map((n) => n.trim()).filter(Boolean);
   if (players.length < 3) { toast("Add at least 3 player names."); return; }
@@ -146,6 +250,7 @@ function beginGame(rawNames, target, physical) {
   store.set(cfg.physicalKey, !!physical);
 
   state = {
+    isOnline: false,
     players: players.map((name) => ({ name, score: 0 })),
     target,
     physical: !!physical,
@@ -158,18 +263,570 @@ function beginGame(rawNames, target, physical) {
     hands: players.map(() => []),
     prompt: null,
     submissions: [],
-    order: [],     // shuffled submission display order (indices into submissions)
-    queue: [],     // submitting player indices for the round
+    order: [],     
+    queue: [],     
     qi: 0,
     selected: [],
     chosen: null,
     phase: "intro",
   };
-  // Deal opening hands (digital only).
   if (!physical) state.hands = state.players.map(() => drawCards(HAND_SIZE));
   dealPrompt();
   render();
 }
+
+/* ---------------- ONLINE NETWORKING LAYER ---------------- */
+function createRoom() {
+  connectionStatus = "connecting";
+  renderLobbySpinner("Creating online room...");
+
+  socket = new WebSocket(`${wsUrl}/ws/create?name=${encodeURIComponent(myName)}`);
+  setupSocketListeners();
+}
+
+function joinRoom(code) {
+  connectionStatus = "connecting";
+  renderLobbySpinner(`Connecting to room ${code}...`);
+
+  socket = new WebSocket(`${wsUrl}/ws/join?code=${code}&name=${encodeURIComponent(myName)}`);
+  setupSocketListeners();
+}
+
+function setupSocketListeners() {
+  socket.onopen = () => {
+    console.log("WebSocket connected.");
+  };
+
+  socket.onmessage = (event) => {
+    try {
+      const data = JSON.parse(event.data);
+
+      if (data.type === "created") {
+        roomCode = data.code;
+        isHost = true;
+        onlinePlayers = data.players;
+        connectionStatus = "lobby";
+        renderOnlineLobby();
+      } else if (data.type === "player_joined") {
+        roomCode = data.code;
+        onlinePlayers = data.players;
+        connectionStatus = "lobby";
+        renderOnlineLobby();
+      } else if (data.type === "player_left") {
+        onlinePlayers = data.players;
+        renderOnlineLobby();
+        toast(`${data.name} disconnected.`);
+      } else if (data.type === "error") {
+        toast(data.message);
+        resetOnlineState();
+        renderSetup();
+      } else if (data.type === "relay") {
+        handleRelayedAction(data.action, data.sender);
+      }
+    } catch(e) {
+      console.error("Socket error processing message:", e);
+    }
+  };
+
+  socket.onclose = () => {
+    console.log("WebSocket disconnected.");
+    if (connectionStatus !== "offline") {
+      toast("Disconnected from match server.");
+      resetOnlineState();
+      renderSetup();
+    }
+  };
+
+  socket.onerror = (e) => {
+    console.error("Socket encountered error:", e);
+    toast("Server connection failed.");
+    resetOnlineState();
+    renderSetup();
+  };
+}
+
+function renderLobbySpinner(msg) {
+  mount(
+    topbar(cfg.title),
+    el("div", { className: "panel center" }, [
+      el("div", { className: "big-emoji spin", style: "display: inline-block; font-size: 3rem;", text: "🛶" }),
+      el("h3", { style: "margin-top: 15px;", text: msg }),
+      el("p", { className: "muted", text: "Connecting to Cloudflare Workers Edge..." })
+    ])
+  );
+}
+
+function renderOnlineLobby() {
+  const list = el("div", { className: "scoreboard" });
+  onlinePlayers.forEach((p, idx) => {
+    list.appendChild(el("div", { className: "score-row" }, [
+      el("span", { className: "nm", text: `${idx + 1}. ${p} ${p === myName ? " (You)" : ""}` }),
+      el("span", {
+        className: "pill" + (idx === 0 ? " czar-pill" : ""),
+        text: idx === 0 ? "👑 Host" : "Ready"
+      })
+    ]));
+  });
+
+  const lobbyPanel = el("div", { className: "wood-panel center" }, [
+    el("p", { className: "muted", style: "margin: 0 0 4px;", text: "LOBBY ROOM CODE" }),
+    el("h1", {
+      style: "font-size: 3.2rem; letter-spacing: 6px; font-family: monospace; color: #fff; text-shadow: 0 2px 8px var(--shadow); margin: 0 0 10px;",
+      text: roomCode
+    }),
+    el("p", { className: "muted", style: "font-size: 0.85rem; margin-bottom: 0;", text: "Share this code with your friends to play online!" })
+  ]);
+
+  const startBtn = el("button", {
+    className: "btn",
+    text: "Start Online Game 🎮",
+    disabled: onlinePlayers.length < 3,
+    onClick: startOnlineGame
+  });
+
+  const waitingDesc = el("p", {
+    className: "muted center",
+    text: onlinePlayers.length < 3 
+      ? "Need at least 3 players to start."
+      : "Waiting for host to start the game..."
+  });
+
+  mount(
+    topbar("Online Match Lobby"),
+    lobbyPanel,
+    el("div", { className: "panel" }, [
+      el("label", { text: `Connected Players (${onlinePlayers.length})` }),
+      list
+    ]),
+    isHost ? startBtn : null,
+    isHost ? null : waitingDesc
+  );
+}
+
+/* ---------------- ONLINE HOST GAME LOOP MANAGEMENT ---------------- */
+function startOnlineGame() {
+  if (onlinePlayers.length < 3) return;
+
+  state = {
+    isOnline: true,
+    players: onlinePlayers.map(name => ({ name, score: 0 })),
+    target: store.get(cfg.targetKey, 5),
+    physical: false,
+    czar: 0,
+    round: 1,
+    deck: shuffle(cfg.responses),
+    discard: [],
+    promptDeck: shuffle(cfg.prompts.map((_, i) => i)),
+    promptUsed: [],
+    hands: onlinePlayers.map(() => []),
+    prompt: null,
+    submissions: [],
+    order: [],
+    queue: [],
+    qi: 0,
+    selected: [],
+    chosen: null,
+    phase: "submit", // directly start with submissions
+  };
+  
+  // Deal opening hands to everyone
+  state.hands = state.players.map(() => drawCards(HAND_SIZE));
+  dealPrompt();
+  
+  // Sync starting state to all players
+  sendSyncAction({ type: "START_GAME", state });
+  render();
+}
+
+function handleRelayedAction(action, sender) {
+  // GUEST SPECIFIC REACTIONS
+  if (!isHost) {
+    if (action.type === "START_GAME" || action.type === "STATE_SYNC") {
+      state = action.state;
+      state.isOnline = true;
+      state.roomCode = roomCode;
+      state.myName = myName;
+      state.isHost = false;
+      render();
+    }
+    return;
+  }
+
+  // HOST SPECIFIC ACTIONS (Authoritative Client logic)
+  if (action.type === "SUBMIT_CARDS") {
+    // Process guest cards submissions
+    const playerIdx = state.players.findIndex(p => p.name === sender);
+    if (playerIdx === -1 || playerIdx === state.czar) return;
+
+    // Check if player already submitted
+    if (state.submissions.find(s => s.player === playerIdx)) return;
+
+    state.submissions.push({ player: playerIdx, cards: action.cards });
+    
+    // Discard played cards from host representation of their hand
+    const hand = state.hands[playerIdx];
+    action.cards.forEach(c => {
+      const idx = hand.indexOf(c);
+      if (idx !== -1) {
+        state.discard.push(hand[idx]);
+        hand.splice(idx, 1);
+      }
+    });
+
+    // Check if all submitters have played
+    const expectedSubmissionsCount = state.players.length - 1;
+    if (state.submissions.length >= expectedSubmissionsCount) {
+      state.order = shuffle(state.submissions.map((_, i) => i));
+      state.phase = "czar-pick";
+    }
+
+    sendSyncAction({ type: "STATE_SYNC", state });
+    render();
+  }
+
+  else if (action.type === "CZAR_CHOSE") {
+    // Process Czar winner choice
+    const subIdx = state.order[action.chosenIdx];
+    const sub = state.submissions[subIdx];
+    state.players[sub.player].score++;
+    state.winner = { player: sub.player, cards: sub.cards };
+    state.phase = "result";
+
+    sendSyncAction({ type: "STATE_SYNC", state });
+    render();
+  }
+}
+
+// Relays socket payload to the room
+function sendSyncAction(action) {
+  if (!socket || socket.readyState !== 1) return;
+  socket.send(JSON.stringify({
+    type: "relay",
+    code: roomCode,
+    sender: myName,
+    action
+  }));
+}
+
+/* ---------------- Czar & Submitter online render methods ---------------- */
+function renderOnlineCzarWaiting() {
+  const list = el("div", { className: "scoreboard" });
+  state.players.forEach((p, i) => {
+    if (i === state.czar) return;
+    const hasSubmitted = state.submissions.find(s => s.player === i) != null;
+    list.appendChild(el("div", { className: "score-row" }, [
+      el("span", { className: "nm", text: p.name }),
+      el("span", {
+        className: "pill" + (hasSubmitted ? " czar-pill" : ""),
+        text: hasSubmitted ? "Submitted 🔒" : "Thinking... 🤫"
+      })
+    ]));
+  });
+
+  const promptCard = el("div", { className: "play-card prompt" }, [
+    fillPrompt(state.prompt.text, BLANK, []),
+    el("div", { className: "corner", text: state.prompt.pick === 2 ? "Pick 2" : "Pick 1" }),
+  ]);
+
+  mount(
+    topbar(`Round ${state.round} (Czar)`),
+    el("div", { className: "panel center" }, [
+      el("p", { className: "muted", text: "You are the Card Czar this round!" }),
+      el("div", { className: "handoff", style: "padding:6px" }, [
+        el("div", { className: "who", text: "👑 Your Turn" }),
+        el("span", { className: "pill czar-pill", text: "Waiting for submissions..." })
+      ]),
+    ]),
+    promptCard,
+    el("div", { className: "panel" }, [
+      el("label", { text: "Players Submission Status" }),
+      list
+    ]),
+    scoreboardEl()
+  );
+}
+
+function renderOnlineSubmitterWaiting() {
+  const promptCard = el("div", { className: "play-card prompt" }, [
+    fillPrompt(state.prompt.text, BLANK, state.selectedCards || []),
+    el("div", { className: "corner", text: "Submitting..." }),
+  ]);
+
+  mount(
+    topbar(`Round ${state.round}`),
+    el("div", { className: "handoff panel center" }, [
+      el("div", { className: "big-emoji", text: "🤫" }),
+      el("h3", { text: "Submission Locked 🔒" }),
+      el("p", { className: "muted", text: "Your cards were sent to the Host. Waiting for other Sigmas to finish..." }),
+    ]),
+    promptCard,
+    scoreboardEl()
+  );
+}
+
+function renderOnlineSubmitterPick() {
+  const myIdx = state.players.findIndex(p => p.name === myName);
+  const hand = state.hands[myIdx];
+  const need = state.prompt.pick;
+
+  const promptCard = el("div", { className: "play-card prompt" }, [
+    fillPrompt(state.prompt.text, BLANK, state.selected.map((i) => hand[i])),
+    el("div", { className: "corner", text: need === 2 ? "Pick 2 — in order" : "Pick 1" }),
+  ]);
+
+  const handGrid = el("div", { className: "hand" });
+  hand.forEach((card, i) => {
+    const order = state.selected.indexOf(i);
+    const selected = order !== -1;
+    const node = el("div", {
+      className: "play-card response" + (selected ? " selected" : ""),
+      onClick: () => toggleSelect(i, need),
+    }, [ el("span", { text: card }) ]);
+    
+    if (selected && need === 2) {
+      node.appendChild(el("div", { className: "pick-order", text: String(order + 1) }));
+    }
+    handGrid.appendChild(node);
+  });
+
+  const ready = state.selected.length === need;
+  mount(
+    topbar(`Round ${state.round}`),
+    promptCard,
+    el("p", { className: "muted center", text: need === 2 ? "Tap two cards in the order they should appear." : "Tap a card to play it." }),
+    handGrid,
+    el("div", { className: "spacer" }),
+    el("button", {
+      className: "btn",
+      text: ready ? "Lock in submission 🔒" : `Select ${need - state.selected.length} more`,
+      disabled: !ready,
+      onClick: submitCardsOnline
+    }),
+    scoreboardEl()
+  );
+}
+
+function submitCardsOnline() {
+  const myIdx = state.players.findIndex(p => p.name === myName);
+  const hand = state.hands[myIdx];
+  const cards = state.selected.map((i) => hand[i]);
+
+  // Keep a local cache of submitted cards to render previews
+  state.selectedCards = cards;
+
+  // Send action to Host (or process locally if Host)
+  const submitAction = {
+    type: "SUBMIT_CARDS",
+    cards
+  };
+
+  if (isHost) {
+    handleRelayedAction(submitAction, myName);
+  } else {
+    sendSyncAction(submitAction);
+    hasSubmittedThisRound = true;
+    render();
+  }
+}
+
+function renderOnlineCzarPick() {
+  const list = el("div", { className: "submission-list" });
+  state.order.forEach((subIdx, displayIdx) => {
+    const sub = state.submissions[subIdx];
+    const stack = el("div", { className: "stack" });
+    
+    stack.appendChild(el("div", { className: "play-card prompt" }, [
+      fillPrompt(state.prompt.text, BLANK, sub.cards),
+    ]));
+    
+    const wrap = el("div", {
+      className: "submission" + (state.chosen === displayIdx ? " selected" : ""),
+      onClick: () => { state.chosen = displayIdx; renderOnlineCzarPick(); },
+    }, [ stack ]);
+    list.appendChild(wrap);
+  });
+
+  const ready = state.chosen != null;
+  mount(
+    topbar("Czar Choosing..."),
+    el("div", { className: "play-card prompt" }, [
+      fillPrompt(state.prompt.text, BLANK, []),
+      el("div", { className: "corner", text: "Choose the winner!" }),
+    ]),
+    el("p", { className: "muted center", text: "Tap the funniest answer, then crown the winner." }),
+    list,
+    el("div", { className: "spacer" }),
+    el("button", {
+      className: "btn",
+      text: "👑 Crown this winner",
+      disabled: !ready,
+      onClick: crownWinnerOnline
+    })
+  );
+}
+
+function crownWinnerOnline() {
+  const chooseAction = {
+    type: "CZAR_CHOSE",
+    chosenIdx: state.chosen
+  };
+
+  if (isHost) {
+    handleRelayedAction(chooseAction, myName);
+  } else {
+    sendSyncAction(chooseAction);
+  }
+}
+
+function renderOnlineGuestWaitingCzar() {
+  const promptCard = el("div", { className: "play-card prompt" }, [
+    fillPrompt(state.prompt.text, BLANK, []),
+    el("div", { className: "corner", text: "Choosing..." }),
+  ]);
+
+  mount(
+    topbar(`Round ${state.round}`),
+    el("div", { className: "handoff panel center" }, [
+      el("div", { className: "big-emoji", text: "👑" }),
+      el("h3", { text: `${czarName()} is choosing...` }),
+      el("p", { className: "muted", text: "The Czar is reviewing all submissions. Get ready!" }),
+    ]),
+    promptCard,
+    scoreboardEl()
+  );
+}
+
+function renderOnlineResult() {
+  const w = state.winner;
+  const winnerName = state.players[w.player].name;
+  const reached = state.players[w.player].score >= state.target;
+
+  const nextBtn = el("button", {
+    className: "btn",
+    text: "Next Round →",
+    onClick: nextRoundOnline
+  });
+
+  const waitingHost = el("p", {
+    className: "muted center",
+    text: "Waiting for host to start the next round..."
+  });
+
+  mount(
+    topbar(`Round ${state.round} Results`),
+    el("div", { className: "panel center" }, [
+      el("div", { className: "big-emoji", text: "🏆" }),
+      el("h2", { text: `${winnerName} wins the round!` }),
+      el("div", { className: "play-card prompt", style: "text-align:left" }, [
+        fillPrompt(state.prompt.text, BLANK, w.cards || []),
+      ]),
+    ]),
+    scoreboardEl(),
+    el("div", { className: "spacer" }),
+    reached
+      ? (isHost ? el("button", { className: "btn", text: "See final results 🎉", onClick: triggerGameOverOnline }) : el("p", { className: "muted center", text: "Match is over! Host will transition screens..." }))
+      : (isHost ? nextBtn : waitingHost)
+  );
+}
+
+function nextRoundOnline() {
+  // 1. Replenish hands
+  state.queue.forEach((pIdx) => {
+    const need = HAND_SIZE - state.hands[pIdx].length;
+    if (need > 0) state.hands[pIdx].push(...drawCards(need));
+  });
+
+  // 2. Advance Czar
+  state.czar = (state.czar + 1) % state.players.length;
+  state.round++;
+  state.submissions = [];
+  state.selected = [];
+  state.chosen = null;
+  state.winner = null;
+  dealPrompt();
+  state.phase = "submit";
+
+  hasSubmittedThisRound = false;
+
+  // Sync to players
+  sendSyncAction({ type: "STATE_SYNC", state });
+  render();
+}
+
+function triggerGameOverOnline() {
+  state.phase = "over";
+  sendSyncAction({ type: "STATE_SYNC", state });
+  render();
+}
+
+function renderOnlineGameOver() {
+  const ranked = state.players.map((p) => p).sort((a, b) => b.score - a.score);
+  const champ = ranked[0];
+
+  const restartBtn = el("button", {
+    className: "btn",
+    text: "Play Again 🔄",
+    onClick: playAgainOnline
+  });
+
+  const waitingHost = el("p", {
+    className: "muted center",
+    text: "Waiting for host to play again..."
+  });
+
+  mount(
+    topbar("Game Over"),
+    el("div", { className: "panel center" }, [
+      el("div", { className: "big-emoji", text: `${cfg.icon}👑` }),
+      el("h2", { text: `${champ.name} is the ${cfg.winnerTitle}!` }),
+      el("p", { className: "muted", text: `${champ.score} points achieved` }),
+    ]),
+    finalBoard(ranked),
+    el("div", { className: "spacer" }),
+    isHost ? restartBtn : waitingHost,
+    el("div", { className: "spacer" }),
+    el("button", {
+      className: "btn ghost",
+      text: "Leave Room & Lobby",
+      onClick: () => {
+        resetOnlineState();
+        goHome();
+      }
+    })
+  );
+}
+
+function playAgainOnline() {
+  state = {
+    isOnline: true,
+    players: onlinePlayers.map(name => ({ name, score: 0 })),
+    target: state.target,
+    physical: false,
+    czar: 0,
+    round: 1,
+    deck: shuffle(cfg.responses),
+    discard: [],
+    promptDeck: shuffle(cfg.prompts.map((_, i) => i)),
+    promptUsed: [],
+    hands: onlinePlayers.map(() => []),
+    prompt: null,
+    submissions: [],
+    order: [],
+    queue: [],
+    qi: 0,
+    selected: [],
+    chosen: null,
+    phase: "submit",
+  };
+  state.hands = state.players.map(() => drawCards(HAND_SIZE));
+  dealPrompt();
+  
+  hasSubmittedThisRound = false;
+
+  sendSyncAction({ type: "STATE_SYNC", state });
+  render();
+}
+
 
 /* ---------------- Deck helpers ---------------- */
 function drawCards(n) {
@@ -195,11 +852,46 @@ function dealPrompt() {
   state.prompt = cfg.prompts[idx];
 }
 
-function save() { store.set(cfg.saveKey, state); }
+function save() {
+  if (state && !state.isOnline) {
+    store.set(cfg.saveKey, state);
+  }
+}
 
-/* ---------------- Render dispatcher ---------------- */
+/* ---------------- Authoritative Render Dispatcher ---------------- */
 function render() {
   save();
+
+  // Route to Online Mode Views
+  if (state && state.isOnline) {
+    // Re-verify my presence inside state hands mapping
+    const myIdx = state.players.findIndex(p => p.name === myName);
+    if (myIdx === -1) {
+      // Something broke or spectator
+      return;
+    }
+
+    // Mask hands for other players client-side to prevent peaking console
+    state.hands = state.hands.map((h, i) => i === myIdx ? h : []);
+
+    const isCzar = myIdx === state.czar;
+
+    switch (state.phase) {
+      case "submit":
+        if (isCzar) return renderOnlineCzarWaiting();
+        return hasSubmittedThisRound ? renderOnlineSubmitterWaiting() : renderOnlineSubmitterPick();
+      case "czar-pick":
+        if (isCzar) return renderOnlineCzarPick();
+        return renderOnlineGuestWaitingCzar();
+      case "result":
+        return renderOnlineResult();
+      case "over":
+        return renderOnlineGameOver();
+    }
+    return;
+  }
+
+  // Fallback to traditional Pass & Play
   switch (state.phase) {
     case "intro": return state.physical ? renderPhysicalIntro() : renderRoundIntro();
     case "pick": return renderPhysicalPick();
@@ -366,7 +1058,6 @@ function submitCards() {
   const pIdx = state.queue[state.qi];
   const hand = state.hands[pIdx];
   const cards = state.selected.map((i) => hand[i]);
-  // Remove played cards from hand (highest index first) and discard them.
   state.selected.slice().sort((a, b) => b - a).forEach((i) => {
     state.discard.push(hand[i]);
     hand.splice(i, 1);
@@ -402,7 +1093,6 @@ function renderCzarPick() {
   state.order.forEach((subIdx, displayIdx) => {
     const sub = state.submissions[subIdx];
     const stack = el("div", { className: "stack" });
-    // Show the prompt with this submission's answers filled in.
     stack.appendChild(el("div", { className: "play-card prompt" }, [
       fillPrompt(state.prompt.text, BLANK, sub.cards),
     ]));
@@ -460,13 +1150,10 @@ function renderResult() {
 }
 
 function nextRound() {
-  // Replenish submitters' hands back to full (digital only).
-  if (!state.physical) {
-    state.queue.forEach((pIdx) => {
-      const need = HAND_SIZE - state.hands[pIdx].length;
-      if (need > 0) state.hands[pIdx].push(...drawCards(need));
-    });
-  }
+  state.queue.forEach((pIdx) => {
+    const need = HAND_SIZE - state.hands[pIdx].length;
+    if (need > 0) state.hands[pIdx].push(...drawCards(need));
+  });
   state.czar = (state.czar + 1) % state.players.length;
   state.round++;
   state.submissions = [];

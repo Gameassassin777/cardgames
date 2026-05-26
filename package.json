@@ -1,0 +1,16 @@
+{
+  "name": "lakehouse-cardgames",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Progressive Web App cozy party card games, including multiplayer synchronization and quality evaluation.",
+  "main": "server.js",
+  "scripts": {
+    "server": "node server.js"
+  },
+  "dependencies": {
+    "ws": "^8.18.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

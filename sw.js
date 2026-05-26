@@ -1,6 +1,6 @@
 // Service worker — caches the app shell for offline play.
 // Bump this version (and js/version.js) on every deploy so clients auto-update.
-const CACHE = "lakehouse-cards-v5";
+const CACHE = "lakehouse-cards-v6";
 const ASSETS = [
   "./",
   "./index.html",
@@ -13,6 +13,8 @@ const ASSETS = [
   "./js/meeting.js",
   "./js/deckgame.js",
   "./js/data.js",
+  "./js/evaluator.js",
+  "./js/evaluator_ui.js",
   "./icons/icon.svg",
   "./icons/icon-192.png",
   "./icons/icon-512.png",

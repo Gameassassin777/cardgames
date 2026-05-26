@@ -5,6 +5,7 @@ import { makeGame as makeCardGame } from "./cam.js";
 import * as meeting from "./meeting.js";
 import { makeGame as makeDeck } from "./deckgame.js";
 import { PROMPTS, RESPONSES, NORMAL_PROMPTS, NORMAL_RESPONSES, LAKE_TRUTHS, WOULD_YOU_RATHER, RED_GREEN, RIZZ_ROULETTE } from "./data.js";
+import { openEvaluator } from "./evaluator_ui.js";
 
 let deferredInstall = null;
 
@@ -64,6 +65,11 @@ const GAMES = [
     id: "truths", icon: "🛶", title: "Lake House Truths",
     blurb: "Would-you-rather, truths & dares for around the firepit. Any group size.",
     start: lakeTruths,
+  },
+  {
+    id: "lcqe", icon: "📊", title: "Card Quality Evaluator", badge: "DEV TOOL",
+    blurb: "Static analysis and bot-playtest simulation (1,000 rounds) of all game decks. Flags mid & awkward cards.",
+    start: openEvaluator,
   },
 ];
 

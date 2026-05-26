@@ -1,0 +1,16 @@
+name = "lakehouse-cardgames-sync"
+main = "worker.js"
+compatibility_date = "2026-05-25"
+
+# Durable Object bindings for lobby coordination
+[[durable_objects.bindings]]
+name = "ROOM_LOBBY"
+class_name = "RoomLobby"
+
+# Database/Classes migration history
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["RoomLobby"]
+
+[observability]
+enabled = true
