@@ -22,6 +22,8 @@ let myName = "";
 let isHost = false;
 let onlinePlayers = [];
 let onlineCustomCards = []; // Store persistent custom cards fetched from Cloudflare GlobalStore
+let guestCustomResponses = []; // Temporary guest-submitted custom responses in lobby
+let guestCustomPrompts = [];   // Temporary guest-submitted custom prompts in lobby
 let connectionStatus = "offline"; // "offline" | "connecting" | "lobby"
 let hasSubmittedThisRound = false;
 
@@ -51,6 +53,8 @@ function resetOnlineState() {
   isHost = false;
   onlinePlayers = [];
   onlineCustomCards = [];
+  guestCustomResponses = [];
+  guestCustomPrompts = [];
   connectionStatus = "offline";
   hasSubmittedThisRound = false;
   state = null;
@@ -372,6 +376,19 @@ function setupSocketListeners() {
         onlineCustomCards = data.customCards || [];
         connectionStatus = "lobby";
         renderOnlineLobby();
+
+        // If I am NOT the host, transmit my local custom cards/prompts to the host!
+        if (!isHost) {
+          const localCustoms = store.get(cfg.saveKey + ".custom_cards", []);
+          const localPrompts = store.get(cfg.saveKey + ".custom_prompts", []);
+          if (localCustoms.length > 0 || localPrompts.length > 0) {
+            sendSyncAction({
+              type: "GUEST_CUSTOM_SYNC",
+              customs: localCustoms,
+              prompts: localPrompts
+            });
+          }
+        }
       } else if (data.type === "player_left") {
         onlinePlayers = data.players;
         renderOnlineLobby();
@@ -473,14 +490,19 @@ function startOnlineGame() {
   
   const activeCorePrompts = cfg.prompts.filter(p => !disabledPrompts.includes(p.text));
   const activeCustomPrompts = localPrompts.filter(p => !disabledPrompts.includes(p.text));
-  const fullPrompts = activeCorePrompts.concat(activeCustomPrompts);
+  const activeGuestPrompts = guestCustomPrompts.filter(p => !disabledPrompts.includes(p.text));
+  const fullPrompts = activeCorePrompts.concat(activeCustomPrompts).concat(activeGuestPrompts);
 
   // Mix persistent custom cards and filter out disabled ones
   const disabledResponses = store.get(cfg.saveKey + ".disabled_responses", []);
   
   // Filter out any existing blank card and inject exactly 6 clean blanks
   const baseResponses = cfg.responses.filter(c => c !== CUSTOM_CARD_TEXT && !disabledResponses.includes(c));
-  const activeCustoms = onlineCustomCards.filter(c => !disabledResponses.includes(c));
+  const activeOnlineCustoms = onlineCustomCards.filter(c => !disabledResponses.includes(c));
+  const localCustoms = store.get(cfg.saveKey + ".custom_cards", []);
+  const activeLocalCustoms = localCustoms.filter(c => !disabledResponses.includes(c));
+  const activeGuestCustoms = guestCustomResponses.filter(c => !disabledResponses.includes(c));
+  const activeCustoms = activeOnlineCustoms.concat(activeLocalCustoms).concat(activeGuestCustoms);
   const blankCopies = Array(6).fill(CUSTOM_CARD_TEXT);
   const fullResponses = baseResponses.concat(activeCustoms).concat(blankCopies);
 
@@ -526,6 +548,28 @@ function handleRelayedAction(action, sender) {
       state.isHost = false;
       render();
     }
+    return;
+  }
+
+  // Host Action handlers
+  if (action.type === "GUEST_CUSTOM_SYNC") {
+    // Save guest's custom responses
+    if (action.customs && Array.isArray(action.customs)) {
+      action.customs.forEach(card => {
+        if (!guestCustomResponses.includes(card)) {
+          guestCustomResponses.push(card);
+        }
+      });
+    }
+    // Save guest's custom prompts
+    if (action.prompts && Array.isArray(action.prompts)) {
+      action.prompts.forEach(p => {
+        if (!guestCustomPrompts.some(gp => gp.text === p.text)) {
+          guestCustomPrompts.push(p);
+        }
+      });
+    }
+    console.log("Host: Synced custom cards from guest player:", sender);
     return;
   }
 
