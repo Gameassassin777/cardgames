@@ -11,6 +11,7 @@ import { pullFromCloud } from "./cloud_sync.js";
 import * as gartic from "./gartic.js";
 import * as gallery from "./gallery.js";
 import { icons } from "./icons.js";
+import { startYacht, startFarkle } from "./dice_games.js";
 
 // Force wholesome normal mode on every app restart/page load
 localStorage.setItem("lakehouse.weird_unlocked", "false");
@@ -109,6 +110,18 @@ const GAMES = [
     id: "doodles", icon: icons.doodles, title: "Telephone Doodles",
     blurb: "Players alternate between writing prompts and drawing scenes — see how the message changes! 3+ players.",
     start: (home) => gartic.start(home),
+    familyFriendly: true,
+  },
+  {
+    id: "yahtzee", icon: icons.sibling, title: "Yahtzee Scorecard",
+    blurb: "A digital, automatic Yahtzee scorecard for up to 6 players. Tap to log scores, and let the app handle subtotals and bonuses!",
+    start: startYacht,
+    familyFriendly: true,
+  },
+  {
+    id: "farkle", icon: icons.roasts, title: "Farkle Scorekeeper",
+    blurb: "An interactive score tracker for Farkle (10,000 points). Automatically tracks thresholds, turns, and highlights the leader!",
+    start: startFarkle,
     familyFriendly: true,
   },
 ];

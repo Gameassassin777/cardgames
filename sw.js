@@ -1,6 +1,6 @@
 // Service worker — caches the app shell for offline play.
 // Bump this version (and js/version.js) on every deploy so clients auto-update.
-const CACHE = "lakehouse-cards-v41";
+const CACHE = "lakehouse-cards-v42";
 const ASSETS = [
   "./",
   "./index.html",
@@ -19,6 +19,7 @@ const ASSETS = [
   "./js/gallery.js",
   "./js/data.js",
   "./js/icons.js",
+  "./js/dice_games.js",
   "./icons/icon.svg",
   "./icons/icon-192.png",
   "./icons/icon-512.png",
@@ -28,7 +29,10 @@ const ASSETS = [
 
 self.addEventListener("install", (e) => {
   e.waitUntil(
-    caches.open(CACHE).then((c) => c.addAll(ASSETS)).then(() => self.skipWaiting())
+    caches.open(CACHE).then((c) => {
+      const requests = ASSETS.map(asset => new Request(asset, { cache: "reload" }));
+      return c.addAll(requests);
+    }).then(() => self.skipWaiting())
   );
 });
 
