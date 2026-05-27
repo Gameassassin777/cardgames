@@ -386,13 +386,13 @@ function setupDrawingCanvas(canvas, undoBtn, clearBtn, getColor, getBrushSize) {
     const touch = e.touches[0];
     const r = canvas.getBoundingClientRect();
     drawStart(touch.clientX - r.left, touch.clientY - r.top);
-  });
+  }, { passive: false });
   canvas.addEventListener("touchmove", (e) => {
     e.preventDefault();
     const touch = e.touches[0];
     const r = canvas.getBoundingClientRect();
     drawMove(touch.clientX - r.left, touch.clientY - r.top);
-  });
+  }, { passive: false });
   canvas.addEventListener("touchend", drawEnd);
 
   // Clear Canvas

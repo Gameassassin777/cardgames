@@ -141,11 +141,16 @@ function launchMainLoop(state) {
   }
 
   let lastTiltTime = 0;
-  let processingTilt = false;
+  let lastCheckTime = 0;
 
   function handleOrientation(e) {
     if (!state.active) return;
     const now = Date.now();
+    
+    // Throttle event checks to 12.5Hz to prevent main-thread layout choking
+    if (now - lastCheckTime < 80) return;
+    lastCheckTime = now;
+
     if (now - lastTiltTime < 1400) return;
 
     const b = e.beta;
