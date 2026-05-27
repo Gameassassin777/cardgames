@@ -1,8 +1,27 @@
-// Modular Quiplash local pass-and-play game engine.
+// Modular Quiplash game engine supporting Local Pass & Play and Online Multiplayer.
 import { el, mount, toast, store, shuffle } from "../ui.js";
 import { icons } from "../icons.js";
 
+const WS_BASE = location.hostname === "localhost" || location.hostname === "127.0.0.1"
+  ? "ws://localhost:3000"
+  : "wss://lakehouse-cardgames-sync.gameassassin777.workers.dev";
+
+const HTTP_BASE = location.hostname === "localhost" || location.hostname === "127.0.0.1"
+  ? "http://localhost:3000"
+  : "https://lakehouse-cardgames-sync.gameassassin777.workers.dev";
+
 let goHome = () => {};
+let socket = null;
+let roomCode = "";
+let myName = "";
+let isHost = false;
+let gState = null;
+let heartbeatInt = null;
+let roomBrowserRefresh = null;
+
+let isOnline = false;
+let setupMode = "passplay"; // "passplay" or "online"
+let localNames = ["Alice", "Bob", "Charlie"];
 
 const PROMPTS = [
   "The worst thing to find floating in the lake",
@@ -50,168 +69,719 @@ function gameTopbar(title, onBack) {
 
 export function start(home) {
   goHome = home;
+  resetAll();
   renderSetup();
 }
 
+function resetAll() {
+  if (socket) { try { socket.close(); } catch (_) {} socket = null; }
+  if (heartbeatInt) { clearInterval(heartbeatInt); heartbeatInt = null; }
+  if (roomBrowserRefresh) { clearInterval(roomBrowserRefresh); roomBrowserRefresh = null; }
+  roomCode = ""; myName = ""; isHost = false; gState = null; isOnline = false;
+}
+
 function renderSetup() {
-  const savedNames = store.get("quiplash.names", ["Alice", "Bob", "Charlie"]);
-  let names = savedNames.slice();
+  const savedName = localStorage.getItem("quiplash.name") || "";
+  const nameInput = el("input", {
+    type: "text",
+    placeholder: "Your name…",
+    value: savedName,
+    id: "q-name",
+    style: "font-size:1.1rem; border-radius:14px; text-align:center; margin-bottom:14px; width:100%;"
+  });
 
-  const listWrap = el("div", { id: "quipPlayerList", style: "margin: 16px 0;" });
+  const codeInput = el("input", {
+    type: "text",
+    placeholder: "4-LETTER CODE",
+    id: "q-code",
+    maxLength: 4,
+    style: "font-size:1.3rem; border-radius:14px; text-align:center; text-transform:uppercase; letter-spacing:6px; margin-bottom:10px; width:100%;"
+  });
+  codeInput.addEventListener("input", () => { codeInput.value = codeInput.value.toUpperCase(); });
 
-  function drawList() {
-    listWrap.innerHTML = "";
-    names.forEach((nm, i) => {
+  const getName = () => {
+    const n = nameInput.value.trim();
+    if (!n) { toast("Enter your name first!"); return null; }
+    localStorage.setItem("quiplash.name", n);
+    return n;
+  };
+
+  // Pass & Play Names List
+  const savedNames = store.get("quiplash.localNames", ["Alice", "Bob", "Charlie"]);
+  localNames = savedNames.slice();
+  const localListWrap = el("div", { style: "margin: 16px 0; max-height:220px; overflow-y:auto; width:100%;" });
+
+  function drawLocalList() {
+    localListWrap.innerHTML = "";
+    localNames.forEach((nm, i) => {
       const input = el("input", {
         type: "text",
         value: nm,
         maxlength: "14",
         placeholder: `Player ${i + 1}`,
-        onInput: (e) => { names[i] = e.target.value; }
+        style: "flex:1; border-radius:12px; font-size:1rem; padding: 8px 12px; text-align:center;",
+        onInput: (e) => { 
+          localNames[i] = e.target.value; 
+          store.set("quiplash.localNames", localNames);
+        }
       });
-      const row = el("div", { className: "player-row", style: "margin-bottom: 8px;" }, [
+      const row = el("div", { style: "display:flex; gap:8px; align-items:center; margin-bottom: 8px; width:100%;" }, [
         input,
         el("button", {
-          className: "icon-btn",
+          className: "btn ghost small error",
           text: "✕",
+          style: "margin:0; padding:6px 12px; border-radius:12px; font-size:1.1rem; line-height:1;",
           onClick: () => {
-            if (names.length > 3) {
-              names.splice(i, 1);
-              drawList();
+            if (localNames.length > 3) {
+              localNames.splice(i, 1);
+              store.set("quiplash.localNames", localNames);
+              drawLocalList();
             } else {
-              toast("Quiplash needs at least 3 players.");
+              toast("Need at least 3 players.");
             }
           }
         })
       ]);
-      listWrap.appendChild(row);
+      localListWrap.appendChild(row);
     });
   }
 
-  const addBtn = el("button", {
+  const addPlayerBtn = el("button", {
     className: "btn ghost small",
     text: "+ Add Player",
+    style: "width:100%; margin-bottom:10px;",
     onClick: () => {
-      if (names.length < 8) {
-        names.push(`Player ${names.length + 1}`);
-        drawList();
+      if (localNames.length < 8) {
+        localNames.push(`Player ${localNames.length + 1}`);
+        store.set("quiplash.localNames", localNames);
+        drawLocalList();
       } else {
-        toast("Max 8 players for local pass-and-play.");
+        toast("Max 8 players for local play.");
       }
     }
   });
 
-  const startBtn = el("button", {
+  const startLocalBtn = el("button", {
     className: "btn",
-    text: "Start Quiplash",
+    text: "Start Local Quiplash",
+    style: "width:100%;",
     onClick: () => {
-      const cleaned = names.map(n => n.trim() || "Player").slice(0, 8);
+      const cleaned = localNames.map(n => n.trim() || "Player").slice(0, 8);
       if (cleaned.length < 3) {
-        toast("Quiplash needs at least 3 players.");
+        toast("Need at least 3 players.");
         return;
       }
-      store.set("quiplash.names", cleaned);
+      isOnline = false;
       initGame(cleaned);
     }
   });
 
-  drawList();
+  // Category Toggles
+  const modeSelector = el("div", {
+    style: "display:flex; background:rgba(255,255,255,0.04); border-radius:14px; padding:4px; margin-bottom:20px; width:100%;"
+  });
+
+  const tabLocal = el("button", {
+    className: setupMode === "passplay" ? "btn small" : "btn ghost small",
+    text: "🔄 Pass & Play",
+    style: "flex:1; margin:0; font-size:0.85rem; padding: 8px 0; border:none; box-shadow:none;",
+    onClick: () => {
+      setupMode = "passplay";
+      tabLocal.className = "btn small";
+      tabOnline.className = "btn ghost small";
+      renderSetupForm();
+    }
+  });
+
+  const tabOnline = el("button", {
+    className: setupMode === "online" ? "btn small" : "btn ghost small",
+    text: "📱 Online Room",
+    style: "flex:1; margin:0; font-size:0.85rem; padding: 8px 0; border:none; box-shadow:none;",
+    onClick: () => {
+      setupMode = "online";
+      tabLocal.className = "btn ghost small";
+      tabOnline.className = "btn small";
+      renderSetupForm();
+    }
+  });
+
+  modeSelector.appendChild(tabLocal);
+  modeSelector.appendChild(tabOnline);
+
+  const dynamicFormWrap = el("div", { style: "width:100%;" });
+
+  function renderSetupForm() {
+    dynamicFormWrap.innerHTML = "";
+    if (setupMode === "passplay") {
+      drawLocalList();
+      [localListWrap, addPlayerBtn, startLocalBtn].forEach(c => dynamicFormWrap.appendChild(c));
+    } else {
+      const onlineLayout = el("div", { style: "width:100%;" }, [
+        nameInput,
+        el("button", {
+          className: "btn",
+          text: "Create Room",
+          style: "width:100%; margin-bottom:10px;",
+          onClick: () => {
+            const n = getName();
+            if (n) { myName = n; connectRoom("create"); }
+          }
+        }),
+        el("div", { style: "display:flex; gap:8px; align-items:center; width:100%; margin: 8px 0;" }, [
+          el("hr", { style: "flex:1; border:none; border-top:1px solid rgba(255,255,255,0.06);" }),
+          el("span", { text: "OR JOIN EXISTING", className: "muted", style: "font-size:0.75rem; letter-spacing:1px;" }),
+          el("hr", { style: "flex:1; border:none; border-top:1px solid rgba(255,255,255,0.06);" })
+        ]),
+        codeInput,
+        el("button", {
+          className: "btn ghost",
+          text: "Join Room",
+          style: "width:100%; margin-bottom:10px;",
+          onClick: () => {
+            const n = getName();
+            const code = codeInput.value.trim().toUpperCase();
+            if (!code || code.length !== 4) { toast("Enter a valid 4-letter room code!"); return; }
+            if (n) { myName = n; connectRoom("join", code); }
+          }
+        }),
+        el("button", {
+          className: "btn ghost small",
+          text: "🌐 Browse Open Rooms",
+          style: "width:100%; margin-top: 8px;",
+          onClick: () => renderRoomBrowser()
+        })
+      ]);
+      dynamicFormWrap.appendChild(onlineLayout);
+    }
+  }
 
   mount(
-    gameTopbar("Quiplash local", goHome),
-    el("div", { className: "panel center", style: "max-width: 480px; margin: 0 auto;" }, [
+    gameTopbar("Quiplash Setup", () => { resetAll(); goHome(); }),
+    el("div", { className: "panel center", style: "max-width: 440px; margin: 0 auto;" }, [
       el("div", { style: "width:64px; height:64px; margin:0 auto 12px; color:var(--sunset-soft);" }, [icons.meeting()]),
-      el("h2", { text: "Quiplash Setup" }),
-      el("p", { className: "muted", text: "Write hilarious answers to prompts. Other players vote on the funniest combination. 3 to 8 players. Pass the device secretly during writing." }),
-      listWrap,
-      addBtn,
+      el("h2", { text: "Quiplash", style: "margin-bottom: 4px;" }),
+      el("p", { className: "muted", style: "margin-bottom:20px;", text: "Write hilarious answers to wacky prompts, then vote anonymously on the funniest combinations!" }),
+      modeSelector,
+      dynamicFormWrap
+    ])
+  );
+
+  renderSetupForm();
+}
+
+function renderRoomBrowser() {
+  const listEl = el("div", { style: "display:flex; flex-direction:column; gap:8px; margin: 12px 0;" });
+  const loadRooms = async () => {
+    try {
+      listEl.innerHTML = `<p class="muted center" style="margin:16px 0;">Loading active rooms…</p>`;
+      const res = await fetch(`${HTTP_BASE}/rooms/list?game=quiplash`).then(r => r.json());
+      listEl.innerHTML = "";
+      if (res.length === 0) {
+        listEl.innerHTML = `<p class="muted center" style="margin:16px 0;">No active public rooms found. Create one!</p>`;
+        return;
+      }
+      res.forEach(r => {
+        const info = el("div", { style: "text-align: left;" }, [
+          el("div", { html: `Room <strong style="color:var(--sunset-soft);">${r.code}</strong> • Host: ${r.host}` }),
+          el("div", { className: "muted", style: "font-size: 0.75rem;", text: `${r.playerCount} players active` })
+        ]);
+        const row = el("div", { className: "room-row" }, [
+          info,
+          el("button", {
+            className: "btn small",
+            style: "margin:0; padding:6px 14px;",
+            text: "Join",
+            onClick: () => {
+              clearInterval(roomBrowserRefresh);
+              connectRoom("join", r.code);
+            }
+          })
+        ]);
+        listEl.appendChild(row);
+      });
+    } catch (_) {
+      listEl.innerHTML = `<p class="muted center" style="margin:16px 0;">Failed to fetch rooms.</p>`;
+    }
+  };
+
+  loadRooms();
+  roomBrowserRefresh = setInterval(loadRooms, 8000);
+
+  mount(
+    gameTopbar("Open Quiplash Rooms", () => { clearInterval(roomBrowserRefresh); renderSetup(); }),
+    el("div", { className: "panel center" }, [
+      el("p", { className: "muted", style: "margin:0; font-size:0.82rem;", text: "Tap Join to enter any open Quiplash lobby." })
+    ]),
+    el("div", { className: "panel" }, [listEl])
+  );
+}
+
+// ── WebSockets Networking ──────────────────────────────────────────────────
+function connectRoom(type, code = "") {
+  isOnline = true;
+  mount(
+    gameTopbar("Connecting", () => { resetAll(); renderSetup(); }),
+    el("div", { className: "panel center", style: "margin:30px auto; max-width:320px;" }, [
+      el("div", { className: "spin-indicator", style: "font-size:2rem; margin-bottom:12px;", text: "🌀" }),
+      el("p", { text: type === "create" ? "Creating room…" : `Joining ${code}…` })
+    ])
+  );
+
+  const url = type === "create"
+    ? `${WS_BASE}/ws/create?name=${encodeURIComponent(myName)}&game=quiplash`
+    : `${WS_BASE}/ws/join?code=${code}&name=${encodeURIComponent(myName)}&game=quiplash`;
+
+  isHost = (type === "create");
+  socket = new WebSocket(url);
+
+  socket.onmessage = (ev) => {
+    try {
+      const d = JSON.parse(ev.data);
+      if (d.type === "created" || d.type === "player_joined") {
+        roomCode = d.code;
+        applyLobby(d.players);
+      } else if (d.type === "player_left") {
+        applyLobby(d.players);
+        if (gState?.phase !== "lobby") toast(`${d.name} left the room.`);
+      } else if (d.type === "relay") {
+        handleRelay(d.action, d.sender);
+      } else if (d.type === "error") {
+        toast(d.message || "Connection error");
+        resetAll();
+        renderSetup();
+      }
+    } catch (e) {
+      console.error("[Quiplash] Parse error:", e);
+    }
+  };
+
+  socket.onclose = () => {
+    stopHeartbeat();
+    if (gState && gState.phase !== "done") {
+      toast("Disconnected from room.");
+      resetAll();
+      renderSetup();
+    }
+  };
+}
+
+function relay(action) {
+  if (!socket || socket.readyState !== 1) return;
+  socket.send(JSON.stringify({ type: "relay", code: roomCode, sender: myName, action }));
+}
+
+function startHeartbeat(playerCount = 1) {
+  stopHeartbeat();
+  const ping = () => fetch(`${HTTP_BASE}/rooms/heartbeat`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ code: roomCode, playerCount: gState?.players?.length || playerCount })
+  }).catch(() => {});
+  ping();
+  heartbeatInt = setInterval(ping, 25000);
+}
+
+function stopHeartbeat() {
+  if (heartbeatInt) { clearInterval(heartbeatInt); heartbeatInt = null; }
+}
+
+async function registerRoom() {
+  try {
+    await fetch(`${HTTP_BASE}/rooms/register`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        code: roomCode, host: myName, playerCount: gState?.players?.length || 1,
+        game: "quiplash", private: false,
+        lastPing: Date.now()
+      }),
+    });
+  } catch (_) {}
+}
+
+function applyLobby(players) {
+  gState = { phase: "lobby", players };
+  if (isHost && roomCode) {
+    registerRoom();
+    startHeartbeat(players.length);
+  }
+  renderLobby();
+}
+
+function renderLobby() {
+  const players = gState.players;
+  const list = el("div", { className: "scoreboard", style: "margin: 16px 0;" });
+  
+  players.forEach((p, i) => {
+    list.appendChild(el("div", {
+      className: "score-row",
+      style: "display:flex; justify-content:space-between; padding:8px 12px; background:rgba(255,255,255,0.02); border-radius:10px; margin-bottom:8px;"
+    }, [
+      el("span", { text: `${i + 1}. ${p}${p === myName ? " (You)" : ""}`, style: "font-weight: 500;" }),
+      i === 0 
+        ? el("span", { className: "badge", text: "HOST", style: "background:rgba(255,145,100,0.1); color:var(--sunset-soft);" })
+        : el("span", { className: "badge", text: "READY", style: "background:rgba(0,250,150,0.1); color:#00ffaa;" })
+    ]));
+  });
+
+  const startBtn = isHost
+    ? el("button", {
+        className: "btn",
+        text: "Start Quiplash",
+        style: "width:100%;",
+        onClick: () => {
+          if (players.length < 3) {
+            toast("Need at least 3 players to start Quiplash!");
+            return;
+          }
+          triggerOnlineGameStart();
+        }
+      })
+    : el("div", { className: "muted center", text: "Waiting for host to start..." });
+
+  mount(
+    gameTopbar(`Room Code: ${roomCode}`, () => confirmQuitOnline()),
+    el("div", { className: "panel center", style: "max-width: 480px; margin: 0 auto;" }, [
+      el("h2", { text: "Quiplash Lobby" }),
+      el("p", { className: "muted", text: "Gather 3 to 8 players online. Submit wacky answers and vote simultaneously on your screens!" }),
+      list,
       el("div", { className: "spacer" }),
       startBtn
     ])
   );
 }
 
+function confirmQuitOnline() {
+  if (confirm(isOnline ? "Disconnect and quit Quiplash?" : "Quit Quiplash?")) {
+    resetAll();
+    renderSetup();
+  }
+}
+
+// ── Quiplash Game Play Coordination ───────────────────────────────────────────
 function initGame(players) {
   const shuffledPrompts = shuffle(PROMPTS);
   const scores = {};
   players.forEach(p => { scores[p] = 0; });
 
-  const state = {
+  gState = {
+    phase: "writing",
     players,
     scores,
     promptsPool: shuffledPrompts,
-    round: 1, // Round 1, Round 2 (double points), Round 3 (Last Lash)
-    // active entries
-    writingQueue: [], // list of { player, promptIndex, promptText, finished: false, answer: "" }
-    votingQueue: [], // list of { promptText, p1, p2, ans1, ans2, votes: { pName: 1 or 2 } }
-    roundAnswers: {}, // prompts mapped to player answers
+    round: 1,
+    writingQueue: [],
+    votingQueue: [],
+    submittedAnswers: {}, // key: player -> answers map
+    localWritingIdx: 0,
+    currentVoteIdx: 0,
+    activeVotes: {}, // voter -> option (1 or 2)
+    submittedVotesCount: 0
   };
 
-  startRoundWriting(state);
+  if (isOnline) {
+    // Handled by triggerOnlineGameStart / handleRelay
+  } else {
+    startRoundWriting();
+  }
 }
 
-// ── Writing Phase ─────────────────────────────────────────────────────────────
-function startRoundWriting(state) {
-  // Reset per-round writing & voting queues
-  state.writingQueue = [];
-  state.votingQueue = [];
+function triggerOnlineGameStart() {
+  const scores = {};
+  gState.players.forEach(p => { scores[p] = 0; });
 
-  const N = state.players.length;
+  const shuffledPrompts = shuffle(PROMPTS);
 
-  if (state.round < 3) {
-    // Standard Quiplash distribution:
-    // N players, N prompts.
-    // Prompt i is answered by Player i and Player (i + 1) % N.
+  const N = gState.players.length;
+  const roundPrompts = [];
+  for (let i = 0; i < N; i++) {
+    roundPrompts.push(shuffledPrompts.pop());
+  }
+
+  // Construct writing queue assignments
+  const writingQueue = [];
+  for (let i = 0; i < N; i++) {
+    const p1 = gState.players[i];
+    const p2 = gState.players[(i + 1) % N];
+    const promptText = roundPrompts[i];
+
+    writingQueue.push({ player: p1, promptIdx: i, promptText, answer: "" });
+    writingQueue.push({ player: p2, promptIdx: i, promptText, answer: "" });
+  }
+
+  const startPayload = {
+    type: "QUIPLASH_START",
+    scores,
+    promptsPool: shuffledPrompts,
+    writingQueue,
+    round: 1
+  };
+
+  relay(startPayload);
+  handleRelay(startPayload, myName);
+}
+
+function handleRelay(action, sender) {
+  if (action.type === "QUIPLASH_START") {
+    gState = {
+      phase: "writing",
+      players: gState.players,
+      scores: action.scores,
+      promptsPool: action.promptsPool,
+      round: action.round,
+      writingQueue: action.writingQueue,
+      submittedAnswersCount: 0,
+      myTasks: action.writingQueue.filter(t => t.player === myName),
+      localWritingIdx: 0
+    };
+    renderWritingPhase();
+  } 
+  
+  else if (action.type === "QUIPLASH_SUBMIT_WORD") {
+    const task = gState.writingQueue.find(t => t.player === action.player && t.promptIdx === action.promptIdx);
+    if (task) {
+      task.answer = action.answer;
+    }
+    gState.submittedAnswersCount = gState.writingQueue.filter(t => t.answer).length;
+
+    const waitingEl = document.getElementById("quip-waiting");
+    if (waitingEl) {
+      waitingEl.textContent = `Submitted: ${gState.submittedAnswersCount} / ${gState.writingQueue.length} answers`;
+    }
+
+    if (isHost) {
+      const allAnswersIn = gState.writingQueue.every(t => t.answer);
+      if (allAnswersIn) {
+        // Compile standard voting queue!
+        const N = gState.players.length;
+        const votingQueue = [];
+        for (let i = 0; i < N; i++) {
+          const tasks = gState.writingQueue.filter(t => t.promptIdx === i);
+          if (tasks.length === 2) {
+            votingQueue.push({
+              promptIdx: i,
+              promptText: tasks[0].promptText,
+              p1: tasks[0].player,
+              p2: tasks[1].player,
+              ans1: tasks[0].answer,
+              ans2: tasks[1].answer,
+              votes: {}
+            });
+          }
+        }
+
+        const votePayload = {
+          type: "QUIPLASH_START_VOTING",
+          votingQueue: shuffle(votingQueue)
+        };
+        relay(votePayload);
+        handleRelay(votePayload, myName);
+      }
+    }
+  }
+
+  else if (action.type === "QUIPLASH_START_VOTING") {
+    gState.phase = "voting";
+    gState.votingQueue = action.votingQueue;
+    gState.currentVoteIdx = 0;
+    gState.activeVotes = {};
+    gState.submittedVotesCount = 0;
+    renderVotingRound();
+  }
+
+  else if (action.type === "QUIPLASH_CAST_VOTE") {
+    const voteItem = gState.votingQueue[gState.currentVoteIdx];
+    voteItem.votes[action.voter] = action.option; // 1 or 2
+    gState.submittedVotesCount = Object.keys(voteItem.votes).length;
+
+    const eligibleVoters = gState.players.filter(p => p !== voteItem.p1 && p !== voteItem.p2);
+    const progressEl = document.getElementById("quip-vote-waiting");
+    if (progressEl) {
+      progressEl.textContent = `Submitted: ${gState.submittedVotesCount} / ${eligibleVoters.length} votes`;
+    }
+
+    if (isHost) {
+      const allVotesIn = eligibleVoters.every(vName => voteItem.votes[vName] != null);
+      if (allVotesIn) {
+        let count1 = 0, count2 = 0;
+        eligibleVoters.forEach(vName => {
+          if (voteItem.votes[vName] === 1) count1++;
+          if (voteItem.votes[vName] === 2) count2++;
+        });
+
+        const multiplier = gState.round === 2 ? 200 : 100;
+        const pts1 = count1 * multiplier;
+        const pts2 = count2 * multiplier;
+
+        let q1 = (count1 > 0 && count2 === 0);
+        let q2 = (count2 > 0 && count1 === 0);
+
+        const revealPayload = {
+          type: "QUIPLASH_REVEAL_VOTE",
+          count1, count2, pts1, pts2, q1, q2
+        };
+        relay(revealPayload);
+        handleRelay(revealPayload, myName);
+      }
+    }
+  }
+
+  else if (action.type === "QUIPLASH_REVEAL_VOTE") {
+    gState.phase = "reveal";
+    gState.scores[gState.votingQueue[gState.currentVoteIdx].p1] += action.pts1 + (action.q1 ? 150 : 0);
+    gState.scores[gState.votingQueue[gState.currentVoteIdx].p2] += action.pts2 + (action.q2 ? 150 : 0);
+    renderSynchedRevealScreen(action);
+  }
+
+  else if (action.type === "QUIPLASH_NEXT_VOTE") {
+    gState.currentVoteIdx = action.nextIdx;
+    gState.submittedVotesCount = 0;
+    renderVotingRound();
+  }
+
+  else if (action.type === "QUIPLASH_LEADERBOARD") {
+    gState.phase = "leaderboard";
+    renderLeaderboardScreen();
+  }
+
+  else if (action.type === "QUIPLASH_LAST_LASH") {
+    gState.phase = "lastlash";
+    gState.votingQueue = action.votingQueue;
+    gState.activeVotes = {};
+    gState.submittedVotesCount = 0;
+    renderLastLashVoteScreen();
+  }
+
+  else if (action.type === "QUIPLASH_CAST_LAST_LASH") {
+    const voteItem = gState.votingQueue[0];
+    voteItem.votes[action.voter] = action.ansIdx;
+    gState.submittedVotesCount = Object.keys(voteItem.votes).length;
+
+    const progressEl = document.getElementById("quip-vote-waiting");
+    if (progressEl) {
+      progressEl.textContent = `Submitted: ${gState.submittedVotesCount} / ${gState.players.length} votes`;
+    }
+
+    if (isHost) {
+      const allVotesIn = gState.players.every(p => voteItem.votes[p] != null);
+      if (allVotesIn) {
+        const tallies = voteItem.answers.map(() => 0);
+        gState.players.forEach(p => {
+          tallies[voteItem.votes[p]]++;
+        });
+
+        // Award 300 points per vote
+        voteItem.answers.forEach((ansObj, aIdx) => {
+          const votes = tallies[aIdx];
+          const pts = votes * 300;
+          gState.scores[ansObj.player] += pts;
+          ansObj.votes = votes;
+          ansObj.pointsEarned = pts;
+        });
+
+        const lastReveal = {
+          type: "QUIPLASH_LAST_REVEAL",
+          answers: voteItem.answers
+        };
+        relay(lastReveal);
+        handleRelay(lastReveal, myName);
+      }
+    }
+  }
+
+  else if (action.type === "QUIPLASH_LAST_REVEAL") {
+    gState.phase = "lastreveal";
+    gState.votingQueue[0].answers = action.answers;
+    renderLastRevealScreen();
+  }
+}
+
+// ── Synced Writing Phase ──────────────────────────────────────────────────────
+function startRoundWriting() {
+  gState.writingQueue = [];
+  gState.votingQueue = [];
+
+  const N = gState.players.length;
+  if (gState.round < 3) {
     const roundPrompts = [];
     for (let i = 0; i < N; i++) {
-      roundPrompts.push(state.promptsPool.pop() || "A funny prompt.");
+      roundPrompts.push(gState.promptsPool.pop() || "A funny prompt.");
     }
-
     for (let i = 0; i < N; i++) {
-      const p1 = state.players[i];
-      const p2 = state.players[(i + 1) % N];
+      const p1 = gState.players[i];
+      const p2 = gState.players[(i + 1) % N];
       const promptText = roundPrompts[i];
 
-      state.writingQueue.push({ player: p1, promptIdx: i, promptText, answer: "" });
-      state.writingQueue.push({ player: p2, promptIdx: i, promptText, answer: "" });
+      gState.writingQueue.push({ player: p1, promptIdx: i, promptText, answer: "" });
+      gState.writingQueue.push({ player: p2, promptIdx: i, promptText, answer: "" });
     }
   } else {
-    // Round 3: The Last Lash. One single prompt for EVERY player.
-    const lastLashPrompt = state.promptsPool.pop() || "The ultimate final prompt.";
-    state.players.forEach(p => {
-      state.writingQueue.push({ player: p, promptIdx: 0, promptText: lastLashPrompt, answer: "" });
+    const lastLashPrompt = gState.promptsPool.pop() || "The ultimate final prompt.";
+    gState.players.forEach(p => {
+      gState.writingQueue.push({ player: p, promptIdx: 0, promptText: lastLashPrompt, answer: "" });
     });
   }
 
-  // Shuffle writing tasks so players don't write them in standard order
-  state.writingQueue = shuffle(state.writingQueue);
-  processNextWritingTask(state);
+  gState.writingQueue = shuffle(gState.writingQueue);
+  gState.localWritingIdx = 0;
+  
+  if (isOnline) {
+    // Done inside triggerOnlineGameStart
+  } else {
+    triggerLocalPassPlayWriting();
+  }
 }
 
-function processNextWritingTask(state) {
-  const nextTask = state.writingQueue.find(t => !t.answer);
-
+function triggerLocalPassPlayWriting() {
+  const nextTask = gState.writingQueue.find(t => !t.answer);
   if (!nextTask) {
-    // Writing is complete! Let's prepare the voting queue.
-    prepareVotingQueue(state);
+    prepareVotingQueue();
     return;
   }
 
-  // Show "Pass the device to [Player Name]" screen to preserve secret writing.
-  const container = el("div", { className: "panel center", style: "max-width: 480px; margin: 30px auto; padding: 24px;" }, [
-    el("h2", { text: `Pass the Device!` }),
-    el("p", { className: "muted", style: "font-size: 1.1rem; margin: 20px 0;", html: `Hand the phone secretly to <strong style="color:var(--sunset-soft); font-size: 1.3rem;">${nextTask.player}</strong>.` }),
-    el("button", {
-      className: "btn",
-      text: "I am ready to write",
-      onClick: () => renderWritingInput(state, nextTask)
-    })
-  ]);
-
-  mount(gameTopbar(`Quiplash — Round ${state.round}`, () => confirmQuit(state)), container);
+  mount(
+    gameTopbar(`Quiplash — Round ${gState.round}`, () => confirmQuitLocal()),
+    el("div", { className: "panel center", style: "max-width: 480px; margin: 30px auto; padding: 24px;" }, [
+      el("h2", { text: `Pass the iPad!` }),
+      el("p", { className: "muted", style: "font-size: 1.1rem; margin: 20px 0;", html: `Hand the device secretly to <strong style="color:var(--sunset-soft); font-size: 1.3rem;">${nextTask.player}</strong>.` }),
+      el("button", {
+        className: "btn",
+        text: "I am ready to write",
+        onClick: () => renderWritingInput(nextTask)
+      })
+    ])
+  );
 }
 
-function renderWritingInput(state, task) {
+function confirmQuitLocal() {
+  if (confirm("Quit Quiplash?")) {
+    resetAll();
+    renderSetup();
+  }
+}
+
+function renderWritingPhase() {
+  const tasks = isOnline ? gState.myTasks : [gState.writingQueue.find(t => !t.answer)];
+  const currentTask = isOnline ? tasks[gState.localWritingIdx] : tasks[0];
+
+  if (!currentTask) {
+    // Waiting for other online players
+    mount(
+      gameTopbar("Mad Libs", () => confirmQuitOnline()),
+      el("div", { className: "panel center", style: "max-width: 400px; margin: 30px auto;" }, [
+        el("div", { className: "spin-indicator", style: "font-size:2rem; margin-bottom:12px;", text: "⏳" }),
+        el("h3", { text: "Awaiting other players..." }),
+        el("p", { className: "muted", text: "You have completed your tasks. Relax, voting starts soon!" }),
+        el("div", { id: "quip-waiting", style: "font-size:0.9rem; font-weight:bold; color:var(--sunset-soft); margin-top:8px;", text: `Submitted: ${gState.submittedAnswersCount} / ${gState.writingQueue.length} answers` })
+      ])
+    );
+    return;
+  }
+
+  renderWritingInput(currentTask);
+}
+
+function renderWritingInput(task) {
   const inputEl = el("input", {
     type: "text",
     placeholder: "Type your funny answer...",
@@ -224,12 +794,24 @@ function renderWritingInput(state, task) {
     text: "Submit Answer",
     onClick: () => {
       const ans = inputEl.value.trim();
-      if (!ans) {
-        toast("Please write something funny!");
-        return;
+      if (!ans) { toast("Please write something funny!"); return; }
+      
+      submitBtn.disabled = true;
+      inputEl.disabled = true;
+
+      if (isOnline) {
+        const action = {
+          type: "QUIPLASH_SUBMIT_WORD",
+          player: myName,
+          promptIdx: task.promptIdx,
+          answer: ans
+        };
+        relay(action);
+        handleRelay(action, myName); // update locally
+      } else {
+        task.answer = ans;
+        triggerLocalPassPlayWriting();
       }
-      task.answer = ans;
-      processNextWritingTask(state);
     }
   });
 
@@ -242,147 +824,190 @@ function renderWritingInput(state, task) {
     submitBtn
   ]);
 
-  mount(gameTopbar(`Quiplash — Round ${state.round}`, () => confirmQuit(state)), layout);
+  mount(gameTopbar(`Quiplash — Round ${gState.round}`, () => isOnline ? confirmQuitOnline() : confirmQuitLocal()), layout);
   inputEl.focus();
 }
 
-// ── Voting Phase Setup ────────────────────────────────────────────────────────
-function prepareVotingQueue(state) {
-  if (state.round < 3) {
-    const N = state.players.length;
-    // We had N prompts.
-    // For each prompt, we find the two tasks matching its index.
+// ── Synced Voting Phase ───────────────────────────────────────────────────────
+function prepareVotingQueue() {
+  const N = gState.players.length;
+  if (gState.round < 3) {
     for (let i = 0; i < N; i++) {
-      const tasks = state.writingQueue.filter(t => t.promptIdx === i);
+      const tasks = gState.writingQueue.filter(t => t.promptIdx === i);
       if (tasks.length === 2) {
-        state.votingQueue.push({
+        gState.votingQueue.push({
+          promptIdx: i,
           promptText: tasks[0].promptText,
           p1: tasks[0].player,
           p2: tasks[1].player,
           ans1: tasks[0].answer,
           ans2: tasks[1].answer,
-          votes: {} // player_name -> 1 or 2
+          votes: {}
         });
       }
     }
   } else {
-    // Round 3: One prompt, all answers.
-    // For voting, we compare answers in pairs or let players vote on all of them.
-    // Let's make it a massive single screen listing ALL answers anonymously!
-    // Players can vote on their single favorite.
-    const tasks = state.writingQueue; // list of all player tasks
-    state.votingQueue = [{
+    const tasks = gState.writingQueue;
+    gState.votingQueue = [{
+      promptIdx: 0,
       promptText: tasks[0].promptText,
       answers: tasks.map(t => ({ player: t.player, answer: t.answer })),
-      votes: {} // player_name -> index of answers array
+      votes: {}
     }];
   }
 
-  // Shuffle voting rounds for standard matches
-  state.votingQueue = shuffle(state.votingQueue);
-  processNextVotingRound(state, 0);
+  gState.votingQueue = shuffle(gState.votingQueue);
+  gState.currentVoteIdx = 0;
+  renderVotingRound();
 }
 
-// ── Voting Execution ──────────────────────────────────────────────────────────
-function processNextVotingRound(state, idx) {
-  if (idx >= state.votingQueue.length) {
-    // Voting complete! Show Round Leaderboard
-    renderRoundLeaderboard(state);
+function renderVotingRound() {
+  const idx = gState.currentVoteIdx;
+  if (idx >= gState.votingQueue.length) {
+    renderLeaderboardScreen();
     return;
   }
 
-  const voteItem = state.votingQueue[idx];
-
-  if (state.round < 3) {
-    renderStandardVoteScreen(state, voteItem, idx);
+  const voteItem = gState.votingQueue[idx];
+  if (gState.round < 3) {
+    renderStandardVoteScreen(voteItem);
   } else {
-    renderLastLashVoteScreen(state, voteItem, idx);
+    renderLastLashVoteScreen(voteItem);
   }
 }
 
-function renderStandardVoteScreen(state, item, idx) {
-  // Players who are NOT item.p1 and NOT item.p2 can vote
-  const voters = state.players.filter(p => p !== item.p1 && p !== item.p2);
+function renderStandardVoteScreen(item) {
+  const voters = gState.players.filter(p => p !== item.p1 && p !== item.p2);
+  const userCanVote = voters.includes(isOnline ? myName : gState.players[0]);
 
-  // Layout components
-  const voterGrid = el("div", { style: "margin: 20px 0; display: flex; flex-direction: column; gap: 8px;" });
-
-  // Render a voting row for each eligible player
-  const activeVotes = {}; // voterName -> 1 or 2
-  voters.forEach(vName => {
-    activeVotes[vName] = null;
-  });
-
-  function updateVoterRows() {
-    voterGrid.innerHTML = "";
-    voters.forEach(vName => {
-      const voteVal = activeVotes[vName];
-      const row = el("div", {
-        style: "display: flex; justify-content: space-between; align-items: center; padding: 8px 16px; background: rgba(255,255,255,0.02); border-radius: 10px; border: 1px solid rgba(255,255,255,0.05);"
-      }, [
-        el("span", { text: vName, style: "font-weight: 500;" }),
-        el("div", { style: "display: flex; gap: 8px;" }, [
-          el("button", {
-            className: voteVal === 1 ? "btn small" : "btn ghost small",
-            text: "Left",
-            style: "padding: 4px 14px; margin:0;",
-            onClick: () => { activeVotes[vName] = 1; updateVoterRows(); checkSubmittable(); }
-          }),
-          el("button", {
-            className: voteVal === 2 ? "btn small" : "btn ghost small",
-            text: "Right",
-            style: "padding: 4px 14px; margin:0;",
-            onClick: () => { activeVotes[vName] = 2; updateVoterRows(); checkSubmittable(); }
-          })
-        ])
-      ]);
-      voterGrid.appendChild(row);
-    });
+  if (isOnline && !userCanVote) {
+    // This player was one of the answers! They just have to wait.
+    mount(
+      gameTopbar("Quiplash — Voting", () => confirmQuitOnline()),
+      el("div", { className: "panel center", style: "max-width: 440px; margin:30px auto;" }, [
+        el("div", { className: "spin-indicator", style: "font-size:2rem; margin-bottom:12px;", text: "⏳" }),
+        el("h3", { text: "Your Answer is Up!" }),
+        el("p", { className: "muted", text: "You cannot vote on your own matchup! Relax while others decide." }),
+        el("div", { id: "quip-vote-waiting", style: "font-size:0.9rem; font-weight:bold; color:var(--sunset-soft); margin-top:8px;", text: `Submitted: ${gState.submittedVotesCount} / ${voters.length} votes` })
+      ])
+    );
+    return;
   }
 
-  const submitBtn = el("button", {
+  const activeVotes = {};
+  if (isOnline) {
+    activeVotes[myName] = null;
+  } else {
+    voters.forEach(v => { activeVotes[v] = null; });
+  }
+
+  const voterGrid = el("div", { style: "margin: 20px 0; display: flex; flex-direction: column; gap: 8px;" });
+
+  function drawVoterGrid() {
+    voterGrid.innerHTML = "";
+    if (isOnline) {
+      const voteVal = activeVotes[myName];
+      voterGrid.appendChild(el("div", { style: "display:flex; justify-content:center; gap:12px; margin-top:12px;" }, [
+        el("button", {
+          className: voteVal === 1 ? "btn" : "btn ghost",
+          text: "Vote Option A",
+          style: "padding: 8px 24px; margin:0;",
+          onClick: () => {
+            activeVotes[myName] = 1;
+            drawVoterGrid();
+            submitOnlineVote(1);
+          }
+        }),
+        el("button", {
+          className: voteVal === 2 ? "btn" : "btn ghost",
+          text: "Vote Option B",
+          style: "padding: 8px 24px; margin:0;",
+          onClick: () => {
+            activeVotes[myName] = 2;
+            drawVoterGrid();
+            submitOnlineVote(2);
+          }
+        })
+      ]));
+    } else {
+      voters.forEach(vName => {
+        const voteVal = activeVotes[vName];
+        voterGrid.appendChild(el("div", {
+          style: "display: flex; justify-content: space-between; align-items: center; padding: 8px 16px; background: rgba(255,255,255,0.02); border-radius: 10px; border: 1px solid rgba(255,255,255,0.05);"
+        }, [
+          el("span", { text: vName, style: "font-weight: 500;" }),
+          el("div", { style: "display: flex; gap: 8px;" }, [
+            el("button", {
+              className: voteVal === 1 ? "btn small" : "btn ghost small",
+              text: "Left",
+              style: "padding: 4px 14px; margin:0;",
+              onClick: () => { activeVotes[vName] = 1; drawVoterGrid(); checkLocalSubmittable(); }
+            }),
+            el("button", {
+              className: voteVal === 2 ? "btn small" : "btn ghost small",
+              text: "Right",
+              style: "padding: 4px 14px; margin:0;",
+              onClick: () => { activeVotes[vName] = 2; drawVoterGrid(); checkLocalSubmittable(); }
+            })
+          ])
+        ]));
+      });
+    }
+  }
+
+  function submitOnlineVote(opt) {
+    const action = {
+      type: "QUIPLASH_CAST_VOTE",
+      voter: myName,
+      option: opt
+    };
+    relay(action);
+    handleRelay(action, myName);
+
+    mount(
+      gameTopbar("Quiplash — Voting", () => confirmQuitOnline()),
+      el("div", { className: "panel center", style: "max-width: 440px; margin: 30px auto;" }, [
+        el("div", { className: "spin-indicator", style: "font-size:2rem; margin-bottom:12px;", text: "⏳" }),
+        el("h3", { text: "Vote Cast!" }),
+        el("p", { className: "muted", text: "Waiting for other players to submit their votes..." }),
+        el("div", { id: "quip-vote-waiting", style: "font-size:0.9rem; font-weight:bold; color:var(--sunset-soft); margin-top:8px;", text: `Submitted: ${gState.submittedVotesCount} / ${voters.length} votes` })
+      ])
+    );
+  }
+
+  const submitLocalBtn = el("button", {
     className: "btn",
     text: "Submit & Reveal",
     disabled: true,
     onClick: () => {
-      // Calculate scores
-      let count1 = 0;
-      let count2 = 0;
+      let count1 = 0, count2 = 0;
       voters.forEach(v => {
         if (activeVotes[v] === 1) count1++;
         if (activeVotes[v] === 2) count2++;
       });
 
-      // points
-      const multiplier = state.round === 2 ? 200 : 100;
+      const multiplier = gState.round === 2 ? 200 : 100;
       const pts1 = count1 * multiplier;
       const pts2 = count2 * multiplier;
+      
+      let q1 = (count1 > 0 && count2 === 0);
+      let q2 = (count2 > 0 && count1 === 0);
 
-      // Quiplash Bonus! If a player gets 100% of the votes
-      let q1 = false, q2 = false;
-      if (count1 > 0 && count2 === 0) {
-        q1 = true;
-      }
-      if (count2 > 0 && count1 === 0) {
-        q2 = true;
-      }
+      gState.scores[item.p1] += pts1 + (q1 ? 150 : 0);
+      gState.scores[item.p2] += pts2 + (q2 ? 150 : 0);
 
-      state.scores[item.p1] += pts1 + (q1 ? 150 : 0);
-      state.scores[item.p2] += pts2 + (q2 ? 150 : 0);
-
-      // Reveal Phase!
-      renderStandardReveal(state, item, idx, count1, count2, pts1, pts2, q1, q2);
+      renderLocalStandardReveal(item, count1, count2, pts1, pts2, q1, q2);
     }
   });
 
-  function checkSubmittable() {
+  function checkLocalSubmittable() {
     const allVoted = voters.every(v => activeVotes[v] !== null);
-    submitBtn.disabled = !allVoted;
+    submitLocalBtn.disabled = !allVoted;
   }
 
-  updateVoterRows();
+  drawVoterGrid();
 
-  const screen = el("div", { className: "panel center", style: "max-width: 600px; margin: 0 auto;" }, [
+  const layout = el("div", { className: "panel center", style: "max-width: 600px; margin: 0 auto;" }, [
     el("blockquote", { text: `"${item.promptText}"`, style: "font-size: 1.4rem; font-weight: bold; padding: 0; border: none; margin-bottom: 24px;" }),
     el("div", { style: "display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 20px;" }, [
       el("div", {
@@ -400,19 +1025,74 @@ function renderStandardVoteScreen(state, item, idx) {
         el("div", { text: item.ans2, style: "font-size: 1.25rem; font-weight: bold;" })
       ])
     ]),
-    el("h4", { text: "Cast Votes (all other players)", style: "font-size: 0.9rem; letter-spacing: 0.5px;" }),
+    el("h4", { text: isOnline ? "Cast Your Vote" : "Cast Votes (all other players)", style: "font-size: 0.9rem; letter-spacing: 0.5px;" }),
     voterGrid,
-    submitBtn
+    isOnline ? null : submitLocalBtn
   ]);
 
-  mount(gameTopbar(`Quiplash — Voting`, () => confirmQuit(state)), screen);
+  mount(gameTopbar(`Quiplash — Voting`, () => isOnline ? confirmQuitOnline() : confirmQuitLocal()), layout);
 }
 
-function renderStandardReveal(state, item, idx, c1, c2, pts1, pts2, q1, q2) {
+function renderSynchedRevealScreen(action) {
+  const item = gState.votingQueue[gState.currentVoteIdx];
+  const count1 = action.count1;
+  const count2 = action.count2;
+
+  const nextBtn = isHost
+    ? el("button", {
+        className: "btn",
+        text: gState.currentVoteIdx + 1 < gState.votingQueue.length ? "Next Prompt" : "Show Standings",
+        onClick: () => {
+          const nextIdx = gState.currentVoteIdx + 1;
+          if (nextIdx < gState.votingQueue.length) {
+            const nextPayload = {
+              type: "QUIPLASH_NEXT_VOTE",
+              nextIdx
+            };
+            relay(nextPayload);
+            handleRelay(nextPayload, myName);
+          } else {
+            const endPayload = {
+              type: "QUIPLASH_LEADERBOARD"
+            };
+            relay(endPayload);
+            handleRelay(endPayload, myName);
+          }
+        }
+      })
+    : el("div", { className: "muted center", text: "Waiting for host to flip page..." });
+
+  const layout = el("div", { className: "panel center", style: "max-width: 600px; margin: 0 auto; text-align: center;" }, [
+    el("blockquote", { text: `"${item.promptText}"`, style: "font-size: 1.3rem; border: none; padding: 0; font-weight: bold; margin-bottom: 24px;" }),
+    el("div", { style: "display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 24px;" }, [
+      el("div", {
+        className: "panel center",
+        style: `border: 2px solid ${count1 >= count2 ? "var(--sunset-soft)" : "rgba(255,255,255,0.05)"}; background: rgba(255,255,255,0.01); border-radius: 12px; padding: 16px;`
+      }, [
+        el("h3", { text: item.ans1, style: "font-size: 1.3rem; font-weight: bold; margin-top: 0;" }),
+        el("div", { text: `By ${item.p1}`, style: "font-weight: 500; font-size: 0.9rem; color: var(--sunset-soft);" }),
+        el("div", { text: `${count1} ${count1 === 1 ? 'vote' : 'votes'} (+${action.pts1} pts)`, style: "font-size: 0.85rem; margin-top: 4px; font-weight: bold;" }),
+        action.q1 ? el("div", { text: "QUIPLASH BONUS (+150 pts)", style: "font-size: 0.7rem; font-weight: bold; color: #00ffaa; margin-top: 6px; letter-spacing: 0.5px;" }) : null
+      ]),
+      el("div", {
+        className: "panel center",
+        style: `border: 2px solid ${count2 >= count1 ? "var(--sunset-soft)" : "rgba(255,255,255,0.05)"}; background: rgba(255,255,255,0.01); border-radius: 12px; padding: 16px;`
+      }, [
+        el("h3", { text: item.ans2, style: "font-size: 1.3rem; font-weight: bold; margin-top: 0;" }),
+        el("div", { text: `By ${item.p2}`, style: "font-weight: 500; font-size: 0.9rem; color: var(--sunset-soft);" }),
+        el("div", { text: `${count2} ${count2 === 1 ? 'vote' : 'votes'} (+${action.pts2} pts)`, style: "font-size: 0.85rem; margin-top: 4px; font-weight: bold;" }),
+        action.q2 ? el("div", { text: "QUIPLASH BONUS (+150 pts)", style: "font-size: 0.7rem; font-weight: bold; color: #00ffaa; margin-top: 6px; letter-spacing: 0.5px;" }) : null
+      ])
+    ]),
+    nextBtn
+  ]);
+
+  mount(gameTopbar(`Quiplash — Reveal`, () => confirmQuitOnline()), layout);
+}
+
+function renderLocalStandardReveal(item, c1, c2, pts1, pts2, q1, q2) {
   const container = el("div", { className: "panel center", style: "max-width: 600px; margin: 0 auto; text-align: center;" }, [
     el("blockquote", { text: `"${item.promptText}"`, style: "font-size: 1.3rem; border: none; padding: 0; font-weight: bold; margin-bottom: 24px;" }),
-    
-    // Side by side reveals
     el("div", { style: "display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 24px;" }, [
       el("div", {
         className: "panel center",
@@ -433,114 +1113,158 @@ function renderStandardReveal(state, item, idx, c1, c2, pts1, pts2, q1, q2) {
         q2 ? el("div", { text: "QUIPLASH BONUS (+150 pts)", style: "font-size: 0.7rem; font-weight: bold; color: #00ffaa; margin-top: 6px; letter-spacing: 0.5px;" }) : null
       ])
     ]),
-
     el("button", {
       className: "btn",
       text: "Next Prompt",
-      onClick: () => processNextVotingRound(state, idx + 1)
+      onClick: () => {
+        gState.currentVoteIdx++;
+        renderVotingRound();
+      }
     })
   ]);
 
-  mount(gameTopbar(`Quiplash — Reveal`, () => confirmQuit(state)), container);
+  mount(gameTopbar(`Quiplash — Reveal`, () => confirmQuitLocal()), container);
 }
 
-function renderLastLashVoteScreen(state, item, idx) {
-  // Last Lash! Everyone voted for one prompt.
-  // Display all answers anonymously.
-  // Each voter chooses their favorite (cannot vote for their own).
-  const voterGrid = el("div", { style: "margin: 20px 0; display: flex; flex-direction: column; gap: 8px;" });
+// ── Last Lash Synced Voting ──────────────────────────────────────────────────
+function renderLastLashVoteScreen(item) {
+  const voteItem = item || gState.votingQueue[0];
+  const userAnswers = voteItem.answers.filter(a => a.player === myName);
+  const userHasAnswer = userAnswers.length > 0;
 
-  const activeVotes = {}; // voterName -> index of answer chosen
-  state.players.forEach(p => {
-    activeVotes[p] = null;
-  });
+  const allowedOptions = voteItem.answers
+    .map((ansObj, aIdx) => ({ ansObj, aIdx }))
+    .filter(entry => !isOnline || entry.ansObj.player !== myName);
 
-  function updateVoterRows() {
-    voterGrid.innerHTML = "";
-    state.players.forEach(pName => {
-      // Find what answers this player can vote for (all except their own)
-      const allowedOptions = item.answers
-        .map((ansObj, aIdx) => ({ ansObj, aIdx }))
-        .filter(entry => entry.ansObj.player !== pName);
-
-      const selectOptions = [el("option", { value: "", text: "Choose an answer..." })];
-      allowedOptions.forEach(opt => {
-        selectOptions.push(el("option", { value: String(opt.aIdx), text: `"${opt.ansObj.answer}"` }));
-      });
-
-      const select = el("select", {
-        style: "max-width: 260px; font-size: 0.85rem; border-radius: 8px;",
-        onChange: (e) => {
-          activeVotes[pName] = e.target.value === "" ? null : parseInt(e.target.value, 10);
-          checkSubmittable();
-        }
-      }, selectOptions);
-
-      if (activeVotes[pName] !== null) {
-        select.value = String(activeVotes[pName]);
-      }
-
-      const row = el("div", {
-        style: "display: flex; justify-content: space-between; align-items: center; padding: 6px 12px; background: rgba(255,255,255,0.02); border-radius: 10px; border: 1px solid rgba(255,255,255,0.05);"
-      }, [
-        el("span", { text: pName, style: "font-weight: 500;" }),
-        select
-      ]);
-
-      voterGrid.appendChild(row);
+  if (isOnline) {
+    const activeVoteVal = gState.activeVotes[myName];
+    const selectOptions = [el("option", { value: "", text: "Choose your favorite..." })];
+    allowedOptions.forEach(opt => {
+      selectOptions.push(el("option", { value: String(opt.aIdx), text: `"${opt.ansObj.answer}"` }));
     });
-  }
 
-  const submitBtn = el("button", {
-    className: "btn",
-    text: "Reveal Last Lash",
-    disabled: true,
-    onClick: () => {
-      // Tally up votes
-      const answerVoteCounts = item.answers.map(() => 0);
-      state.players.forEach(p => {
-        const choice = activeVotes[p];
-        if (choice !== null) {
-          answerVoteCounts[choice]++;
+    const selectEl = el("select", {
+      style: "width: 100%; border-radius: 12px; margin-top:16px;",
+      onChange: (e) => {
+        if (e.target.value !== "") {
+          const opt = parseInt(e.target.value, 10);
+          submitOnlineLastLashVote(opt);
         }
-      });
+      }
+    }, selectOptions);
 
-      // Award points (300 points per vote)
-      item.answers.forEach((ansObj, aIdx) => {
-        const votes = answerVoteCounts[aIdx];
-        const pts = votes * 300;
-        state.scores[ansObj.player] += pts;
-        ansObj.votes = votes;
-        ansObj.pointsEarned = pts;
-      });
+    function submitOnlineLastLashVote(ansIdx) {
+      const action = {
+        type: "QUIPLASH_CAST_LAST_LASH",
+        voter: myName,
+        ansIdx
+      };
+      relay(action);
+      handleRelay(action, myName);
 
-      // Show final results review
-      renderLastLashReveal(state, item, idx);
+      mount(
+        gameTopbar("Quiplash — Final Lash", () => confirmQuitOnline()),
+        el("div", { className: "panel center", style: "max-width: 440px; margin: 30px auto;" }, [
+          el("div", { className: "spin-indicator", style: "font-size:2rem; margin-bottom:12px;", text: "⏳" }),
+          el("h3", { text: "Final Vote Cast!" }),
+          el("p", { className: "muted", text: "Waiting for other players to submit their votes..." }),
+          el("div", { id: "quip-vote-waiting", style: "font-size:0.9rem; font-weight:bold; color:var(--sunset-soft); margin-top:8px;", text: `Submitted: ${gState.submittedVotesCount} / ${gState.players.length} votes` })
+        ])
+      );
     }
-  });
 
-  function checkSubmittable() {
-    const allVoted = state.players.every(p => activeVotes[p] !== null);
-    submitBtn.disabled = !allVoted;
+    mount(
+      gameTopbar(`Quiplash — The Last Lash`, () => confirmQuitOnline()),
+      el("div", { className: "panel center", style: "max-width: 600px; margin: 0 auto;" }, [
+        el("h3", { text: "THE LAST LASH", style: "color:var(--sunset-soft); letter-spacing:1px; margin-top:0;" }),
+        el("blockquote", { text: `"${voteItem.promptText}"`, style: "font-size: 1.4rem; font-weight: bold; border: none; padding: 0;" }),
+        el("div", { className: "spacer" }),
+        userHasAnswer ? el("p", { className: "muted", text: "Your answer is up! Choose your favorite anonymously from the others." }) : el("p", { className: "muted", text: "Select your favorite answer below." }),
+        selectEl
+      ])
+    );
+  } else {
+    // Local P&P selection dropdowns for all players
+    const activeVotes = {};
+    gState.players.forEach(p => { activeVotes[p] = null; });
+
+    const voterGrid = el("div", { style: "margin: 20px 0; display: flex; flex-direction: column; gap: 8px;" });
+
+    function drawVoterGrid() {
+      voterGrid.innerHTML = "";
+      gState.players.forEach(pName => {
+        const allowed = voteItem.answers
+          .map((ansObj, aIdx) => ({ ansObj, aIdx }))
+          .filter(entry => entry.ansObj.player !== pName);
+
+        const selectOptions = [el("option", { value: "", text: "Choose an answer..." })];
+        allowed.forEach(opt => {
+          selectOptions.push(el("option", { value: String(opt.aIdx), text: `"${opt.ansObj.answer}"` }));
+        });
+
+        const select = el("select", {
+          style: "max-width: 260px; font-size: 0.85rem; border-radius: 8px;",
+          onChange: (e) => {
+            activeVotes[pName] = e.target.value === "" ? null : parseInt(e.target.value, 10);
+            checkSubmittable();
+          }
+        }, selectOptions);
+
+        voterGrid.appendChild(el("div", {
+          style: "display: flex; justify-content: space-between; align-items: center; padding: 6px 12px; background: rgba(255,255,255,0.02); border-radius: 10px; border: 1px solid rgba(255,255,255,0.05);"
+        }, [
+          el("span", { text: pName, style: "font-weight: 500;" }),
+          select
+        ]));
+      });
+    }
+
+    const submitBtn = el("button", {
+      className: "btn",
+      text: "Reveal Last Lash",
+      disabled: true,
+      onClick: () => {
+        const tallies = voteItem.answers.map(() => 0);
+        gState.players.forEach(p => {
+          const choice = activeVotes[p];
+          if (choice !== null) tallies[choice]++;
+        });
+
+        voteItem.answers.forEach((ansObj, aIdx) => {
+          const votes = tallies[aIdx];
+          const pts = votes * 300;
+          gState.scores[ansObj.player] += pts;
+          ansObj.votes = votes;
+          ansObj.pointsEarned = pts;
+        });
+
+        renderSynchedRevealScreenLastLash(voteItem.answers);
+      }
+    });
+
+    function checkSubmittable() {
+      const allVoted = gState.players.every(p => activeVotes[p] !== null);
+      submitBtn.disabled = !allVoted;
+    }
+
+    drawVoterGrid();
+
+    mount(
+      gameTopbar("Quiplash — Final Lash", () => confirmQuitLocal()),
+      el("div", { className: "panel center", style: "max-width: 600px; margin: 0 auto;" }, [
+        el("h3", { text: "THE LAST LASH", style: "color:var(--sunset-soft); letter-spacing:1px; margin-top:0;" }),
+        el("blockquote", { text: `"${voteItem.promptText}"`, style: "font-size: 1.4rem; font-weight: bold; border: none; padding: 0;" }),
+        el("div", { className: "spacer" }),
+        voterGrid,
+        submitBtn
+      ])
+    );
   }
-
-  updateVoterRows();
-
-  const screen = el("div", { className: "panel center", style: "max-width: 600px; margin: 0 auto;" }, [
-    el("h3", { text: "THE LAST LASH", style: "color:var(--sunset-soft); letter-spacing:1px; margin-top:0;" }),
-    el("blockquote", { text: `"${item.promptText}"`, style: "font-size: 1.4rem; font-weight: bold; border: none; padding: 0;" }),
-    el("div", { className: "spacer" }),
-    el("p", { className: "muted", text: "Select your favorite response. You cannot vote for your own answer!" }),
-    voterGrid,
-    submitBtn
-  ]);
-
-  mount(gameTopbar(`Quiplash — The Last Lash`, () => confirmQuit(state)), screen);
 }
 
-function renderLastLashReveal(state, item, idx) {
-  // Sort answers by votes to show the winner of the Last Lash
-  const sorted = item.answers.slice().sort((a, b) => b.votes - a.votes);
+function renderSynchedRevealScreenLastLash(answers) {
+  const voteItem = gState.votingQueue[0];
+  const sorted = answers.slice().sort((a, b) => b.votes - a.votes);
 
   const blockRows = sorted.map((ansObj) => {
     return el("div", {
@@ -553,62 +1277,134 @@ function renderLastLashReveal(state, item, idx) {
       ]),
       el("div", { style: "text-align: right;" }, [
         el("div", { text: `${ansObj.votes} ${ansObj.votes === 1 ? 'vote' : 'votes'}`, style: "font-weight: bold;" }),
-        el("div", { text: `+${ansObj.pointsEarned} pts`, style: "font-size: 0.8rem; color:#00ffaa;" })
+        el("div", { text: `+${ansObj.pointsEarned} pts`, style: "font-size: 0.85rem; color:#00ffaa;" })
       ])
     ]);
   });
 
-  const btn = el("button", {
-    className: "btn",
-    text: "Show Final Standings",
-    onClick: () => renderGameResults(state)
-  });
+  const nextBtn = isOnline && !isHost
+    ? el("div", { className: "muted center", text: "Waiting for host to flip page..." })
+    : el("button", {
+        className: "btn",
+        text: "Show Final Standings",
+        onClick: () => {
+          if (isOnline) {
+            const endPayload = { type: "QUIPLASH_LEADERBOARD" };
+            relay(endPayload);
+            handleRelay(endPayload, myName);
+          } else {
+            renderGameResults();
+          }
+        }
+      });
 
   mount(
-    gameTopbar("Quiplash — Final Lash Reveal", () => confirmQuit(state)),
+    gameTopbar("Quiplash — Final Lash Reveal", () => isOnline ? confirmQuitOnline() : confirmQuitLocal()),
     el("div", { className: "panel center", style: "max-width: 600px; margin: 0 auto;" }, [
-      el("blockquote", { text: `"${item.promptText}"`, style: "font-size: 1.3rem; border:none; padding:0; font-weight:bold; margin-bottom:20px;" }),
+      el("blockquote", { text: `"${voteItem.promptText}"`, style: "font-size: 1.3rem; border:none; padding:0; font-weight:bold; margin-bottom:20px;" }),
       ...blockRows,
       el("div", { className: "spacer" }),
-      btn
+      nextBtn
     ])
   );
 }
 
-// ── Scoreboard Screens ────────────────────────────────────────────────────────
-function renderRoundLeaderboard(state) {
-  const standings = state.players.map(pName => ({
+function renderLastRevealScreen() {
+  renderSynchedRevealScreenLastLash(gState.votingQueue[0].answers);
+}
+
+// ── Sync Leaderboard & Scores ────────────────────────────────────────────────
+function renderLeaderboardScreen() {
+  const standings = gState.players.map(pName => ({
     name: pName,
-    score: state.scores[pName]
+    score: gState.scores[pName]
   })).sort((a, b) => b.score - a.score);
 
   const listRows = standings.map((st, i) => {
     return el("div", {
       style: "display:flex; justify-content:space-between; align-items:center; padding:10px 16px; background:rgba(255,255,255,0.02); border-radius:10px; margin-bottom:8px;"
     }, [
-      el("div", { style: "font-weight:500;" }, [document.createTextNode(`${i + 1}. ${st.name}`)]),
+      el("div", { style: "font-weight:500;" }, [document.createTextNode(`${i + 1}. ${st.name}${isOnline && st.name === myName ? " (You)" : ""}`)]),
       el("div", { text: String(st.score), style: "font-weight:bold; color:var(--sunset-soft);" })
     ]);
   });
 
+  const isFinal = gState.round >= 3;
   let btnText = "Start Round 2 (Double Points)";
-  if (state.round === 2) {
+  if (gState.round === 2) {
     btnText = "Start Round 3 (The Last Lash)";
   }
 
-  const nextBtn = el("button", {
-    className: "btn",
-    text: btnText,
-    onClick: () => {
-      state.round++;
-      startRoundWriting(state);
-    }
-  });
+  let nextBtn = null;
+  if (isFinal) {
+    nextBtn = isOnline && !isHost
+      ? el("div", { className: "muted center", text: "Waiting for host to end game..." })
+      : el("button", {
+          className: "btn",
+          text: "Show Final Standings",
+          onClick: () => {
+            if (isOnline) {
+              // Final results synced
+              renderGameResults();
+            } else {
+              renderGameResults();
+            }
+          }
+        });
+  } else {
+    nextBtn = isOnline && !isHost
+      ? el("div", { className: "muted center", text: "Waiting for host to start next round..." })
+      : el("button", {
+          className: "btn",
+          text: btnText,
+          onClick: () => {
+            const nextRound = gState.round + 1;
+            if (isOnline) {
+              const shuffledPrompts = shuffle(gState.promptsPool);
+              const N = gState.players.length;
+              const writingQueue = [];
+
+              if (nextRound === 2) {
+                const roundPrompts = [];
+                for (let i = 0; i < N; i++) {
+                  roundPrompts.push(shuffledPrompts.pop());
+                }
+                for (let i = 0; i < N; i++) {
+                  const p1 = gState.players[i];
+                  const p2 = gState.players[(i + 1) % N];
+                  const promptText = roundPrompts[i];
+
+                  writingQueue.push({ player: p1, promptIdx: i, promptText, answer: "" });
+                  writingQueue.push({ player: p2, promptIdx: i, promptText, answer: "" });
+                }
+              } else {
+                const lastLashPrompt = shuffledPrompts.pop();
+                gState.players.forEach(p => {
+                  writingQueue.push({ player: p, promptIdx: 0, promptText: lastLashPrompt, answer: "" });
+                });
+              }
+
+              const nextPayload = {
+                type: "QUIPLASH_START",
+                scores: gState.scores,
+                promptsPool: shuffledPrompts,
+                writingQueue,
+                round: nextRound
+              };
+              relay(nextPayload);
+              handleRelay(nextPayload, myName);
+            } else {
+              gState.round++;
+              startRoundWriting();
+            }
+          }
+        });
+  }
 
   mount(
-    gameTopbar(`Quiplash — Round ${state.round} Scores`, () => confirmQuit(state)),
+    gameTopbar(isFinal ? "Final Leaderboard" : `Quiplash — Round ${gState.round} Scores`, () => isOnline ? confirmQuitOnline() : confirmQuitLocal()),
     el("div", { className: "panel center", style: "max-width: 480px; margin: 0 auto;" }, [
-      el("h2", { text: "Current Standings" }),
+      el("h2", { text: isFinal ? "Final Scores" : "Current Standings" }),
       ...listRows,
       el("div", { className: "spacer" }),
       nextBtn
@@ -616,10 +1412,10 @@ function renderRoundLeaderboard(state) {
   );
 }
 
-function renderGameResults(state) {
-  const standings = state.players.map(pName => ({
+function renderGameResults() {
+  const standings = gState.players.map(pName => ({
     name: pName,
-    score: state.scores[pName]
+    score: gState.scores[pName]
   })).sort((a, b) => b.score - a.score);
 
   const listRows = standings.map((st, i) => {
@@ -639,11 +1435,14 @@ function renderGameResults(state) {
   const lobbyBtn = el("button", {
     className: "btn",
     text: "Back to Lobby",
-    onClick: goHome
+    onClick: () => {
+      resetAll();
+      goHome();
+    }
   });
 
   mount(
-    gameTopbar("Quiplash — Final Standings", goHome),
+    gameTopbar("Quiplash — Final Standings", () => { resetAll(); goHome(); }),
     el("div", { className: "panel center", style: "max-width: 480px; margin: 0 auto;" }, [
       el("h1", { text: "Game Over!", style: "color: var(--sunset-soft); font-size: 2.2rem; font-weight: 900; margin-top: 0;" }),
       el("p", { className: "muted", text: "Congratulations to the champion! Here are the final scores:" }),
@@ -652,10 +1451,4 @@ function renderGameResults(state) {
       lobbyBtn
     ])
   );
-}
-
-function confirmQuit(state) {
-  if (confirm("Are you sure you want to end this Quiplash game?")) {
-    goHome();
-  }
 }

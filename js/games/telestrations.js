@@ -1,8 +1,27 @@
-// Modular Telestrations local pass-and-play game engine.
+// Modular Telestrations game engine supporting Local Pass & Play and WebSockets Online Room mode.
 import { el, mount, toast, store, shuffle } from "../ui.js";
 import { icons } from "../icons.js";
 
+const WS_BASE = location.hostname === "localhost" || location.hostname === "127.0.0.1"
+  ? "ws://localhost:3000"
+  : "wss://lakehouse-cardgames-sync.gameassassin777.workers.dev";
+
+const HTTP_BASE = location.hostname === "localhost" || location.hostname === "127.0.0.1"
+  ? "http://localhost:3000"
+  : "https://lakehouse-cardgames-sync.gameassassin777.workers.dev";
+
 let goHome = () => {};
+let socket = null;
+let roomCode = "";
+let myName = "";
+let isHost = false;
+let gState = null;
+let heartbeatInt = null;
+let roomBrowserRefresh = null;
+
+let isOnline = false;
+let setupMode = "passplay"; // "passplay" or "online"
+let localNames = ["Alice", "Bob", "Charlie", "Dave"];
 
 const STARTING_WORDS = [
   "Screaming Beaver", "Mosquito Bite", "Canoe Flip", "Burnt Hot Dog", "Sunburn Paint", 
@@ -25,98 +44,389 @@ function gameTopbar(title, onBack) {
 
 export function start(home) {
   goHome = home;
+  resetAll();
   renderSetup();
 }
 
+function resetAll() {
+  if (socket) { try { socket.close(); } catch (_) {} socket = null; }
+  if (heartbeatInt) { clearInterval(heartbeatInt); heartbeatInt = null; }
+  if (roomBrowserRefresh) { clearInterval(roomBrowserRefresh); roomBrowserRefresh = null; }
+  roomCode = ""; myName = ""; isHost = false; gState = null; isOnline = false;
+}
+
 function renderSetup() {
-  const savedNames = store.get("telestrations.names", ["Alice", "Bob", "Charlie", "Dave"]);
-  let names = savedNames.slice();
+  const savedName = localStorage.getItem("telestrations.name") || "";
+  const nameInput = el("input", {
+    type: "text",
+    placeholder: "Your name…",
+    value: savedName,
+    id: "t-name",
+    style: "font-size:1.1rem; border-radius:14px; text-align:center; margin-bottom:14px; width:100%;"
+  });
 
-  const listWrap = el("div", { id: "telPlayerList", style: "margin: 16px 0;" });
+  const codeInput = el("input", {
+    type: "text",
+    placeholder: "4-LETTER CODE",
+    id: "t-code",
+    maxLength: 4,
+    style: "font-size:1.3rem; border-radius:14px; text-align:center; text-transform:uppercase; letter-spacing:6px; margin-bottom:10px; width:100%;"
+  });
+  codeInput.addEventListener("input", () => { codeInput.value = codeInput.value.toUpperCase(); });
 
-  function drawList() {
-    listWrap.innerHTML = "";
-    names.forEach((nm, i) => {
+  const getName = () => {
+    const n = nameInput.value.trim();
+    if (!n) { toast("Enter your name first!"); return null; }
+    localStorage.setItem("telestrations.name", n);
+    return n;
+  };
+
+  // Pass & Play players setup list
+  const savedNames = store.get("telestrations.localNames", ["Alice", "Bob", "Charlie", "Dave"]);
+  localNames = savedNames.slice();
+  const localListWrap = el("div", { style: "margin: 16px 0; max-height:220px; overflow-y:auto; width:100%;" });
+
+  function drawLocalList() {
+    localListWrap.innerHTML = "";
+    localNames.forEach((nm, i) => {
       const input = el("input", {
         type: "text",
         value: nm,
         maxlength: "14",
         placeholder: `Player ${i + 1}`,
-        onInput: (e) => { names[i] = e.target.value; }
+        style: "flex:1; border-radius:12px; font-size:1rem; padding: 8px 12px; text-align:center;",
+        onInput: (e) => { 
+          localNames[i] = e.target.value; 
+          store.set("telestrations.localNames", localNames);
+        }
       });
-      const row = el("div", { className: "player-row", style: "margin-bottom: 8px;" }, [
+      const row = el("div", { style: "display:flex; gap:8px; align-items:center; margin-bottom: 8px; width:100%;" }, [
         input,
         el("button", {
-          className: "icon-btn",
+          className: "btn ghost small error",
           text: "✕",
+          style: "margin:0; padding:6px 12px; border-radius:12px; font-size:1.1rem; line-height:1;",
           onClick: () => {
-            if (names.length > 3) {
-              names.splice(i, 1);
-              drawList();
+            if (localNames.length > 3) {
+              localNames.splice(i, 1);
+              store.set("telestrations.localNames", localNames);
+              drawLocalList();
             } else {
               toast("Telestrations needs at least 3 players.");
             }
           }
         })
       ]);
-      listWrap.appendChild(row);
+      localListWrap.appendChild(row);
     });
   }
 
-  const addBtn = el("button", {
+  const addPlayerBtn = el("button", {
     className: "btn ghost small",
     text: "+ Add Player",
+    style: "width:100%; margin-bottom:10px;",
     onClick: () => {
-      if (names.length < 8) {
-        names.push(`Player ${names.length + 1}`);
-        drawList();
+      if (localNames.length < 8) {
+        localNames.push(`Player ${localNames.length + 1}`);
+        store.set("telestrations.localNames", localNames);
+        drawLocalList();
       } else {
-        toast("Max 8 players for local pass-and-play.");
+        toast("Max 8 players for local play.");
       }
     }
   });
 
-  const startBtn = el("button", {
+  const startLocalBtn = el("button", {
     className: "btn",
-    text: "Start Telestrations",
+    text: "Start Local Telestrations",
+    style: "width:100%;",
     onClick: () => {
-      const cleaned = names.map(n => n.trim() || "Player").slice(0, 8);
+      const cleaned = localNames.map(n => n.trim() || "Player").slice(0, 8);
       if (cleaned.length < 3) {
         toast("Telestrations needs at least 3 players.");
         return;
       }
-      store.set("telestrations.names", cleaned);
-      initGame(cleaned);
+      isOnline = false;
+      initLocalGame(cleaned);
     }
   });
 
-  drawList();
+  // Toggles for Setup Mode
+  const modeSelector = el("div", {
+    style: "display:flex; background:rgba(255,255,255,0.04); border-radius:14px; padding:4px; margin-bottom:20px; width:100%;"
+  });
+
+  const tabLocal = el("button", {
+    className: setupMode === "passplay" ? "btn small" : "btn ghost small",
+    text: "🔄 Pass & Play",
+    style: "flex:1; margin:0; font-size:0.85rem; padding: 8px 0; border:none; box-shadow:none;",
+    onClick: () => {
+      setupMode = "passplay";
+      tabLocal.className = "btn small";
+      tabOnline.className = "btn ghost small";
+      renderSetupForm();
+    }
+  });
+
+  const tabOnline = el("button", {
+    className: setupMode === "online" ? "btn small" : "btn ghost small",
+    text: "📱 Online Room",
+    style: "flex:1; margin:0; font-size:0.85rem; padding: 8px 0; border:none; box-shadow:none;",
+    onClick: () => {
+      setupMode = "online";
+      tabLocal.className = "btn ghost small";
+      tabOnline.className = "btn small";
+      renderSetupForm();
+    }
+  });
+
+  modeSelector.appendChild(tabLocal);
+  modeSelector.appendChild(tabOnline);
+
+  const dynamicFormWrap = el("div", { style: "width:100%;" });
+
+  function renderSetupForm() {
+    dynamicFormWrap.innerHTML = "";
+    if (setupMode === "passplay") {
+      drawLocalList();
+      [localListWrap, addPlayerBtn, startLocalBtn].forEach(c => dynamicFormWrap.appendChild(c));
+    } else {
+      const onlineLayout = el("div", { style: "width:100%;" }, [
+        nameInput,
+        el("button", {
+          className: "btn",
+          text: "Create Room",
+          style: "width:100%; margin-bottom:10px;",
+          onClick: () => {
+            const n = getName();
+            if (n) { myName = n; connectRoom("create"); }
+          }
+        }),
+        el("div", { style: "display:flex; gap:8px; align-items:center; width:100%; margin: 8px 0;" }, [
+          el("hr", { style: "flex:1; border:none; border-top:1px solid rgba(255,255,255,0.06);" }),
+          el("span", { text: "OR JOIN EXISTING", className: "muted", style: "font-size:0.75rem; letter-spacing:1px;" }),
+          el("hr", { style: "flex:1; border:none; border-top:1px solid rgba(255,255,255,0.06);" })
+        ]),
+        codeInput,
+        el("button", {
+          className: "btn ghost",
+          text: "Join Room",
+          style: "width:100%; margin-bottom:10px;",
+          onClick: () => {
+            const n = getName();
+            const code = codeInput.value.trim().toUpperCase();
+            if (!code || code.length !== 4) { toast("Enter a valid 4-letter room code!"); return; }
+            if (n) { myName = n; connectRoom("join", code); }
+          }
+        }),
+        el("button", {
+          className: "btn ghost small",
+          text: "🌐 Browse Open Rooms",
+          style: "width:100%; margin-top: 8px;",
+          onClick: () => renderRoomBrowser()
+        })
+      ]);
+      dynamicFormWrap.appendChild(onlineLayout);
+    }
+  }
 
   mount(
-    gameTopbar("Telestrations local", goHome),
-    el("div", { className: "panel center", style: "max-width: 480px; margin: 0 auto;" }, [
+    gameTopbar("Telestrations Setup", () => { resetAll(); goHome(); }),
+    el("div", { className: "panel center", style: "max-width: 440px; margin: 0 auto;" }, [
       el("div", { style: "width:64px; height:64px; margin:0 auto 12px; color:var(--sunset-soft);" }, [icons.doodles()]),
-      el("h2", { text: "Telestrations Setup" }),
-      el("p", { className: "muted", text: "A telephone game alternating between drawing and writing guesses. 3 to 8 players. Pass the device secretly between turns." }),
-      listWrap,
-      addBtn,
-      el("div", { className: "spacer" }),
-      startBtn
+      el("h2", { text: "Telestrations", style: "margin-bottom: 4px;" }),
+      el("p", { className: "muted", style: "margin-bottom:20px;", text: "A telephone game alternating between drawing and writing guesses. 3 to 8 players!" }),
+      modeSelector,
+      dynamicFormWrap
     ])
+  );
+
+  renderSetupForm();
+}
+
+function renderRoomBrowser() {
+  const listEl = el("div", { style: "display:flex; flex-direction:column; gap:8px; margin: 12px 0;" });
+  const loadRooms = async () => {
+    try {
+      listEl.innerHTML = `<p class="muted center" style="margin:16px 0;">Loading active rooms…</p>`;
+      const res = await fetch(`${HTTP_BASE}/rooms/list?game=telestrations`).then(r => r.json());
+      listEl.innerHTML = "";
+      if (res.length === 0) {
+        listEl.innerHTML = `<p class="muted center" style="margin:16px 0;">No active public rooms found. Create one!</p>`;
+        return;
+      }
+      res.forEach(r => {
+        const info = el("div", { style: "text-align: left;" }, [
+          el("div", { html: `Room <strong style="color:var(--sunset-soft);">${r.code}</strong> • Host: ${r.host}` }),
+          el("div", { className: "muted", style: "font-size: 0.75rem;", text: `${r.playerCount} players active` })
+        ]);
+        const row = el("div", { className: "room-row" }, [
+          info,
+          el("button", {
+            className: "btn small",
+            style: "margin:0; padding:6px 14px;",
+            text: "Join",
+            onClick: () => {
+              clearInterval(roomBrowserRefresh);
+              connectRoom("join", r.code);
+            }
+          })
+        ]);
+        listEl.appendChild(row);
+      });
+    } catch (_) {
+      listEl.innerHTML = `<p class="muted center" style="margin:16px 0;">Failed to fetch rooms.</p>`;
+    }
+  };
+
+  loadRooms();
+  roomBrowserRefresh = setInterval(loadRooms, 8000);
+
+  mount(
+    gameTopbar("Open Telestrations Rooms", () => { clearInterval(roomBrowserRefresh); renderSetup(); }),
+    el("div", { className: "panel center" }, [
+      el("p", { className: "muted", style: "margin:0; font-size:0.82rem;", text: "Tap Join to enter any open Telestrations lobby." })
+    ]),
+    el("div", { className: "panel" }, [listEl])
   );
 }
 
-function initGame(players) {
-  // Setup game state
-  // We have N players, and N "books".
-  // Book i starts with Player i (step 0).
-  // At step j (from 1 to N-1), Book i is processed by Player (i + j) % N.
-  // Book state: { owner: Player i, steps: [ { type: "text"|"draw", value: String, author: String } ] }
+// ── WebSockets Networking ──────────────────────────────────────────────────
+function connectRoom(type, code = "") {
+  isOnline = true;
+  mount(
+    gameTopbar("Connecting", () => { resetAll(); renderSetup(); }),
+    el("div", { className: "panel center", style: "margin:30px auto; max-width:320px;" }, [
+      el("div", { className: "spin-indicator", style: "font-size:2rem; margin-bottom:12px;", text: "🌀" }),
+      el("p", { text: type === "create" ? "Creating room…" : `Joining ${code}…` })
+    ])
+  );
+
+  const url = type === "create"
+    ? `${WS_BASE}/ws/create?name=${encodeURIComponent(myName)}&game=telestrations`
+    : `${WS_BASE}/ws/join?code=${code}&name=${encodeURIComponent(myName)}&game=telestrations`;
+
+  isHost = (type === "create");
+  socket = new WebSocket(url);
+
+  socket.onmessage = (ev) => {
+    try {
+      const d = JSON.parse(ev.data);
+      if (d.type === "created" || d.type === "player_joined") {
+        roomCode = d.code;
+        applyLobby(d.players);
+      } else if (d.type === "player_left") {
+        applyLobby(d.players);
+        if (gState?.phase !== "lobby") toast(`${d.name} left the room.`);
+      } else if (d.type === "relay") {
+        handleRelay(d.action, d.sender);
+      } else if (d.type === "error") {
+        toast(d.message || "Connection error");
+        resetAll();
+        renderSetup();
+      }
+    } catch (e) {
+      console.error("[Telestrations] Parse error:", e);
+    }
+  };
+
+  socket.onclose = () => {
+    stopHeartbeat();
+    if (gState && gState.phase !== "done") {
+      toast("Disconnected from room.");
+      resetAll();
+      renderSetup();
+    }
+  };
+}
+
+function relay(action) {
+  if (!socket || socket.readyState !== 1) return;
+  socket.send(JSON.stringify({ type: "relay", code: roomCode, sender: myName, action }));
+}
+
+function startHeartbeat(playerCount = 1) {
+  stopHeartbeat();
+  const ping = () => fetch(`${HTTP_BASE}/rooms/heartbeat`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ code: roomCode, playerCount: gState?.players?.length || playerCount })
+  }).catch(() => {});
+  ping();
+  heartbeatInt = setInterval(ping, 25000);
+}
+
+function stopHeartbeat() {
+  if (heartbeatInt) { clearInterval(heartbeatInt); heartbeatInt = null; }
+}
+
+async function registerRoom() {
+  try {
+    await fetch(`${HTTP_BASE}/rooms/register`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        code: roomCode, host: myName, playerCount: gState?.players?.length || 1,
+        game: "telestrations", private: false,
+        lastPing: Date.now()
+      }),
+    });
+  } catch (_) {}
+}
+
+function applyLobby(playersList) {
+  gState = {
+    phase: "lobby",
+    players: playersList,
+    books: []
+  };
+
+  if (isHost) {
+    registerRoom();
+    startHeartbeat(playersList.length);
+  }
+
+  const pRows = playersList.map((p, i) => {
+    return el("div", {
+      style: "display:flex; justify-content:space-between; padding:10px 14px; background:rgba(255,255,255,0.02); border-radius:10px; margin-bottom:6px;"
+    }, [
+      el("span", { text: p, style: "font-weight: 500;" }),
+      el("span", {
+        text: i === 0 ? "👑 HOST" : "READY",
+        style: `font-size:0.75rem; font-weight:bold; color:${i === 0 ? "var(--sunset-soft)" : "#00ffaa"};`
+      })
+    ]);
+  });
+
+  const lobbyLayout = el("div", { className: "panel center", style: "max-width: 440px; margin:0 auto;" }, [
+    el("h3", { text: `Room Lobby: ${roomCode}`, style: "color:var(--sunset-soft); margin-top:0;" }),
+    el("p", { className: "muted", text: "Invite friends using this code. Once everyone has joined, start the game." }),
+    el("div", { style: "margin: 16px 0; width:100%; max-height:240px; overflow-y:auto;" }, pRows),
+    isHost
+      ? el("button", {
+          className: "btn",
+          text: "Start Game ➔",
+          style: "width:100%;",
+          onClick: () => {
+            if (playersList.length < 3) {
+              toast("Need at least 3 players to start Telestrations!");
+              return;
+            }
+            initOnlineGame();
+          }
+        })
+      : el("p", { className: "muted center anim-pulse", text: "Waiting for host to start..." })
+  ]);
+
+  mount(gameTopbar(`Telestrations Lobby`, () => { resetAll(); renderSetup(); }), lobbyLayout);
+}
+
+// ── Game Loops Initialization ───────────────────────────────────────────────
+function initLocalGame(players) {
   const N = players.length;
   const wordPool = shuffle(STARTING_WORDS);
 
   const books = players.map((pName, pIdx) => {
-    // Generate 3 word choices for step 0
     const choices = [
       wordPool.pop() || "Campfire",
       wordPool.pop() || "Canoe",
@@ -126,48 +436,107 @@ function initGame(players) {
       ownerIdx: pIdx,
       ownerName: pName,
       choices,
-      steps: [] // list of { type: "text" | "draw", value: String (text or dataUrl), author: String }
+      steps: []
     };
   });
 
-  const state = {
+  gState = {
     players,
     books,
-    currentStepIdx: 0, // 0 = picking initial words, 1 = first drawing, 2 = first guess...
-    currentBookQueueIdx: 0, // index in books array for active step
+    currentStepIdx: 0,
+    currentBookQueueIdx: 0
   };
 
-  runNextTurn(state);
+  runLocalTurn();
 }
 
-function runNextTurn(state) {
-  const N = state.players.length;
-  const step = state.currentStepIdx;
+function initOnlineGame() {
+  const N = gState.players.length;
+  const wordPool = shuffle(STARTING_WORDS);
+
+  const books = gState.players.map((pName, pIdx) => {
+    const choices = [
+      wordPool.pop() || "Campfire",
+      wordPool.pop() || "Canoe",
+      wordPool.pop() || "Sunburn"
+    ];
+    return {
+      ownerIdx: pIdx,
+      ownerName: pName,
+      choices,
+      steps: []
+    };
+  });
+
+  relay({
+    type: "start_game",
+    books,
+    players: gState.players
+  });
+}
+
+function handleRelay(action, sender) {
+  if (action.type === "start_game") {
+    gState = {
+      phase: "playing",
+      players: action.players,
+      books: action.books,
+      currentStepIdx: 0
+    };
+    runOnlineTurn();
+  } else if (action.type === "submit_step") {
+    if (isHost) {
+      const b = gState.books[action.bookIdx];
+      b.steps[action.stepIdx] = action.stepContent;
+
+      // Check if all players have submitted their steps
+      const step = gState.currentStepIdx;
+      const allDone = gState.books.every(bk => bk.steps[step] !== undefined);
+      if (allDone) {
+        if (step + 1 >= gState.players.length) {
+          // Finished all steps! Go to slideshow
+          relay({ type: "start_review", books: gState.books });
+        } else {
+          // Move to next step
+          relay({ type: "next_step", books: gState.books, stepIdx: step + 1 });
+        }
+      }
+    }
+  } else if (action.type === "next_step") {
+    gState.books = action.books;
+    gState.currentStepIdx = action.stepIdx;
+    runOnlineTurn();
+  } else if (action.type === "start_review") {
+    gState.books = action.books;
+    gState.phase = "review";
+    renderReviewBook(0, 0);
+  } else if (action.type === "review_next") {
+    renderReviewBook(action.bookIdx, action.stepIdx);
+  }
+}
+
+// ── Turn Distributors ────────────────────────────────────────────────────────
+function runLocalTurn() {
+  const N = gState.players.length;
+  const step = gState.currentStepIdx;
 
   if (step >= N) {
-    // Game completed! Go to review phase!
-    startReviewPhase(state);
+    startLocalReview();
     return;
   }
 
-  if (state.currentBookQueueIdx >= N) {
-    // Completed this step for all books! Move to next step.
-    state.currentStepIdx++;
-    state.currentBookQueueIdx = 0;
-    runNextTurn(state);
+  if (gState.currentBookQueueIdx >= N) {
+    gState.currentStepIdx++;
+    gState.currentBookQueueIdx = 0;
+    runLocalTurn();
     return;
   }
 
-  const bIdx = state.currentBookQueueIdx;
-  const book = state.books[bIdx];
-
-  // Who is processing this book at this step?
-  // Step 0: owner (bIdx)
-  // Step j: (bIdx + j) % N
+  const bIdx = gState.currentBookQueueIdx;
+  const book = gState.books[bIdx];
   const playerIdx = (bIdx + step) % N;
-  const currentPlayerName = state.players[playerIdx];
+  const currentPlayerName = gState.players[playerIdx];
 
-  // Render "Pass the device to [Name]"
   const promptBlurb = step === 0 
     ? "pick their starting secret word"
     : (step % 2 === 1 ? "draw the secret word/phrase" : "guess the drawing");
@@ -180,36 +549,67 @@ function runNextTurn(state) {
       text: "I am ready",
       onClick: () => {
         if (step === 0) {
-          renderWordSelect(state, book, currentPlayerName);
+          renderWordSelect(book, currentPlayerName);
         } else if (step % 2 === 1) {
-          // Drawing round
-          const lastStep = book.steps[step - 1];
-          renderDrawingRound(state, book, lastStep.value, currentPlayerName);
+          renderDrawingRound(book, book.steps[step - 1].value, currentPlayerName);
         } else {
-          // Guessing round
-          const lastStep = book.steps[step - 1];
-          renderGuessingRound(state, book, lastStep.value, currentPlayerName);
+          renderGuessingRound(book, book.steps[step - 1].value, currentPlayerName);
         }
       }
     })
   ]);
 
-  mount(gameTopbar(`Telestrations — Turn`, () => confirmQuit(state)), container);
+  mount(gameTopbar(`Telestrations — Turn`, () => confirmQuit()), container);
+}
+
+function runOnlineTurn() {
+  const N = gState.players.length;
+  const step = gState.currentStepIdx;
+  const myIdx = gState.players.indexOf(myName);
+
+  // Find book this player works on at stepIdx
+  // (bIdx + step) % N = myIdx  ==>  bIdx = (myIdx - step + N) % N
+  const bIdx = (myIdx - step + N) % N;
+  const book = gState.books[bIdx];
+
+  if (step === 0) {
+    renderWordSelect(book, myName);
+  } else if (step % 2 === 1) {
+    renderDrawingRound(book, book.steps[step - 1].value, myName);
+  } else {
+    renderGuessingRound(book, book.steps[step - 1].value, myName);
+  }
+}
+
+function renderWaitingScreen() {
+  const step = gState.currentStepIdx;
+  const N = gState.players.length;
+
+  const countFinished = gState.books.filter(b => b.steps[step] !== undefined).length;
+
+  const layout = el("div", { className: "panel center", style: "max-width: 440px; margin: 30px auto;" }, [
+    el("div", { className: "spin-indicator", style: "font-size:3rem; margin-bottom:16px;", text: "🌀" }),
+    el("h2", { text: "Waiting...", style: "margin-bottom:8px;" }),
+    el("p", { className: "muted", text: "Your turn is submitted! Waiting for other players to complete their tasks..." }),
+    el("div", { 
+      className: "pill", 
+      style: "display:inline-block; margin-top:14px; font-weight:bold; background:rgba(255,255,255,0.06); color:var(--sunset-soft); font-size:0.85rem; padding:6px 16px; border-radius:20px;",
+      text: `Submitted: ${countFinished}/${N} players`
+    })
+  ]);
+
+  mount(gameTopbar(`Telestrations — Syncing`, () => confirmQuit()), layout);
 }
 
 // ── Turn 0: Word Selection ───────────────────────────────────────────────────
-function renderWordSelect(state, book, pName) {
+function renderWordSelect(book, pName) {
   const choicesDiv = el("div", { style: "display: flex; flex-direction: column; gap: 8px; margin: 16px 0;" });
   
   book.choices.forEach(word => {
     choicesDiv.appendChild(el("button", {
       className: "btn ghost",
       text: word,
-      onClick: () => {
-        book.steps.push({ type: "text", value: word, author: pName });
-        state.currentBookQueueIdx++;
-        runNextTurn(state);
-      }
+      onClick: () => submitWord(word)
     }));
   });
 
@@ -225,18 +625,33 @@ function renderWordSelect(state, book, pName) {
     text: "Use Custom Word",
     onClick: () => {
       const val = customInput.value.trim();
-      if (!val) {
-        toast("Please write a secret word first!");
-        return;
-      }
-      book.steps.push({ type: "text", value: val, author: pName });
-      state.currentBookQueueIdx++;
-      runNextTurn(state);
+      if (!val) { toast("Please write a secret word first!"); return; }
+      submitWord(val);
     }
   });
 
+  function submitWord(word) {
+    const stepContent = { type: "text", value: word, author: pName };
+    if (!isOnline) {
+      book.steps.push(stepContent);
+      gState.currentBookQueueIdx++;
+      runLocalTurn();
+    } else {
+      const bIdx = gState.books.indexOf(book);
+      // Immediately optimistic render
+      book.steps[gState.currentStepIdx] = stepContent;
+      relay({
+        type: "submit_step",
+        bookIdx: bIdx,
+        stepIdx: gState.currentStepIdx,
+        stepContent
+      });
+      renderWaitingScreen();
+    }
+  }
+
   mount(
-    gameTopbar("Telestrations — Choose Word", () => confirmQuit(state)),
+    gameTopbar("Telestrations — Choose Word", () => confirmQuit()),
     el("div", { className: "panel center", style: "max-width: 480px; margin: 0 auto;" }, [
       el("h3", { text: `${pName}'s Turn`, style: "color: var(--sunset-soft);" }),
       el("p", { className: "muted", text: "Select a secret word/phrase that you will pass on to be drawn by the next player!" }),
@@ -249,8 +664,7 @@ function renderWordSelect(state, book, pName) {
 }
 
 // ── Drawing Round ────────────────────────────────────────────────────────────
-function renderDrawingRound(state, book, secretWord, pName) {
-  // Standard drawing board container
+function renderDrawingRound(book, secretWord, pName) {
   const canvas = el("canvas", {
     style: "background: #112228; border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; cursor: crosshair; touch-action: none; width: 100%; display: block; box-shadow: inset 0 2px 8px rgba(0,0,0,0.5);"
   });
@@ -298,10 +712,23 @@ function renderDrawingRound(state, book, secretWord, pName) {
     className: "btn",
     text: "Submit Drawing",
     onClick: () => {
-      const dataUrl = canvas.toDataURL("image/png", 0.4); // Compress a bit
-      book.steps.push({ type: "draw", value: dataUrl, author: pName });
-      state.currentBookQueueIdx++;
-      runNextTurn(state);
+      const dataUrl = canvas.toDataURL("image/png", 0.4);
+      const stepContent = { type: "draw", value: dataUrl, author: pName };
+      if (!isOnline) {
+        book.steps.push(stepContent);
+        gState.currentBookQueueIdx++;
+        runLocalTurn();
+      } else {
+        const bIdx = gState.books.indexOf(book);
+        book.steps[gState.currentStepIdx] = stepContent;
+        relay({
+          type: "submit_step",
+          bookIdx: bIdx,
+          stepIdx: gState.currentStepIdx,
+          stepContent
+        });
+        renderWaitingScreen();
+      }
     }
   });
 
@@ -315,16 +742,13 @@ function renderDrawingRound(state, book, secretWord, pName) {
     submitBtn
   ]);
 
-  mount(gameTopbar("Telestrations — Drawing", () => confirmQuit(state)), drawingLayout);
+  mount(gameTopbar("Telestrations — Drawing", () => confirmQuit()), drawingLayout);
 
-  // Setup canvas interaction
   setupDrawingCanvas(canvas, undoBtn, clearBtn, () => activeColor, () => activeBrushSize);
 }
 
 function setupDrawingCanvas(canvas, undoBtn, clearBtn, getColor, getBrushSize) {
   const ctx = canvas.getContext("2d");
-  
-  // Set dimensions based on client bounds
   const rect = canvas.getBoundingClientRect();
   const W = rect.width || 400;
   const H = 260;
@@ -369,7 +793,6 @@ function setupDrawingCanvas(canvas, undoBtn, clearBtn, getColor, getBrushSize) {
     });
   }
 
-  // Mouse bindings
   canvas.addEventListener("mousedown", (e) => {
     const r = canvas.getBoundingClientRect();
     drawStart(e.clientX - r.left, e.clientY - r.top);
@@ -380,7 +803,6 @@ function setupDrawingCanvas(canvas, undoBtn, clearBtn, getColor, getBrushSize) {
   });
   window.addEventListener("mouseup", drawEnd);
 
-  // Touch bindings
   canvas.addEventListener("touchstart", (e) => {
     e.preventDefault();
     const touch = e.touches[0];
@@ -395,13 +817,11 @@ function setupDrawingCanvas(canvas, undoBtn, clearBtn, getColor, getBrushSize) {
   }, { passive: false });
   canvas.addEventListener("touchend", drawEnd);
 
-  // Clear Canvas
   clearBtn.addEventListener("click", () => {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     strokeHistory = [];
   });
 
-  // Undo Functionality
   undoBtn.addEventListener("click", () => {
     if (strokeHistory.length === 0) return;
     strokeHistory.pop();
@@ -421,7 +841,7 @@ function setupDrawingCanvas(canvas, undoBtn, clearBtn, getColor, getBrushSize) {
 }
 
 // ── Guessing Round ───────────────────────────────────────────────────────────
-function renderGuessingRound(state, book, drawingDataUrl, pName) {
+function renderGuessingRound(book, drawingDataUrl, pName) {
   const drawingImg = el("img", {
     src: drawingDataUrl,
     style: "background: #112228; border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; width: 100%; display: block; margin-bottom: 12px; max-height: 260px; object-fit: contain; box-shadow: 0 4px 16px rgba(0,0,0,0.5);"
@@ -439,13 +859,23 @@ function renderGuessingRound(state, book, drawingDataUrl, pName) {
     text: "Submit Guess",
     onClick: () => {
       const val = guessInput.value.trim();
-      if (!val) {
-        toast("Please make a guess first!");
-        return;
+      if (!val) { toast("Please make a guess first!"); return; }
+      const stepContent = { type: "text", value: val, author: pName };
+      if (!isOnline) {
+        book.steps.push(stepContent);
+        gState.currentBookQueueIdx++;
+        runLocalTurn();
+      } else {
+        const bIdx = gState.books.indexOf(book);
+        book.steps[gState.currentStepIdx] = stepContent;
+        relay({
+          type: "submit_step",
+          bookIdx: bIdx,
+          stepIdx: gState.currentStepIdx,
+          stepContent
+        });
+        renderWaitingScreen();
       }
-      book.steps.push({ type: "text", value: val, author: pName });
-      state.currentBookQueueIdx++;
-      runNextTurn(state);
     }
   });
 
@@ -458,31 +888,28 @@ function renderGuessingRound(state, book, drawingDataUrl, pName) {
     submitBtn
   ]);
 
-  mount(gameTopbar("Telestrations — Guessing", () => confirmQuit(state)), guessLayout);
+  mount(gameTopbar("Telestrations — Guessing", () => confirmQuit()), guessLayout);
   guessInput.focus();
 }
 
 // ── Review Phase ─────────────────────────────────────────────────────────────
-function startReviewPhase(state) {
-  renderReviewBook(state, 0, 0);
+function startLocalReview() {
+  renderReviewBook(0, 0);
 }
 
-function renderReviewBook(state, bookIdx, stepIdx) {
-  const book = state.books[bookIdx];
+function renderReviewBook(bookIdx, stepIdx) {
+  const book = gState.books[bookIdx];
   const step = book.steps[stepIdx];
   
   if (!step) {
-    // Completed review for this book! Go to next book
-    if (bookIdx + 1 < state.books.length) {
-      renderReviewBook(state, bookIdx + 1, 0);
+    if (bookIdx + 1 < gState.books.length) {
+      renderReviewBook(bookIdx + 1, 0);
     } else {
-      // Completed all books! Return to Lobby
-      renderFinalScreen(state);
+      renderFinalScreen();
     }
     return;
   }
 
-  // Draw chain components
   const chainWrap = el("div", { style: "margin: 16px 0; min-height: 240px; display: flex; flex-direction: column; align-items: center; justify-content: center;" });
 
   if (step.type === "text") {
@@ -495,7 +922,6 @@ function renderReviewBook(state, bookIdx, stepIdx) {
       el("h2", { text: `"${step.value}"`, style: "font-size: 1.8rem; font-weight: 900; margin: 0;" })
     ]));
   } else {
-    // Drawing
     chainWrap.appendChild(el("div", {
       className: "panel center",
       style: "background: rgba(255,255,255,0.01); border: 1px solid rgba(255,255,255,0.06); border-radius: 12px; padding: 12px; width: 100%;"
@@ -505,53 +931,58 @@ function renderReviewBook(state, bookIdx, stepIdx) {
     ]));
   }
 
-  // Next steps or next book button
   const hasMoreSteps = stepIdx + 1 < book.steps.length;
-  const isLastBook = bookIdx + 1 === state.books.length;
+  const isLastBook = bookIdx + 1 === gState.books.length;
 
   const btnText = hasMoreSteps 
     ? "Reveal Next Chain Item ➜"
-    : (isLastBook ? "Finish Game Review 🏆" : `Move to ${state.books[bookIdx+1].ownerName}'s Book ➜`);
+    : (isLastBook ? "Finish Game Review 🏆" : `Move to ${gState.books[bookIdx+1].ownerName}'s Book ➜`);
 
   const nextBtn = el("button", {
     className: "btn",
     text: btnText,
     onClick: () => {
-      if (hasMoreSteps) {
-        renderReviewBook(state, bookIdx, stepIdx + 1);
+      let nextBook = bookIdx;
+      let nextStep = stepIdx + 1;
+      if (!hasMoreSteps) {
+        nextBook = bookIdx + 1;
+        nextStep = 0;
+      }
+      if (!isOnline) {
+        renderReviewBook(nextBook, nextStep);
       } else {
-        renderReviewBook(state, bookIdx + 1, 0);
+        relay({ type: "review_next", bookIdx: nextBook, stepIdx: nextStep });
       }
     }
   });
 
-  const progressText = `${bookIdx + 1}/${state.books.length} Books • Step ${stepIdx + 1}/${book.steps.length}`;
+  const progressText = `${bookIdx + 1}/${gState.books.length} Books • Step ${stepIdx + 1}/${book.steps.length}`;
 
-  mount(
-    gameTopbar(`${book.ownerName}'s Book Review`, goHome),
-    el("div", { className: "panel center", style: "max-width: 500px; margin: 0 auto;" }, [
-      el("p", { className: "muted", text: progressText, style: "font-size:0.75rem;" }),
-      chainWrap,
-      el("div", { className: "spacer" }),
-      nextBtn
-    ])
-  );
+  const slideshowLayout = el("div", { className: "panel center", style: "max-width: 500px; margin: 0 auto;" }, [
+    el("p", { className: "muted", text: progressText, style: "font-size:0.75rem;" }),
+    chainWrap,
+    el("div", { className: "spacer" }),
+    (!isOnline || isHost) ? nextBtn : el("p", { className: "muted center anim-pulse", text: "Waiting for host to flip slides..." })
+  ]);
+
+  mount(gameTopbar(`${book.ownerName}'s Book Review`, () => confirmQuit()), slideshowLayout);
 }
 
-function renderFinalScreen(state) {
+function renderFinalScreen() {
   mount(
-    gameTopbar("Telestrations — End", goHome),
+    gameTopbar("Telestrations — End", () => { resetAll(); goHome(); }),
     el("div", { className: "panel center", style: "max-width: 480px; margin: 0 auto;" }, [
       el("h1", { text: "Review Complete!", style: "color:var(--sunset-soft); font-size:2.2rem; font-weight:900;" }),
       el("p", { className: "muted", text: "That was absolute chaotic gold. Thanks for playing!" }),
       el("div", { className: "spacer" }),
-      el("button", { className: "btn", text: "Back to Lobby", onClick: goHome })
+      el("button", { className: "btn", text: "Back to Lobby", onClick: () => { resetAll(); goHome(); } })
     ])
   );
 }
 
-function confirmQuit(state) {
+function confirmQuit() {
   if (confirm("Are you sure you want to end this Telestrations game?")) {
+    resetAll();
     goHome();
   }
 }

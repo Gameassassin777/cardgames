@@ -155,8 +155,8 @@ const GAMES = [
     familyFriendly: true,
   },
   {
-    id: "chronicles", icon: icons.pen, title: "Cozy Chronicles",
-    blurb: "Draw individual sentences of a secret story without knowing the rest. At the end, read your illustrated picture book! 3-8 players.",
+    id: "chronicles", icon: icons.pen, title: "Cozy Chronicles (online)",
+    blurb: "Draw individual sentences of a secret story without knowing the rest online. At the end, read your illustrated picture book! 3-8 players.",
     start: startChronicles,
     familyFriendly: true,
   },
@@ -309,18 +309,94 @@ function startQuackStorm(textLen) {
   }
 }
 
-function home() {
-  const weirdUnlocked = localStorage.getItem("lakehouse.weird_unlocked") === "true";
+const CATEGORIES = [
+  {
+    id: "cards",
+    title: "Cozy Card Games",
+    blurb: "Cozy fill-in-the-blank prompt games, anonymous voting, truths, dares, and lighthearted campfire roasts.",
+    icon: () => icons.monkeys(),
+    gameIds: ["cabin", "cam", "meeting", "rizz", "wyr", "flags", "truths", "roasts"]
+  },
+  {
+    id: "drawing",
+    title: "Creative & Drawing",
+    blurb: "Secret sketch-sharing, canvas-casting guessers, round-robin book chains, and illustrated chronicles.",
+    icon: () => icons.doodles(),
+    gameIds: ["chronicles", "doodles", "telestrations", "scribblio"]
+  },
+  {
+    id: "guessing",
+    title: "Party Words & Action",
+    blurb: "Fast-paced team words guessers, sensor-based forehead actor screens, and wacky response vote matchups.",
+    icon: () => icons.meeting(),
+    gameIds: ["catchphrase", "headsup", "charades", "quiplash"]
+  },
+  {
+    id: "dice",
+    title: "Dice & Scoreboards",
+    blurb: "Track high-stakes Farkle scores with Piggyback Mode, play Yahtzee scorecards, or roll in our Virtual 3D Dice Hub.",
+    icon: () => icons.dice(),
+    gameIds: ["dice_games"]
+  }
+];
 
-  const activeGames = GAMES.filter(g => weirdUnlocked || g.familyFriendly);
+function openSubLobby(cat) {
+  const weirdUnlocked = localStorage.getItem("lakehouse.weird_unlocked") === "true";
+  const catGames = GAMES.filter(g => cat.gameIds.includes(g.id) && (weirdUnlocked || g.familyFriendly));
 
   const menu = el("div", { className: "menu" });
-  activeGames.forEach((g) => {
-    const tile = el("button", { className: "tile", onClick: () => g.start(home) }, [
+  catGames.forEach((g) => {
+    const tile = el("button", { className: "tile", onClick: () => g.start(() => openSubLobby(cat)) }, [
       el("div", { className: "icon" }, [g.icon()]),
       el("div", { className: "meta" }, [
         el("h3", {}, [document.createTextNode(g.title)]),
         el("p", { text: g.blurb }),
+      ]),
+    ]);
+    menu.appendChild(tile);
+  });
+
+  const topbar = el("div", { className: "topbar" }, [
+    el("button", { className: "back", onClick: home }, [
+      el("span", { style: "width:16px; height:16px; display:inline-block;" }, [icons.back()]),
+      el("span", { text: "Main Lobby" })
+    ]),
+    el("div", { className: "title", text: cat.title }),
+    el("span", { style: "width:64px" })
+  ]);
+
+  mount(
+    topbar,
+    el("div", { className: "panel center", style: "max-width: 480px; margin: 0 auto 16px;" }, [
+      el("div", { style: "width:48px; height:48px; margin:0 auto 12px; color:var(--sunset-soft);" }, [cat.icon()]),
+      el("h2", { text: cat.title, style: "margin:0 0 6px; color:var(--water-foam);" }),
+      el("p", { className: "muted", text: cat.blurb })
+    ]),
+    menu
+  );
+}
+
+function home() {
+  const weirdUnlocked = localStorage.getItem("lakehouse.weird_unlocked") === "true";
+
+  const getCatGamesCount = (cat) => {
+    return GAMES.filter(g => cat.gameIds.includes(g.id) && (weirdUnlocked || g.familyFriendly)).length;
+  };
+
+  const menu = el("div", { className: "menu" });
+  CATEGORIES.forEach((cat) => {
+    const count = getCatGamesCount(cat);
+    if (count === 0) return;
+
+    const tile = el("button", { className: "tile", onClick: () => openSubLobby(cat) }, [
+      el("div", { className: "icon" }, [cat.icon()]),
+      el("div", { className: "meta" }, [
+        el("h3", {}, [document.createTextNode(cat.title)]),
+        el("p", { text: cat.blurb }),
+        el("span", { 
+          style: "display:inline-block; font-size:0.75rem; font-weight:700; color:var(--sunset-soft); margin-top:6px;", 
+          text: `➔ Choose from ${count} game${count !== 1 ? "s" : ""}` 
+        })
       ]),
     ]);
     menu.appendChild(tile);
@@ -392,6 +468,8 @@ function home() {
     ? "Cozy by the water. Unhinged at the table." 
     : "Cozy by the water. Playful at the table.";
 
+  const activeGames = GAMES.filter(g => weirdUnlocked || g.familyFriendly);
+
   const nodes = [
     el("div", { className: "brand" }, [
       logoScene,
@@ -433,6 +511,67 @@ window.addEventListener("beforeinstallprompt", (e) => {
   if (document.querySelector(".brand")) home();
 });
 
+/* ---------------- Universal Swipe-Back Gesture ---------------- */
+let touchStartX = 0;
+let touchStartY = 0;
+let touchStartTime = 0;
+
+window.addEventListener("touchstart", (e) => {
+  if (e.touches.length !== 1) return;
+  const touch = e.touches[0];
+  touchStartX = touch.clientX;
+  touchStartY = touch.clientY;
+  touchStartTime = Date.now();
+}, { passive: true });
+
+window.addEventListener("touchend", (e) => {
+  if (e.changedTouches.length !== 1) return;
+  const touch = e.changedTouches[0];
+  const deltaX = touch.clientX - touchStartX;
+  const deltaY = touch.clientY - touchStartY;
+  const duration = Date.now() - touchStartTime;
+
+  // Swiped left-to-right starting from left edge, reasonably quick, vertical deviation within bounds
+  if (
+    touchStartX < 80 &&
+    deltaX > 70 &&
+    Math.abs(deltaX) > Math.abs(deltaY) * 1.5 &&
+    duration < 400 &&
+    !document.querySelector("canvas")
+  ) {
+    const backBtn = document.querySelector(".topbar button.back");
+    if (backBtn) {
+      backBtn.click();
+    }
+  }
+}, { passive: true });
+
+/* ---------------- Bulletproof Auto-Update via Force Cache-Busting ---------------- */
+async function checkForForcedUpdates() {
+  try {
+    const res = await fetch(`js/version.js?cb=${Date.now()}`);
+    if (!res.ok) return;
+    const text = await res.text();
+    const match = text.match(/APP_VERSION\s*=\s*"([^"]+)"/);
+    if (match && match[1] !== APP_VERSION) {
+      toast(`New update v${match[1]} detected! Syncing fresh files…`);
+      if ("serviceWorker" in navigator) {
+        const regs = await navigator.serviceWorker.getRegistrations();
+        for (const reg of regs) {
+          await reg.unregister();
+        }
+      }
+      const cacheKeys = await caches.keys();
+      for (const key of cacheKeys) {
+        await caches.delete(key);
+      }
+      setTimeout(() => {
+        window.location.reload(true);
+      }, 1200);
+    }
+  } catch (_) {}
+}
+
 /* ---------------- Auto-update via service worker ----------------
  * On every load we register the SW and ask it to check for a new version.
  * A freshly-installed SW calls skipWaiting() and takes control, which fires
@@ -468,3 +607,4 @@ if ("serviceWorker" in navigator) {
 }
 
 home();
+checkForForcedUpdates();
