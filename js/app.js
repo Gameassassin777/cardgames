@@ -301,7 +301,7 @@ function home() {
 
   // Clickable Duck Easter Egg to unlock secret adult/weird modes!
   const duckSpan = el("span", {
-    style: "cursor: pointer; display: inline-block; transition: transform 0.2s; width: 36px; height: 36px; color: var(--sunset-soft); vertical-align: middle;",
+    style: "cursor: pointer; display: inline-block; transition: transform 0.2s; font-size: 2.2rem; line-height: 1; vertical-align: middle; user-select: none;",
     onClick: (e) => {
       e.stopPropagation();
       e.currentTarget.style.transform = "scale(1.4) rotate(15deg)";
@@ -327,15 +327,15 @@ function home() {
         }
       }
     }
-  }, [icons.duck()]);
+  }, [document.createTextNode("🦆")]);
 
   const logoScene = el("div", { 
     className: "scene",
-    style: "display: flex; align-items: center; justify-content: center; gap: 14px; margin-bottom: 12px;"
+    style: "display: flex; align-items: center; justify-content: center; gap: 18px; margin-bottom: 16px; font-size: 2rem; line-height: 1; user-select: none;"
   }, [
-    el("div", { style: "width: 32px; height: 32px; color: var(--sunset-soft); opacity: 0.85;" }, [icons.moon()]),
-    el("div", { style: "width: 32px; height: 32px; color: var(--lake-light); opacity: 0.85;" }, [icons.canoe()]),
-    el("div", { style: "width: 32px; height: 32px; color: var(--sunset-soft); opacity: 0.85;" }, [icons.cabin()]),
+    el("span", { style: "display: inline-block; transition: transform 0.2s;" }, [document.createTextNode("🌙")]),
+    el("span", { style: "display: inline-block; transition: transform 0.2s;" }, [document.createTextNode("🛶")]),
+    el("span", { style: "display: inline-block; transition: transform 0.2s;" }, [document.createTextNode("🏡")]),
     duckSpan
   ]);
 
