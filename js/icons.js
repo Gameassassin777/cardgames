@@ -258,5 +258,14 @@ export const icons = {
 
   checked: () => createSvg([
     { tag: "polyline", points: "20 6 9 17 4 12" }
+  ]),
+
+  dice: () => createSvg([
+    { tag: "rect", x: "4", y: "4", width: "16", height: "16", rx: "3", ry: "3" },
+    { tag: "circle", cx: "8", cy: "8", r: "1.5", fill: "currentColor" },
+    { tag: "circle", cx: "16", cy: "16", r: "1.5", fill: "currentColor" },
+    { tag: "circle", cx: "12", cy: "12", r: "1.5", fill: "currentColor" },
+    { tag: "circle", cx: "8", cy: "16", r: "1.5", fill: "currentColor" },
+    { tag: "circle", cx: "16", cy: "8", r: "1.5", fill: "currentColor" }
   ])
 };

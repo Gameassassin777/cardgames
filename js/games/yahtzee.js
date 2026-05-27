@@ -1,6 +1,7 @@
-// Modular Yahtzee Scorecard for PWA.
+// Modular Yahtzee Scorecard and Virtual Roller for PWA.
 import { el, mount, toast, store } from "../ui.js";
 import { icons } from "../icons.js";
+import { renderDiceFaceSVG, playClickTone } from "./dice_hub.js";
 
 let goHome = () => {};
 
@@ -102,7 +103,7 @@ function renderSetup() {
     el("div", { className: "panel center", style: "max-width: 480px; margin: 0 auto;" }, [
       el("div", { style: "width:64px; height:64px; margin:0 auto 12px; color:var(--sunset-soft);" }, [icons.canoe()]),
       el("h2", { text: "Yahtzee Setup" }),
-      el("p", { className: "muted", text: "Enter up to 6 player names. Pass the device to fill in the scores after each roll." }),
+      el("p", { className: "muted", text: "Enter up to 6 player names. Pass the device to fill in scores. Use physical dice or our built-in virtual roller!" }),
       listWrap,
       addBtn,
       el("div", { className: "spacer" }),
@@ -117,10 +118,23 @@ function initGame(players) {
     YAHTZEE_CATEGORIES.forEach(c => { pScore[c.id] = null; });
     return pScore;
   });
-  renderBoard(players, scores);
+
+  const yachtState = {
+    players,
+    scores,
+    // Turn roller states
+    rollsLeft: 3,
+    virtualDice: Array(5).fill(null).map(() => ({ val: 1, held: false })),
+    virtualRolling: false
+  };
+
+  renderBoard(yachtState);
 }
 
-function renderBoard(players, scores) {
+function renderBoard(yState) {
+  const players = yState.players;
+  const scores = yState.scores;
+
   const playerStats = players.map((name, pIdx) => {
     const pScores = scores[pIdx];
     
@@ -154,6 +168,7 @@ function renderBoard(players, scores) {
     };
   });
 
+  // Table header
   const headerCols = [el("th", { text: "Categories", style: "text-align: left; min-width: 120px;" })];
   players.forEach((pName) => {
     headerCols.push(el("th", { text: pName, style: "text-align: center;" }));
@@ -181,7 +196,7 @@ function renderBoard(players, scores) {
       const btn = el("button", {
         className: isFilled ? "score-cell filled" : "score-cell empty",
         text: isFilled ? String(val) : "—",
-        onClick: () => openScoreSelector(players, scores, pIdx, cat)
+        onClick: () => openScoreSelector(yState, pIdx, cat)
       });
       cols.push(el("td", { style: "text-align: center;" }, [btn]));
     });
@@ -225,7 +240,7 @@ function renderBoard(players, scores) {
       const btn = el("button", {
         className: isFilled ? "score-cell filled" : "score-cell empty",
         text: isFilled ? String(val) : "—",
-        onClick: () => openScoreSelector(players, scores, pIdx, cat)
+        onClick: () => openScoreSelector(yState, pIdx, cat)
       });
       cols.push(el("td", { style: "text-align: center;" }, [btn]));
     });
@@ -247,6 +262,94 @@ function renderBoard(players, scores) {
     el("tbody", {}, rows)
   ]);
 
+  // Integrated Virtual Dice Roller panel (above scorecard or side-by-side)
+  const rollerPanel = el("div", {
+    className: "panel center",
+    style: "background: #0b1a20; padding: 12px; border: 1px solid rgba(255,255,255,0.06); border-radius: 12px; width: 100%; margin-bottom: 20px;"
+  });
+
+  function drawRollerPanel() {
+    rollerPanel.innerHTML = "";
+    
+    const titleRow = el("div", {
+      style: "display: flex; justify-content: space-between; align-items: center; width: 100%; margin-bottom: 8px;"
+    }, [
+      el("h4", { text: "Embedded Virtual Roller", style: "margin: 0; font-size: 0.9rem;" }),
+      el("div", {
+        text: `Rolls Left: ${yState.rollsLeft}`,
+        style: "font-size: 0.8rem; font-weight: bold; color: var(--sunset-soft);"
+      })
+    ]);
+
+    const diceGrid = el("div", { style: "display: flex; gap: 8px; justify-content: center; margin: 12px 0;" });
+    yState.virtualDice.forEach((die, dIdx) => {
+      const dFace = renderDiceFaceSVG(die.val, die.held);
+      const card = el("div", {
+        className: "dice-box" + (die.held ? " held" : "") + (yState.virtualRolling && !die.held ? " rolling" : ""),
+        style: `width: 44px; height: 44px; padding: 2px; border: 2px solid ${die.held ? "var(--sunset-soft)" : "rgba(255,255,255,0.1)"}; border-radius: 8px; cursor: pointer;`,
+        onClick: () => {
+          if (yState.virtualRolling) return;
+          die.held = !die.held;
+          drawRollerPanel();
+        }
+      }, [dFace]);
+      diceGrid.appendChild(card);
+    });
+
+    const rollBtn = el("button", {
+      className: "btn small",
+      text: yState.rollsLeft === 0 ? "No Rolls Left" : "Roll Dice",
+      disabled: yState.rollsLeft === 0 || yState.virtualRolling,
+      style: "margin: 0; flex: 1;",
+      onClick: () => {
+        if (yState.rollsLeft <= 0 || yState.virtualRolling) return;
+        yState.virtualRolling = true;
+        rollBtn.disabled = true;
+
+        let clicks = 0;
+        const limit = 8;
+        const interval = setInterval(() => {
+          yState.virtualDice.forEach(d => {
+            if (!d.held) d.val = Math.floor(Math.random() * 6) + 1;
+          });
+          drawRollerPanel();
+          playClickTone(480 + Math.random() * 120, 0.03);
+          clicks++;
+
+          if (clicks >= limit) {
+            clearInterval(interval);
+            yState.virtualRolling = false;
+            
+            yState.virtualDice.forEach(d => {
+              if (!d.held) d.val = Math.floor(Math.random() * 6) + 1;
+            });
+            yState.rollsLeft--;
+            playClickTone(750, 0.07);
+            drawRollerPanel();
+          }
+        }, 80);
+      }
+    });
+
+    const resetRollerBtn = el("button", {
+      className: "btn ghost small error",
+      text: "Reset",
+      style: "margin: 0;",
+      onClick: () => {
+        yState.rollsLeft = 3;
+        yState.virtualDice = Array(5).fill(null).map(() => ({ val: 1, held: false }));
+        yState.virtualRolling = false;
+        drawRollerPanel();
+      }
+    });
+
+    const actionWrap = el("div", { style: "display: flex; gap: 8px; width:100%;" }, [resetRollerBtn, rollBtn]);
+
+    rollerPanel.appendChild(titleRow);
+    rollerPanel.appendChild(diceGrid);
+    rollerPanel.appendChild(actionWrap);
+  }
+
   const leaveBtn = el("button", {
     className: "btn ghost small",
     text: "Quit Game",
@@ -259,18 +362,29 @@ function renderBoard(players, scores) {
 
   mount(
     diceTopbar("Yahtzee Scorecard", goHome),
-    el("div", { className: "panel center", style: "max-width: 720px; margin: 0 auto; overflow-x: auto; padding: 12px;" }, [
+    el("div", { className: "panel center", style: "max-width: 720px; margin: 0 auto; padding: 12px;" }, [
+      rollerPanel,
       table,
       el("div", { style: "display: flex; gap: 8px; justify-content: center;" }, [leaveBtn])
     ])
   );
+
+  drawRollerPanel();
 }
 
-function openScoreSelector(players, scores, pIdx, category) {
-  const currentVal = scores[pIdx][category.id];
+function openScoreSelector(yState, pIdx, category) {
+  const currentVal = yState.scores[pIdx][category.id];
   let inputVal = currentVal !== null ? String(currentVal) : "";
 
-  const title = el("h3", { text: `Enter ${players[pIdx]}'s Score` });
+  // Auto-fill suggestion if they used the virtual roller!
+  const hasRolledVals = yState.virtualDice.map(d => d.val);
+  const suggestedScore = getSuggestedYahtzeeScore(category.id, hasRolledVals);
+  
+  if (suggestedScore !== null && inputVal === "") {
+    inputVal = String(suggestedScore);
+  }
+
+  const title = el("h3", { text: `Enter ${yState.players[pIdx]}'s Score` });
   const subTitle = el("p", { className: "muted", text: `${category.name} (${category.desc})` });
 
   const inputDisplay = el("div", {
@@ -303,6 +417,13 @@ function openScoreSelector(players, scores, pIdx, category) {
   if (category.id === "lg_straight") [0, 40].forEach(v => quickOptions.push(v));
   if (category.id === "yahtzee") [0, 50].forEach(v => quickOptions.push(v));
   if (category.id === "bonus_yahtzee") [0, 100, 200, 300].forEach(v => quickOptions.push(v));
+
+  // If there's an active virtual roll, add it as a suggested button!
+  if (suggestedScore !== null) {
+    if (!quickOptions.includes(suggestedScore)) {
+      quickOptions.unshift(suggestedScore);
+    }
+  }
 
   const quickRow = el("div", { className: "quick-row", style: "display: flex; gap: 6px; justify-content: center; flex-wrap: wrap; margin-bottom: 12px;" });
   quickOptions.forEach(opt => {
@@ -343,9 +464,15 @@ function openScoreSelector(players, scores, pIdx, category) {
     text: "Save Score",
     onClick: () => {
       const parsed = parseInt(inputVal, 10);
-      scores[pIdx][category.id] = isNaN(parsed) ? 0 : parsed;
+      yState.scores[pIdx][category.id] = isNaN(parsed) ? 0 : parsed;
+      
+      // Auto-reset virtual roller for the next player!
+      yState.rollsLeft = 3;
+      yState.virtualDice = Array(5).fill(null).map(() => ({ val: 1, held: false }));
+      yState.virtualRolling = false;
+
       modal.remove();
-      renderBoard(players, scores);
+      renderBoard(yState);
     }
   });
 
@@ -354,9 +481,14 @@ function openScoreSelector(players, scores, pIdx, category) {
     text: "Scratch (0)",
     style: "margin-top: 8px;",
     onClick: () => {
-      scores[pIdx][category.id] = 0;
+      yState.scores[pIdx][category.id] = 0;
+      
+      yState.rollsLeft = 3;
+      yState.virtualDice = Array(5).fill(null).map(() => ({ val: 1, held: false }));
+      yState.virtualRolling = false;
+
       modal.remove();
-      renderBoard(players, scores);
+      renderBoard(yState);
     }
   });
 
@@ -387,4 +519,72 @@ function openScoreSelector(players, scores, pIdx, category) {
   }, [modalContent]);
 
   document.body.appendChild(modal);
+}
+
+// ── Yahtzee Score computation helper for roller suggestions ──────────────────
+function getSuggestedYahtzeeScore(catId, vals) {
+  if (!vals || vals.length === 0) return null;
+
+  const counts = Array(7).fill(0);
+  vals.forEach(v => counts[v]++);
+  const sumOfAll = vals.reduce((a, b) => a + b, 0);
+
+  // Upper section cats sug
+  if (catId === "ones") return counts[1] * 1;
+  if (catId === "twos") return counts[2] * 2;
+  if (catId === "threes") return counts[3] * 3;
+  if (catId === "fours") return counts[4] * 4;
+  if (catId === "fives") return counts[5] * 5;
+  if (catId === "sixes") return counts[6] * 6;
+
+  // 3 of a kind
+  if (catId === "three_kind") {
+    const ok = counts.some(c => c >= 3);
+    return ok ? sumOfAll : 0;
+  }
+  // 4 of a kind
+  if (catId === "four_kind") {
+    const ok = counts.some(c => c >= 4);
+    return ok ? sumOfAll : 0;
+  }
+
+  // Full house
+  if (catId === "full_house") {
+    const has3 = counts.some(c => c === 3);
+    const has2 = counts.some(c => c === 2);
+    // Yahtzee can also act as full house
+    const has5 = counts.some(c => c === 5);
+    return (has3 && has2) || has5 ? 25 : 0;
+  }
+
+  // Small straight (4 consecutive)
+  if (catId === "sm_straight") {
+    // Check subsets: 1234, 2345, 3456
+    const has = (f) => counts[f] > 0;
+    const ok = (has(1) && has(2) && has(3) && has(4)) ||
+               (has(2) && has(3) && has(4) && has(5)) ||
+               (has(3) && has(4) && has(5) && has(6));
+    return ok ? 30 : 0;
+  }
+
+  // Large straight (5 consecutive)
+  if (catId === "lg_straight") {
+    const has = (f) => counts[f] > 0;
+    const ok = (has(1) && has(2) && has(3) && has(4) && has(5)) ||
+               (has(2) && has(3) && has(4) && has(5) && has(6));
+    return ok ? 40 : 0;
+  }
+
+  // Yahtzee
+  if (catId === "yahtzee") {
+    const ok = counts.some(c => c === 5);
+    return ok ? 50 : 0;
+  }
+
+  // Chance
+  if (catId === "chance") {
+    return sumOfAll;
+  }
+
+  return null;
 }

@@ -11,8 +11,7 @@ import { pullFromCloud } from "./cloud_sync.js";
 import * as gartic from "./gartic.js";
 import * as gallery from "./gallery.js";
 import { icons } from "./icons.js";
-import { start as startFarkle } from "./games/farkle.js";
-import { start as startYacht } from "./games/yahtzee.js";
+import { start as startDiceHub } from "./games/dice_hub.js";
 import { start as startQuiplash } from "./games/quiplash.js";
 import { start as startTelestrations } from "./games/telestrations.js";
 import { start as startScribblio } from "./games/scribblio.js";
@@ -149,15 +148,9 @@ const GAMES = [
     familyFriendly: true,
   },
   {
-    id: "yahtzee", icon: icons.canoe, title: "Yahtzee Scorecard",
-    blurb: "A digital, automatic Yahtzee scorecard for up to 6 players. Tap to log scores, and let the app handle subtotals and bonuses!",
-    start: startYacht,
-    familyFriendly: true,
-  },
-  {
-    id: "farkle", icon: icons.roasts, title: "Farkle Scorekeeper",
-    blurb: "An interactive score tracker for Farkle (10,000 points). Automatically tracks thresholds, turns, and highlights the leader!",
-    start: startFarkle,
+    id: "dice_games", icon: icons.dice, title: "Dice Games Hub",
+    blurb: "Play Yahtzee, track high-stakes Farkle scores with Piggyback Mode, or use our standalone Virtual Dice Roller! 1-8 players.",
+    start: startDiceHub,
     familyFriendly: true,
   },
 ];
