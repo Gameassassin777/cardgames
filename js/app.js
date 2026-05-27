@@ -11,7 +11,13 @@ import { pullFromCloud } from "./cloud_sync.js";
 import * as gartic from "./gartic.js";
 import * as gallery from "./gallery.js";
 import { icons } from "./icons.js";
-import { startYacht, startFarkle } from "./dice_games.js";
+import { start as startFarkle } from "./games/farkle.js";
+import { start as startYacht } from "./games/yahtzee.js";
+import { start as startQuiplash } from "./games/quiplash.js";
+import { start as startTelestrations } from "./games/telestrations.js";
+import { start as startScribblio } from "./games/scribblio.js";
+import { start as startHeadsup } from "./games/headsup.js";
+import { start as startCharades } from "./games/charades.js";
 
 // Force wholesome normal mode on every app restart/page load
 localStorage.setItem("lakehouse.weird_unlocked", "false");
@@ -107,13 +113,43 @@ const GAMES = [
     familyFriendly: true,
   },
   {
-    id: "doodles", icon: icons.doodles, title: "Telephone Doodles",
-    blurb: "Players alternate between writing prompts and drawing scenes — see how the message changes! 3+ players.",
+    id: "doodles", icon: icons.doodles, title: "Telephone Doodles (online)",
+    blurb: "Players alternate between writing prompts and drawing scenes online. 3+ players.",
     start: (home) => gartic.start(home),
     familyFriendly: true,
   },
   {
-    id: "yahtzee", icon: icons.sibling, title: "Yahtzee Scorecard",
+    id: "quiplash", icon: icons.meeting, title: "Quiplash",
+    blurb: "Write hilarious answers to wacky prompts, then pass the device secretly to vote on the funniest combination. 3-8 players.",
+    start: startQuiplash,
+    familyFriendly: true,
+  },
+  {
+    id: "telestrations", icon: icons.doodles, title: "Telestrations",
+    blurb: "A classic telephone chain of alternating drawings and guesses. See the hilarious mutation at the end! 3-8 players.",
+    start: startTelestrations,
+    familyFriendly: true,
+  },
+  {
+    id: "scribblio", icon: icons.sibling, title: "Scribbl.io",
+    blurb: "A hot-seat canvas drawing game. One player draws a secret word on canvas, while other players sit around and shout guesses! 2-8 players.",
+    start: startScribblio,
+    familyFriendly: true,
+  },
+  {
+    id: "headsup", icon: icons.rizz, title: "Heads Up",
+    blurb: "Forehead word guessing game! Hold the phone to your head and guess words from your friends' clues. 2+ players.",
+    start: startHeadsup,
+    familyFriendly: true,
+  },
+  {
+    id: "charades", icon: icons.flags, title: "Charades",
+    blurb: "Forehead acting game! Guess the words from your friends' silent physical gestures. 2+ players.",
+    start: startCharades,
+    familyFriendly: true,
+  },
+  {
+    id: "yahtzee", icon: icons.canoe, title: "Yahtzee Scorecard",
     blurb: "A digital, automatic Yahtzee scorecard for up to 6 players. Tap to log scores, and let the app handle subtotals and bonuses!",
     start: startYacht,
     familyFriendly: true,
