@@ -67,120 +67,140 @@ const GAMES = [
     blurb: "Complete prompts using your funniest response cards. The judge decides the winner. 3+ players.",
     start: cabin,
     familyFriendly: true,
+    badgeColor: "linear-gradient(145deg, hsl(24,88%,58%), hsl(24,78%,40%))",
   },
   {
     id: "cam", icon: icons.monkeys, title: "Cards Against Monkeys",
     blurb: "Fill in the blanks to complete prompts using response cards. Features internet culture topics. 3+ players.",
     start: monkeys,
     familyFriendly: false,
+    badgeColor: "linear-gradient(145deg, hsl(340,70%,50%), hsl(340,62%,34%))",
   },
   {
     id: "meeting", icon: icons.meeting, title: "Most Likely To",
     blurb: "Vote on which player is most likely to match a given prompt. 3+ players.",
     start: meeting.start,
     familyFriendly: false,
+    badgeColor: "linear-gradient(145deg, hsl(207,82%,56%), hsl(207,72%,38%))",
   },
   {
     id: "rizz", icon: icons.rizz, title: "Rizz Roulette",
     blurb: "Draw cards to complete interactive dares, answer questions, or discuss conversational prompts. 2+ players.",
     start: rizzRoulette,
     familyFriendly: false,
+    badgeColor: "linear-gradient(145deg, hsl(310,65%,52%), hsl(310,55%,36%))",
   },
   {
     id: "wyr", icon: icons.wyr, title: "Would You Rather",
     blurb: "Read a dilemma with two choices, and have players vote on their preference. 2+ players.",
     start: wouldYouRather,
     familyFriendly: false,
+    badgeColor: "linear-gradient(145deg, hsl(36,90%,55%), hsl(36,80%,38%))",
   },
   {
     id: "flags", icon: icons.flags, title: "Red Flag / Green Flag",
     blurb: "Discuss and judge character traits as positive, negative, or neutral. 2+ players.",
     start: redGreen,
     familyFriendly: true,
+    badgeColor: "linear-gradient(145deg, hsl(116,55%,48%), hsl(116,48%,32%))",
   },
   {
     id: "truths", icon: icons.truths, title: "Truth or Dare",
     blurb: "Choose between answering a truth question or completing a dare. Suitable for any group size.",
     start: lakeTruths,
     familyFriendly: true,
+    badgeColor: "linear-gradient(145deg, hsl(48,90%,55%), hsl(48,80%,38%))",
   },
   {
     id: "roasts", icon: icons.roasts, title: "Roast Me",
     blurb: "Lighthearted group roasts, goofy dares, and funny social dilemmas. 3+ players.",
     start: campfireRoasts,
     familyFriendly: true,
+    badgeColor: "linear-gradient(145deg, hsl(18,85%,55%), hsl(18,75%,38%))",
   },
   {
     id: "catchphrase", icon: icons.catchphrase, title: "Catchphrase",
     blurb: "Teams race to guess secret words described by their teammates before the round timer runs out. 4+ players.",
     start: catchphrase.start,
     familyFriendly: true,
+    badgeColor: "linear-gradient(145deg, hsl(270,60%,58%), hsl(270,52%,40%))",
   },
   {
     id: "doodles", icon: icons.doodles, title: "Telephone Doodles (online)",
     blurb: "Players alternate between writing prompts and drawing scenes online. 3+ players.",
     start: (home) => gartic.start(home),
     familyFriendly: true,
+    badgeColor: "linear-gradient(145deg, hsl(170,60%,45%), hsl(170,52%,30%))",
   },
   {
     id: "quiplash", icon: icons.meeting, title: "Quiplash",
     blurb: "Write hilarious answers to wacky prompts, then pass the device secretly to vote on the funniest combination. 3-8 players.",
     start: startQuiplash,
     familyFriendly: true,
+    badgeColor: "linear-gradient(145deg, hsl(195,75%,48%), hsl(195,65%,32%))",
   },
   {
     id: "telestrations", icon: icons.doodles, title: "Telestrations",
     blurb: "A classic telephone chain of alternating drawings and guesses. See the hilarious mutation at the end! 3-8 players.",
     start: startTelestrations,
     familyFriendly: true,
+    badgeColor: "linear-gradient(145deg, hsl(140,55%,44%), hsl(140,48%,30%))",
   },
   {
     id: "scribblio", icon: icons.sibling, title: "Scribbl.io",
     blurb: "A hot-seat canvas drawing game. One player draws a secret word on canvas, while other players sit around and shout guesses! 2-8 players.",
     start: startScribblio,
     familyFriendly: true,
+    badgeColor: "linear-gradient(145deg, hsl(155,58%,42%), hsl(155,50%,28%))",
   },
   {
     id: "headsup", icon: icons.rizz, title: "Heads Up",
     blurb: "Forehead word guessing game! Hold the phone to your head and guess words from your friends' clues. 2+ players.",
     start: startHeadsup,
     familyFriendly: true,
+    badgeColor: "linear-gradient(145deg, hsl(207,82%,56%), hsl(207,72%,38%))",
   },
   {
     id: "charades", icon: icons.flags, title: "Charades",
     blurb: "Forehead acting game! Guess the words from your friends' silent physical gestures. 2+ players.",
     start: startCharades,
     familyFriendly: true,
+    badgeColor: "linear-gradient(145deg, hsl(180,62%,44%), hsl(180,55%,30%))",
   },
   {
     id: "yahtzee", icon: icons.dice, title: "Yahtzee Scorecard",
     blurb: "Roll virtual dice to score full houses, straights, and Yahtzees on your scoreboard! 1-8 players.",
     start: startYahtzee,
     familyFriendly: true,
+    badgeColor: "linear-gradient(145deg, hsl(270,60%,58%), hsl(270,52%,40%))",
   },
   {
     id: "farkle", icon: icons.dice, title: "Farkle Tracker",
     blurb: "Roll high-stakes combinations, bank points, and try not to Farkle! Supports Piggyback Mode. 1-8 players.",
     start: startFarkle,
     familyFriendly: true,
+    badgeColor: "linear-gradient(145deg, hsl(288,58%,54%), hsl(288,50%,38%))",
   },
   {
     id: "liars_dice", icon: icons.dice, title: "Liar's Dice",
     blurb: "A classic high-stakes bluffing game! Bid on total dice faces in play, and call your friends out. 2-8 players.",
     start: startLiarsDice,
     familyFriendly: true,
+    badgeColor: "linear-gradient(145deg, hsl(250,65%,56%), hsl(250,55%,40%))",
   },
   {
     id: "virtual_roller", icon: icons.dice, title: "Virtual Dice Roller",
     blurb: "Need dice for other board games? Roll and lock up to 6 custom virtual dice in our premium 3D roller!",
     start: startDiceRoller,
     familyFriendly: true,
+    badgeColor: "linear-gradient(145deg, hsl(230,70%,58%), hsl(230,60%,40%))",
   },
   {
     id: "chronicles", icon: icons.pen, title: "Cozy Chronicles (online)",
     blurb: "Draw individual sentences of a secret story without knowing the rest online. At the end, read your illustrated picture book! 3-8 players.",
     start: startChronicles,
     familyFriendly: true,
+    badgeColor: "linear-gradient(145deg, hsl(160,58%,44%), hsl(160,50%,30%))",
   },
 ];
 
@@ -334,43 +354,87 @@ const CATEGORIES = [
   {
     id: "cards",
     title: "Cozy Card Games",
-    blurb: "Cozy fill-in-the-blank prompt games, anonymous voting, truths, dares, and lighthearted campfire roasts.",
+    blurb: "Fill-in-the-blank prompts, anonymous voting, truths, dares & campfire roasts.",
     icon: () => icons.monkeys(),
+    theme: "blue",
     gameIds: ["cabin", "cam", "meeting", "rizz", "wyr", "flags", "truths", "roasts"]
   },
   {
     id: "drawing",
     title: "Creative & Drawing",
-    blurb: "Secret sketch-sharing, canvas-casting guessers, round-robin book chains, and illustrated chronicles.",
+    blurb: "Sketch-sharing, canvas guessers, round-robin book chains & illustrated chronicles.",
     icon: () => icons.doodles(),
+    theme: "green",
     gameIds: ["chronicles", "doodles", "telestrations", "scribblio"]
   },
   {
     id: "guessing",
     title: "Party Words & Action",
-    blurb: "Fast-paced team words guessers, sensor-based forehead actor screens, and wacky response vote matchups.",
+    blurb: "Fast team word guessers, forehead actor screens & wacky response vote-offs.",
     icon: () => icons.meeting(),
+    theme: "orange",
     gameIds: ["catchphrase", "headsup", "charades", "quiplash"]
   },
   {
     id: "dice",
     title: "Dice & Scoreboards",
-    blurb: "Track high-stakes Farkle scores with Piggyback Mode, play Yahtzee scorecards, bluff in Liar's Dice, or roll virtual dice.",
+    blurb: "Farkle, Yahtzee, Liar's Dice & a premium 3D virtual dice roller.",
     icon: () => icons.dice(),
+    theme: "purple",
     gameIds: ["yahtzee", "farkle", "liars_dice", "virtual_roller"]
   }
 ];
+
+// Inject animated bokeh bubbles once into the DOM
+(function injectBokeh() {
+  if (document.querySelector(".bokeh-layer")) return;
+  const layer = document.createElement("div");
+  layer.className = "bokeh-layer";
+  const bubbles = [
+    { w: 280, x: 8,  y: 5,  dur: 18, delay: 0,    tx: 30,  ty: -50, olo: 0.35, ohi: 0.65 },
+    { w: 180, x: 72, y: 12, dur: 14, delay: -3,   tx: -20, ty: -40, olo: 0.25, ohi: 0.55 },
+    { w: 340, x: 55, y: 45, dur: 22, delay: -7,   tx: 40,  ty: 30,  olo: 0.2,  ohi: 0.45 },
+    { w: 150, x: 85, y: 68, dur: 16, delay: -2,   tx: -30, ty: -25, olo: 0.3,  ohi: 0.6  },
+    { w: 220, x: 20, y: 75, dur: 20, delay: -10,  tx: 25,  ty: -35, olo: 0.2,  ohi: 0.5  },
+    { w: 120, x: 45, y: 88, dur: 12, delay: -5,   tx: -15, ty: -20, olo: 0.4,  ohi: 0.7  },
+    { w: 200, x: 90, y: 20, dur: 17, delay: -8,   tx: -25, ty: 30,  olo: 0.25, ohi: 0.5  },
+    { w: 160, x: 35, y: 30, dur: 13, delay: -1,   tx: 20,  ty: 25,  olo: 0.3,  ohi: 0.6  },
+  ];
+  bubbles.forEach(b => {
+    const d = document.createElement("div");
+    d.className = "bokeh-bubble";
+    d.style.cssText = [
+      `width:${b.w}px`, `height:${b.w}px`,
+      `left:${b.x}%`,  `top:${b.y}%`,
+      `--dur:${b.dur}s`, `--delay:${b.delay}s`,
+      `--tx:${b.tx}px`,  `--ty:${b.ty}px`,
+      `--op-lo:${b.olo}`, `--op-hi:${b.ohi}`,
+    ].join(";");
+    layer.appendChild(d);
+  });
+  document.body.insertBefore(layer, document.body.firstChild);
+}());
 
 function openSubLobby(cat) {
   const weirdUnlocked = localStorage.getItem("lakehouse.weird_unlocked") === "true";
   const catGames = GAMES.filter(g => cat.gameIds.includes(g.id) && (weirdUnlocked || g.familyFriendly));
 
-  const menu = el("div", { className: "menu" });
+  // Game-list row layout
+  const menu = el("div", { className: "menu game-list" });
   catGames.forEach((g) => {
+    // Icon badge with per-game gradient color
+    const iconBadge = el("div", { className: "icon" }, [g.icon()]);
+    iconBadge.style.background = g.badgeColor || "linear-gradient(145deg, hsl(207,82%,56%), hsl(207,72%,38%))";
+
+    const titleNode = el("h3", {}, [document.createTextNode(g.title)]);
+    if (!g.familyFriendly) {
+      titleNode.appendChild(el("span", { className: "badge", text: "Adult" }));
+    }
+
     const tile = el("button", { className: "tile", onClick: () => g.start(() => openSubLobby(cat)) }, [
-      el("div", { className: "icon" }, [g.icon()]),
+      iconBadge,
       el("div", { className: "meta" }, [
-        el("h3", {}, [document.createTextNode(g.title)]),
+        titleNode,
         el("p", { text: g.blurb }),
       ]),
     ]);
@@ -380,19 +444,21 @@ function openSubLobby(cat) {
   const topbar = el("div", { className: "topbar" }, [
     el("button", { className: "back", onClick: home }, [
       el("span", { style: "width:16px; height:16px; display:inline-block;" }, [icons.back()]),
-      el("span", { text: "Main Lobby" })
+      el("span", { text: "Back" })
     ]),
     el("div", { className: "title", text: cat.title }),
     el("span", { style: "width:64px" })
   ]);
 
+  // Blurb panel in Aero glass style
+  const blurbPanel = el("div", { className: "panel", style: "margin: 0 0 12px; padding: 16px 18px; display:flex; align-items:center; gap:14px;" }, [
+    el("div", { style: "width:40px; height:40px; flex-shrink:0; color:var(--aero-sky-deep);" }, [cat.icon()]),
+    el("p", { style: "margin:0; font-size:0.88rem; color:var(--text-mid); line-height:1.4;", text: cat.blurb })
+  ]);
+
   mount(
     topbar,
-    el("div", { className: "panel center", style: "max-width: 480px; margin: 0 auto 16px;" }, [
-      el("div", { style: "width:48px; height:48px; margin:0 auto 12px; color:var(--sunset-soft);" }, [cat.icon()]),
-      el("h2", { text: cat.title, style: "margin:0 0 6px; color:var(--water-foam);" }),
-      el("p", { className: "muted", text: cat.blurb })
-    ]),
+    blurbPanel,
     menu
   );
 }
@@ -404,58 +470,81 @@ function home() {
     return GAMES.filter(g => cat.gameIds.includes(g.id) && (weirdUnlocked || g.familyFriendly)).length;
   };
 
+  // 2×2 category grid
   const menu = el("div", { className: "menu" });
   CATEGORIES.forEach((cat) => {
     const count = getCatGamesCount(cat);
     if (count === 0) return;
 
-    const tile = el("button", { 
-      className: "tile", 
-      onClick: () => openSubLobby(cat) 
-    }, [
-      el("div", { className: "icon" }, [cat.icon()]),
+    // Header strip (colored gloss, houses icon + title)
+    const header = el("div", { className: "tile-header" }, [
+      el("div", { className: "tile-icon" }, [cat.icon()]),
       el("div", { className: "meta" }, [
         el("h3", {}, [document.createTextNode(cat.title)]),
-        el("p", { text: cat.blurb }),
-        el("span", { 
-          style: "display:inline-block; font-size:0.75rem; font-weight:700; color:var(--sunset-soft); margin-top:6px;", 
-          text: `➔ Choose from ${count} game${count !== 1 ? "s" : ""}` 
-        })
       ]),
     ]);
+
+    // Body below the colored header
+    const body = el("div", { className: "tile-body" }, [
+      el("p", { className: "meta", text: cat.blurb }),
+      el("span", { className: "tile-count", text: `${count} game${count !== 1 ? "s" : ""} →` }),
+    ]);
+
+    const tile = el("button", {
+      className: "tile",
+      onClick: () => openSubLobby(cat)
+    }, [header, body]);
+
+    // Attach the theme so CSS can color it
+    tile.dataset.theme = cat.theme;
+
     menu.appendChild(tile);
   });
 
   const settingsPanel = el("div", {
-    className: "panel center",
-    style: "margin-top: 18px; padding: 16px; background: rgba(255,255,255,0.02); border: 1px dashed rgba(255,255,255,0.1); border-radius: 16px;"
+    className: "panel",
+    style: "margin-top: 14px; padding: 14px 16px;"
   }, [
-    el("button", {
-      className: "btn ghost small",
-      style: "width:100%; display:flex; align-items:center; justify-content:center; gap:8px; font-weight:700; border-radius:12px; box-shadow:none; padding:10px 14px; margin: 0 0 8px; background:rgba(255,255,255,0.03); border-color:rgba(255,255,255,0.1);",
-      onClick: () => {
-        playQuack();
-        startTVHost(home);
-      }
-    }, [
-      el("span", { style: "display:inline-block; font-size:1.15rem; line-height:1; vertical-align:middle; margin-right:4px;" }, [document.createTextNode("📺")]),
-      el("span", { text: "Connect as TV Broadcast Screen" })
+    el("div", { style: "display:flex; gap:10px; flex-wrap:wrap; margin-bottom:10px;" }, [
+      el("button", {
+        className: "btn ghost small",
+        style: "flex:1; display:flex; align-items:center; justify-content:center; gap:8px; min-width:140px;",
+        onClick: () => openCustomCardsManager(home)
+      }, [
+        el("span", { style: "width:18px; height:18px; display:inline-block;" }, [icons.settings()]),
+        el("span", { text: "Custom Cards" })
+      ]),
+      el("button", {
+        className: "btn ghost small",
+        style: "flex:1; display:flex; align-items:center; justify-content:center; gap:8px; min-width:140px;",
+        onClick: () => gallery.start(home)
+      }, [
+        el("span", { style: "width:18px; height:18px; display:inline-block;" }, [icons.eye()]),
+        el("span", { text: "Doodle Gallery" })
+      ]),
     ]),
-    el("button", {
-      className: "btn ghost small",
-      style: "width:100%; display:flex; align-items:center; justify-content:center; gap:8px; font-weight:700; border-radius:12px; box-shadow:none; padding:10px 14px; margin: 0 0 8px;",
-      onClick: () => openCustomCardsManager(home)
-    }, [
-      el("span", { style: "width: 18px; height: 18px; display: inline-block;" }, [icons.settings()]),
-      el("span", { text: "Manage Custom Cards & Decks" })
-    ]),
-    el("button", {
-      className: "btn ghost small",
-      style: "width:100%; display:flex; align-items:center; justify-content:center; gap:8px; font-weight:700; border-radius:12px; box-shadow:none; padding:10px 14px; margin: 0; background:rgba(255,255,255,0.03); border-color:rgba(255,255,255,0.1);",
-      onClick: () => gallery.start(home)
-    }, [
-      el("span", { style: "width: 18px; height: 18px; display: inline-block;" }, [icons.gallery()]),
-      el("span", { text: "Art Gallery (Past Doodles)" })
+    el("hr", { style: "border:none; border-top:1px solid rgba(0,80,180,0.1); border-bottom:1px solid rgba(255,255,255,0.5); margin: 6px 0 10px;" }),
+    el("div", { className: "tv-switch-container" }, [
+      el("div", { style: "text-align: left;" }, [
+        el("div", { className: "tv-switch-label" }, [
+          el("span", { style: "display:inline-block; font-size:1.2rem; line-height:1; margin-right:4px;" }, [document.createTextNode("📺")]),
+          el("span", { text: "TV Broadcast Device" })
+        ]),
+        el("div", { className: "tv-switch-subtext", text: "Transform this screen into a live game monitor" })
+      ]),
+      el("label", { className: "ios-switch" }, [
+        el("input", {
+          type: "checkbox",
+          id: "tv-device-toggle",
+          onChange: (e) => {
+            if (e.target.checked) {
+              playQuack();
+              startTVHost(home);
+            }
+          }
+        }),
+        el("span", { className: "ios-switch-slider" })
+      ])
     ])
   ]);
 
@@ -641,5 +730,6 @@ if ("serviceWorker" in navigator) {
   });
 }
 
+// TV direct-entry auto-detection disabled - only manually activated via settings
 home();
 checkForForcedUpdates();
