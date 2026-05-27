@@ -249,7 +249,7 @@ function renderSetup() {
     setupCard.appendChild(el("hr", { className: "divider" }));
     setupCard.appendChild(el("button", {
       className: "btn",
-      text: `Start local game ${cfg.icon}`,
+      text: "Start local game",
       onClick: () => beginGame(names, target, physical)
     }));
   } else {
