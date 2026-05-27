@@ -37,10 +37,10 @@ const combinedCabinResponses = [
 ];
 
 const cabin = makeCardGame({
-  title: "Fill in the Blank", icon: icons.cabin,
+  title: "Cabin Fever", icon: icons.cabin,
   prompts: combinedCabinPrompts, responses: combinedCabinResponses,
   winnerTitle: "Round Winner",
-  blurb: "A fill-in-the-blank party game. Everyone picks the funniest response card to complete a prompt; the judge decides the winner. Pass the device, hands stay secret.",
+  blurb: "A cozy and unhinged fill-in-the-blank party game. Complete prompts using your funniest response cards; the judge decides the winner. Pass the device, hands stay secret.",
   footer: "Absurd, witty, and cozy card-game humor.",
   saveKey: "cabin.game.v1", namesKey: "cabin.names.v1", targetKey: "cabin.target", physicalKey: "cabin.physical",
 });
@@ -52,8 +52,8 @@ const campfireRoasts = makeDeck({ title: "Roast Me", source: CAMPFIRE_ROASTS, sa
 
 const GAMES = [
   {
-    id: "cabin", icon: icons.cabin, title: "Fill in the Blank",
-    blurb: "Everyone picks the funniest response card to complete a prompt. The judge decides the winner. 3+ players.",
+    id: "cabin", icon: icons.cabin, title: "Cabin Fever",
+    blurb: "Complete prompts using your funniest response cards. The judge decides the winner. 3+ players.",
     start: cabin,
     familyFriendly: true,
   },

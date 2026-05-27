@@ -4,10 +4,9 @@ import { pushToCloud } from "./cloud_sync.js";
 import { icons } from "./icons.js";
 
 const MANAGED_GAMES = [
-  { id: "family", name: "Cards Against the Family", iconFn: icons.family, saveKey: "family.game.v1", hasPrompts: true, placeholder: "e.g. mom trying to buy sketchy bootleg fireworks off a guy named Slick", familyFriendly: true },
+  { id: "cabin", name: "Cabin Fever", iconFn: icons.cabin, saveKey: "cabin.game.v1", hasPrompts: true, placeholder: "e.g. bootleg Elmo in an alleyway surrounded by mysterious cloudy gas", familyFriendly: true },
   { id: "roasts", name: "Campfire Roasts", iconFn: icons.roasts, saveKey: "roasts.game.v1", hasPrompts: false, placeholder: "e.g. Who at this table is secretly the biggest screen-time addict?", familyFriendly: true },
   { id: "cam", name: "Cards Against Monkeys", iconFn: icons.monkeys, saveKey: "cam.game.v1", hasPrompts: true, placeholder: "e.g. Subway Surfers gameplay during a funeral", familyFriendly: false },
-  { id: "cabin", name: "Cards Against the Cabin", iconFn: icons.cabin, saveKey: "cabin.game.v1", hasPrompts: true, placeholder: "e.g. bootleg Elmo in an alleyway surrounded by mysterious cloudy gas", familyFriendly: false },
   { id: "rizz", name: "Rizz Roulette", iconFn: icons.rizz, saveKey: "rizz.game.v1", hasPrompts: false, placeholder: "e.g. Say it with rizz: \"Are you Ohio? Because you make me act crazy.\"", familyFriendly: false },
   { id: "wyr", name: "Would You Rather", iconFn: icons.wyr, saveKey: "wyr.game.v1", hasPrompts: false, placeholder: "e.g. Always step on a wet spot, OR chew on a dry sponge?", familyFriendly: false },
   { id: "flags", name: "Red Flag / Green Flag", iconFn: icons.flags, saveKey: "flags.game.v1", hasPrompts: false, placeholder: "e.g. They literally have zero internet presence.", familyFriendly: true },
@@ -15,7 +14,7 @@ const MANAGED_GAMES = [
   { id: "catchphrase", name: "Lake House Catchphrase", iconFn: icons.catchphrase, saveKey: "catchphrase.game.v1", hasPrompts: false, placeholder: "e.g. water skiing behind a rowboat", familyFriendly: true }
 ];
 
-let activeGameId = "family";
+let activeGameId = "cabin";
 let activeTab = "responses"; // "responses" | "prompts"
 let editingIndex = null; // index of the card being edited
 let currentHomeCallback = null;

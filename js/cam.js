@@ -103,8 +103,6 @@ function resetOnlineState() {
   myName = "";
   isHost = false;
   onlinePlayers = [];
-  playerTeams = {};
-  describerName = "";
   state = null;
   connectionStatus = "offline";
   guestCustomResponses = [];
