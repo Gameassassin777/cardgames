@@ -17,6 +17,7 @@ import { start as startTelestrations } from "./games/telestrations.js";
 import { start as startScribblio } from "./games/scribblio.js";
 import { start as startHeadsup } from "./games/headsup.js";
 import { start as startCharades } from "./games/charades.js";
+import { start as startChronicles } from "./games/picture_book.js";
 
 // Force wholesome normal mode on every app restart/page load
 localStorage.setItem("lakehouse.weird_unlocked", "false");
@@ -151,6 +152,12 @@ const GAMES = [
     id: "dice_games", icon: icons.dice, title: "Dice Games Hub",
     blurb: "Play Yahtzee, track high-stakes Farkle scores with Piggyback Mode, or use our standalone Virtual Dice Roller! 1-8 players.",
     start: startDiceHub,
+    familyFriendly: true,
+  },
+  {
+    id: "chronicles", icon: icons.pen, title: "Cozy Chronicles",
+    blurb: "Draw individual sentences of a secret story without knowing the rest. At the end, read your illustrated picture book! 3-8 players.",
+    start: startChronicles,
     familyFriendly: true,
   },
 ];
