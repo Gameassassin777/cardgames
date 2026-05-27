@@ -1,6 +1,5 @@
-// Generic "draw a card" engine, configured per game.
-// Card shape: { tag?, type?, text }. `tag` (or legacy `type`) shows as a pill.
-import { el, mount, shuffle, store } from "./ui.js";
+// Generic "draw a card" engine configured per game with full Online sync support.
+import { el, mount, shuffle, store, toast } from "./ui.js";
 import { icons } from "./icons.js";
 
 const TAG_ICON = {
@@ -16,15 +15,33 @@ const TAG_ICON = {
   "Custom": icons.pen,
 };
 
+const WS_BASE = location.hostname === "localhost" || location.hostname === "127.0.0.1"
+  ? "ws://localhost:3000"
+  : "wss://lakehouse-cardgames-sync.gameassassin777.workers.dev";
+
 export function makeGame({ title, source, saveKey }) {
   return function start(home) {
     const isCampfire = title === "Campfire Roasts";
     if (isCampfire) document.body.classList.add("campfire-theme");
 
     const cleanHome = () => {
+      resetOnline();
       if (isCampfire) document.body.classList.remove("campfire-theme");
       home();
     };
+
+    let onlineMode = false;
+    let socket = null;
+    let roomCode = "";
+    let myName = "";
+    let isHost = false;
+    let onlinePlayers = [];
+
+    function resetOnline() {
+      if (socket) { try { socket.close(); } catch (_) {} socket = null; }
+      onlineMode = false;
+      roomCode = ""; myName = ""; isHost = false; onlinePlayers = [];
+    }
 
     function getFullSource() {
       const customs = saveKey ? store.get(saveKey + ".custom_cards", []) : [];
@@ -38,7 +55,234 @@ export function makeGame({ title, source, saveKey }) {
     let deck = shuffle(getFullSource());
     let pos = 0;
 
-    function reshuffle() { deck = shuffle(getFullSource()); pos = 0; render(); }
+    function reshuffle() { 
+      deck = shuffle(getFullSource()); 
+      pos = 0; 
+      if (onlineMode && isHost) {
+        syncDeckState();
+      } else {
+        render(); 
+      }
+    }
+
+    function syncDeckState() {
+      const card = deck[pos];
+      const tag = card ? (card.tag || card.type || "Card") : "Card";
+      const remaining = deck.length - pos - 1;
+      const last = pos >= deck.length - 1;
+
+      if (socket && socket.readyState === 1) {
+        socket.send(JSON.stringify({
+          type: "relay",
+          code: roomCode,
+          sender: myName,
+          action: {
+            type: "STATE_SYNC",
+            state: {
+              text: card ? card.text : "Draw a card!",
+              tag,
+              remaining,
+              last,
+              deckSize: deck.length
+            }
+          }
+        }));
+      }
+    }
+
+    function connectRoom(type, code = "") {
+      onlineMode = true;
+      mount(
+        el("div", { className: "topbar" }, [
+          el("button", { className: "back", text: "‹ Back", onClick: renderSetup })
+        ]),
+        el("div", { className: "panel center", style: "margin:40px auto; max-width:320px;" }, [
+          el("div", { className: "spin-indicator", style: "font-size:2rem; margin-bottom:12px;", text: "🌀" }),
+          el("p", { text: type === "create" ? "Creating room…" : `Joining ${code}…` })
+        ])
+      );
+
+      const url = type === "create"
+        ? `${WS_BASE}/ws/create?name=${encodeURIComponent(myName)}&game=deckgame`
+        : `${WS_BASE}/ws/join?code=${code}&name=${encodeURIComponent(myName)}&game=deckgame`;
+
+      isHost = (type === "create");
+      socket = new WebSocket(url);
+
+      socket.onmessage = (ev) => {
+        try {
+          const d = JSON.parse(ev.data);
+          if (d.type === "created" || d.type === "player_joined") {
+            roomCode = d.code;
+            onlinePlayers = d.players;
+            applyLobby();
+          } else if (d.type === "player_left") {
+            onlinePlayers = d.players;
+            applyLobby();
+          } else if (d.type === "relay") {
+            if (d.action.type === "STATE_SYNC") {
+              renderOnlineMirror(d.action.state);
+            } else if (d.action.type === "quit") {
+              toast("Lobby closed by host.");
+              cleanHome();
+            }
+          } else if (d.type === "error") {
+            toast(d.message || "Connection error");
+            renderSetup();
+          }
+        } catch (_) {}
+      };
+    }
+
+    function applyLobby() {
+      const pRows = onlinePlayers.map((p, i) => {
+        return el("div", {
+          style: "display:flex; justify-content:space-between; padding:10px 14px; background:rgba(255,255,255,0.02); border-radius:10px; margin-bottom:6px;"
+        }, [
+          el("span", { text: p, style: "font-weight: 500;" }),
+          el("span", {
+            text: i === 0 ? "👑 HOST" : "READY",
+            style: `font-size:0.75rem; font-weight:bold; color:${i === 0 ? "var(--sunset-soft)" : "#00ffaa"};`
+          })
+        ]);
+      });
+
+      const lobbyLayout = el("div", { className: "panel center", style: "max-width: 440px; margin:0 auto;" }, [
+        el("h3", { text: `Room Lobby: ${roomCode}`, style: "color:var(--sunset-soft); margin-top:0;" }),
+        el("p", { className: "muted", text: "Invite friends using this room code." }),
+        el("div", { style: "margin: 16px 0; width:100%; max-height:240px; overflow-y:auto;" }, pRows),
+        isHost
+          ? el("button", {
+              className: "btn",
+              text: "Start Game ➔",
+              style: "width:100%;",
+              onClick: () => {
+                syncDeckState();
+              }
+            })
+          : el("p", { className: "muted center anim-pulse", text: "Waiting for host to start..." })
+      ]);
+
+      mount(
+        el("div", { className: "topbar" }, [
+          el("button", { className: "back", text: "‹ Leave", onClick: cleanHome }),
+          el("div", { className: "title", text: title }),
+          el("span", { style: "width:64px" }),
+        ]),
+        lobbyLayout
+      );
+    }
+
+    function renderOnlineMirror(syncedState) {
+      // Spectator mirror layout
+      const last = syncedState.last;
+      mount(
+        el("div", { className: "topbar" }, [
+          el("button", { className: "back", text: "‹ Leave", onClick: cleanHome }),
+          el("div", { className: "title", text: `${title} (Online)` }),
+          el("span", { style: "width:64px" }),
+        ]),
+        el("div", { className: "panel center" }, [
+          el("span", { 
+            className: "pill", 
+            style: "display:inline-flex; align-items:center; gap:6px; background:rgba(255,255,255,0.06); padding:4px 10px; border-radius:16px; font-weight:700;" 
+          }, [
+            el("span", { style: "width:14px; height:14px; display:inline-block;" }, [TAG_ICON[syncedState.tag] ? TAG_ICON[syncedState.tag]() : icons.doodles()]),
+            el("span", { text: syncedState.tag })
+          ]),
+          el("div", {
+            className: "play-card response",
+            style: "margin-top:14px; font-size:1.3rem; min-height:180px; justify-content:center; text-align:center;",
+          }, [ el("span", { text: syncedState.text }) ]),
+          el("p", { className: "muted", text: `${syncedState.remaining} card${syncedState.remaining === 1 ? "" : "s"} left in the deck` }),
+        ]),
+        el("div", { className: "spacer" }),
+        isHost
+          ? (last
+            ? el("button", { 
+                className: "btn", 
+                style: "display:flex; align-items:center; justify-content:center; gap:6px; margin:0 auto;",
+                onClick: reshuffle 
+              }, [
+                el("span", { style: "width:18px; height:18px; display:inline-block;" }, [icons.refresh()]),
+                el("span", { text: "Reshuffle & keep going" })
+              ])
+            : el("button", { 
+                className: "btn", 
+                style: "display:flex; align-items:center; justify-content:center; gap:6px; margin:0 auto;",
+                onClick: () => { pos++; syncDeckState(); } 
+              }, [
+                el("span", { style: "width:18px; height:18px; display:inline-block;" }, [icons.chevronRight()]),
+                el("span", { text: "Next card" })
+              ]))
+          : el("p", { className: "muted center anim-pulse", text: "Waiting for host to flip cards..." })
+      );
+    }
+
+    function renderSetup() {
+      resetOnline();
+      
+      const nameInput = el("input", {
+        type: "text",
+        placeholder: "Your name…",
+        id: "d-name",
+        style: "font-size:1.1rem; border-radius:14px; text-align:center; margin-bottom:14px; width:100%;"
+      });
+
+      const codeInput = el("input", {
+        type: "text",
+        placeholder: "4-LETTER CODE",
+        id: "d-code",
+        maxLength: 4,
+        style: "font-size:1.3rem; border-radius:14px; text-align:center; text-transform:uppercase; letter-spacing:6px; margin-bottom:10px; width:100%;"
+      });
+      codeInput.addEventListener("input", () => { codeInput.value = codeInput.value.toUpperCase(); });
+
+      mount(
+        el("div", { className: "topbar" }, [
+          el("button", { className: "back", text: "‹ Back", onClick: cleanHome }),
+          el("div", { className: "title", text: title }),
+          el("span", { style: "width:64px" }),
+        ]),
+        el("div", { className: "panel center", style: "max-width: 440px; margin: 0 auto;" }, [
+          el("div", { style: "width:64px; height:64px; margin:0 auto 12px; color:var(--sunset-soft);" }, [TAG_ICON[title] ? TAG_ICON[title]() : icons.canoe()]),
+          el("h2", { text: title }),
+          el("p", { className: "muted", text: "Draw interactive cards, dilemmas, or dares. Play offline with standard pass-and-play, or launch an online room code to stream the cards to your TV!" }),
+          el("div", { style: "display:flex; flex-direction:column; gap:10px; width:100%; margin-top:20px;" }, [
+            el("button", {
+              className: "btn",
+              text: "🔄 Start Local Deck",
+              onClick: () => { onlineMode = false; render(); }
+            }),
+            el("hr", { style: "border:none; border-top:1px solid rgba(255,255,255,0.06); margin:8px 0;" }),
+            nameInput,
+            el("button", {
+              className: "btn ghost",
+              text: "Create Online Room",
+              onClick: () => {
+                const n = nameInput.value.trim();
+                if (!n) { toast("Enter your name first!"); return; }
+                myName = n;
+                connectRoom("create");
+              }
+            }),
+            codeInput,
+            el("button", {
+              className: "btn ghost",
+              text: "Join Online Room",
+              onClick: () => {
+                const n = nameInput.value.trim();
+                const code = codeInput.value.trim().toUpperCase();
+                if (!n) { toast("Enter your name first!"); return; }
+                if (!code || code.length !== 4) { toast("Enter room code!"); return; }
+                myName = n;
+                connectRoom("join", code);
+              }
+            })
+          ])
+        ])
+      );
+    }
 
     function render() {
       const card = deck[pos];
@@ -48,7 +292,7 @@ export function makeGame({ title, source, saveKey }) {
 
       mount(
         el("div", { className: "topbar" }, [
-          el("button", { className: "back", text: "‹ Lobby", onClick: cleanHome }),
+          el("button", { className: "back", text: "‹ Back", onClick: renderSetup }),
           el("div", { className: "title", text: title }),
           el("span", { style: "width:64px" }),
         ]),
@@ -96,6 +340,6 @@ export function makeGame({ title, source, saveKey }) {
       );
     }
 
-    render();
+    renderSetup();
   };
 }

@@ -21,6 +21,7 @@ import { start as startScribblio } from "./games/scribblio.js";
 import { start as startHeadsup } from "./games/headsup.js";
 import { start as startCharades } from "./games/charades.js";
 import { start as startChronicles } from "./games/picture_book.js";
+import { start as startTVHost } from "./games/tv_host.js";
 
 // Force wholesome normal mode on every app restart/page load
 localStorage.setItem("lakehouse.weird_unlocked", "false");
@@ -429,6 +430,17 @@ function home() {
     className: "panel center",
     style: "margin-top: 18px; padding: 16px; background: rgba(255,255,255,0.02); border: 1px dashed rgba(255,255,255,0.1); border-radius: 16px;"
   }, [
+    el("button", {
+      className: "btn ghost small",
+      style: "width:100%; display:flex; align-items:center; justify-content:center; gap:8px; font-weight:700; border-radius:12px; box-shadow:none; padding:10px 14px; margin: 0 0 8px; background:rgba(255,255,255,0.03); border-color:rgba(255,255,255,0.1);",
+      onClick: () => {
+        playQuack();
+        startTVHost(home);
+      }
+    }, [
+      el("span", { style: "display:inline-block; font-size:1.15rem; line-height:1; vertical-align:middle; margin-right:4px;" }, [document.createTextNode("📺")]),
+      el("span", { text: "Connect as TV Broadcast Screen" })
+    ]),
     el("button", {
       className: "btn ghost small",
       style: "width:100%; display:flex; align-items:center; justify-content:center; gap:8px; font-weight:700; border-radius:12px; box-shadow:none; padding:10px 14px; margin: 0 0 8px;",
