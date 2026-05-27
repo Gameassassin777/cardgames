@@ -11,7 +11,10 @@ import { pullFromCloud } from "./cloud_sync.js";
 import * as gartic from "./gartic.js";
 import * as gallery from "./gallery.js";
 import { icons } from "./icons.js";
-import { start as startDiceHub } from "./games/dice_hub.js";
+import { start as startYahtzee } from "./games/yahtzee.js";
+import { start as startFarkle } from "./games/farkle.js";
+import { start as startLiarsDice } from "./games/liars_dice.js";
+import { startStandaloneRoller as startDiceRoller } from "./games/dice_hub.js";
 import { start as startQuiplash } from "./games/quiplash.js";
 import { start as startTelestrations } from "./games/telestrations.js";
 import { start as startScribblio } from "./games/scribblio.js";
@@ -149,9 +152,27 @@ const GAMES = [
     familyFriendly: true,
   },
   {
-    id: "dice_games", icon: icons.dice, title: "Dice Games Hub",
-    blurb: "Play Yahtzee, track high-stakes Farkle scores with Piggyback Mode, or use our standalone Virtual Dice Roller! 1-8 players.",
-    start: startDiceHub,
+    id: "yahtzee", icon: icons.dice, title: "Yahtzee Scorecard",
+    blurb: "Roll virtual dice to score full houses, straights, and Yahtzees on your scoreboard! 1-8 players.",
+    start: startYahtzee,
+    familyFriendly: true,
+  },
+  {
+    id: "farkle", icon: icons.dice, title: "Farkle Tracker",
+    blurb: "Roll high-stakes combinations, bank points, and try not to Farkle! Supports Piggyback Mode. 1-8 players.",
+    start: startFarkle,
+    familyFriendly: true,
+  },
+  {
+    id: "liars_dice", icon: icons.dice, title: "Liar's Dice",
+    blurb: "A classic high-stakes bluffing game! Bid on total dice faces in play, and call your friends out. 2-8 players.",
+    start: startLiarsDice,
+    familyFriendly: true,
+  },
+  {
+    id: "virtual_roller", icon: icons.dice, title: "Virtual Dice Roller",
+    blurb: "Need dice for other board games? Roll and lock up to 6 custom virtual dice in our premium 3D roller!",
+    start: startDiceRoller,
     familyFriendly: true,
   },
   {
@@ -333,9 +354,9 @@ const CATEGORIES = [
   {
     id: "dice",
     title: "Dice & Scoreboards",
-    blurb: "Track high-stakes Farkle scores with Piggyback Mode, play Yahtzee scorecards, or roll in our Virtual 3D Dice Hub.",
+    blurb: "Track high-stakes Farkle scores with Piggyback Mode, play Yahtzee scorecards, bluff in Liar's Dice, or roll virtual dice.",
     icon: () => icons.dice(),
-    gameIds: ["dice_games"]
+    gameIds: ["yahtzee", "farkle", "liars_dice", "virtual_roller"]
   }
 ];
 
@@ -389,16 +410,7 @@ function home() {
 
     const tile = el("button", { 
       className: "tile", 
-      onClick: () => {
-        if (cat.id === "dice") {
-          const diceGame = GAMES.find(g => g.id === "dice_games");
-          if (diceGame) {
-            diceGame.start(home);
-          }
-        } else {
-          openSubLobby(cat);
-        }
-      } 
+      onClick: () => openSubLobby(cat) 
     }, [
       el("div", { className: "icon" }, [cat.icon()]),
       el("div", { className: "meta" }, [

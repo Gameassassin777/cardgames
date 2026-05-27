@@ -57,7 +57,7 @@ function renderHub() {
 }
 
 // ── Standalone Virtual Dice Roller ───────────────────────────────────────────
-function startStandaloneRoller() {
+export function startStandaloneRoller(home = renderHub) {
   let diceCount = 5;
   let rollsLeft = 3;
   let dice = Array(diceCount).fill({ val: 1, held: false });
@@ -172,7 +172,7 @@ function startStandaloneRoller() {
   resetRoller();
 
   mount(
-    hubTopbar("Standalone Dice Roller", renderHub),
+    hubTopbar("Standalone Dice Roller", home),
     el("div", { className: "panel center", style: "max-width: 480px; margin: 0 auto;" }, [
       el("div", { style: "display:flex; justify-content:space-between; align-items:center; width:100%; border-bottom:1px solid rgba(255,255,255,0.06); padding-bottom:8px; margin-bottom:8px;" }, [
         selectCount,
