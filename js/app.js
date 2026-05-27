@@ -200,42 +200,32 @@ function playDoubleQuack() {
   setTimeout(playQuack, 130);
 }
 
-// Spawn `count` ducks flying in random directions from random edges.
+// Spawn `count` wood logs flying in random directions from random edges.
 // Chaos level (angle spread, speed, spin) also increases with count.
-function rainDucks(count) {
+function rainLogs(count) {
   const container = document.body;
   const W = window.innerWidth;
   const H = window.innerHeight;
 
-  // Above a certain count we let ducks fly in ALL directions (not just downward)
+  // Above a certain count we let logs fly in ALL directions (not just downward)
   const omnidirectional = count > 20;
 
   for (let i = 0; i < count; i++) {
     // Stagger more tightly for big bursts so they all feel simultaneous
     const delay = i * Math.max(8, Math.floor(1200 / count));
     setTimeout(() => {
-      const duck = document.createElement("div");
-      duck.style.position = "fixed";
-      duck.style.pointerEvents = "none";
-      duck.style.zIndex = "99999";
+      const log = document.createElement("div");
+      log.style.position = "fixed";
+      log.style.pointerEvents = "none";
+      log.style.zIndex = "99999";
+      log.style.fontSize = "2.5rem";
+      log.style.lineHeight = "1";
+      log.style.userSelect = "none";
+      log.textContent = "🪵";
 
-      // Render custom SVG duck instead of plain text emoji
-      const duckSvg = icons.duck();
-      duckSvg.style.width = "100%";
-      duckSvg.style.height = "100%";
-      duckSvg.style.color = "var(--sunset-soft)";
-      duck.appendChild(duckSvg);
-
-      // Size: tiny swarm for big counts, bigger individuals for small counts
-      const minSize = omnidirectional ? 1.5 : 1.8;
-      const maxExtra = omnidirectional ? 2.0 : 3.0;
-      const sizeRem = minSize + Math.random() * maxExtra;
-      duck.style.width = `${sizeRem}rem`;
-      duck.style.height = `${sizeRem}rem`;
-
-      // Travel duration varies slightly per duck for organic feel
+      // Travel duration varies slightly per log for organic feel
       const duration = 1400 + Math.random() * 800;
-      duck.style.transition = `transform ${duration}ms linear, opacity ${duration}ms ease-out`;
+      log.style.transition = `transform ${duration}ms linear, opacity ${duration}ms ease-out`;
 
       let startX, startY, targetX, targetY;
 
@@ -275,31 +265,31 @@ function rainDucks(count) {
         targetY = H + 60;
       }
 
-      duck.style.left = `${startX}px`;
-      duck.style.top = `${startY}px`;
-      container.appendChild(duck);
+      log.style.left = `${startX}px`;
+      log.style.top = `${startY}px`;
+      container.appendChild(log);
 
       // Force reflow before animating
-      duck.offsetHeight;
+      log.offsetHeight;
 
       // Spin amount grows with count
       const maxSpin = Math.min(30 + count * 12, 1440);
       const rotate = (Math.random() - 0.5) * maxSpin;
 
-      duck.style.transform = `translate(${targetX}px, ${targetY}px) rotate(${rotate}deg)`;
-      duck.style.opacity = "0";
+      log.style.transform = `translate(${targetX}px, ${targetY}px) rotate(${rotate}deg)`;
+      log.style.opacity = "0";
 
-      setTimeout(() => duck.remove(), duration + 50);
+      setTimeout(() => log.remove(), duration + 50);
     }, delay);
   }
 }
 
 // textLen = length of wrong text typed into the duck prompt
-function startQuackStorm(textLen) {
-  // 1 char → 5 ducks, each extra char adds ~3 more, hard cap at 120
+function startLogStorm(textLen) {
+  // 1 char → 5 logs, each extra char adds ~3 more, hard cap at 120
   const count = Math.min(5 + (textLen || 0) * 3, 120);
 
-  rainDucks(count);
+  rainLogs(count);
 
   // More quacks for longer text
   const quackCount = Math.min(2 + Math.floor(textLen / 3), 10);
@@ -388,7 +378,19 @@ function home() {
     const count = getCatGamesCount(cat);
     if (count === 0) return;
 
-    const tile = el("button", { className: "tile", onClick: () => openSubLobby(cat) }, [
+    const tile = el("button", { 
+      className: "tile", 
+      onClick: () => {
+        if (cat.id === "dice") {
+          const diceGame = GAMES.find(g => g.id === "dice_games");
+          if (diceGame) {
+            diceGame.start(home);
+          }
+        } else {
+          openSubLobby(cat);
+        }
+      } 
+    }, [
       el("div", { className: "icon" }, [cat.icon()]),
       el("div", { className: "meta" }, [
         el("h3", {}, [document.createTextNode(cat.title)]),
@@ -447,7 +449,7 @@ function home() {
           // Reset to wholesome normal mode and re-render instantly
           localStorage.setItem("lakehouse.weird_unlocked", "false");
           toast("*The duck stares at you blankly, then starts quacking hysterically!*");
-          startQuackStorm(answer.trim().length);
+          startLogStorm(answer.trim().length);
           home(); // Re-render instantly to hide everything
         }
       }
