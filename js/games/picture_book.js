@@ -1,110 +1,173 @@
-// Modular Illustrated Storybook / Cozy Chronicles party game.
+// Modular Illustrated Storybook / Cozy Chronicles party game with Mad Libs pre-drawing.
 import { el, mount, toast, shuffle } from "../ui.js";
 import { icons } from "../icons.js";
-import { renderDiceFaceSVG } from "./dice_hub.js";
 
 let goHome = () => {};
 
+// Multi-sentence story templates with blanks tailored for player count N (3 to 8).
+// Each template requires exactly N inputs, so every player gets to input exactly one word!
 const STORIES = {
   3: [
     {
       title: "The Glowing Marshmallow 🏕️",
+      blanks: [
+        { key: "animal", label: "Noun (Animal)" },
+        { key: "adjective", label: "Adjective (Funny)" },
+        { key: "verb", label: "Verb (Action)" }
+      ],
       sentences: [
-        "A hungry camper finds a legendary, glowing golden marshmallow deep in the dark woods.",
-        "A swarm of tiny mosquitoes wearing miniature pirate hats guards the marshmallow with pinecone swords.",
-        "The camper distracts the mosquito pirates with bug spray and takes a massive, gooey bite."
+        "A hungry {animal} finds a legendary, glowing golden marshmallow deep in the dark woods.",
+        "A swarm of {adjective} mosquitoes wearing pirate hats guards it with pinecone swords.",
+        "The camper decides to {verb} to distract them, taking a massive, gooey bite."
       ]
     },
     {
       title: "The Dock Cannonball 💦",
+      blanks: [
+        { key: "clothing", label: "Noun (Silly Clothing)" },
+        { key: "adjective", label: "Adjective (Cozy)" },
+        { key: "animal", label: "Noun (Lake Animal)" }
+      ],
       sentences: [
-        "A brave beaver wearing professional swimming goggles prepares to jump off the high cabin dock.",
-        "He launches into the starry sky, doing three backflips and a massive cannonball splash.",
-        "He splashes directly into the mouth of an extremely surprised, giant green lake fish."
+        "A brave beaver wearing a professional {clothing} prepares to jump off the high cabin dock.",
+        "He launches into the starry sky, doing three {adjective} backflips and a massive splash.",
+        "He splashes directly into the mouth of an extremely surprised, giant green {animal}."
       ]
     }
   ],
   4: [
     {
-      title: "The Lost Tourist 🗺️",
+      title: "The Lost Explorer 🗺️",
+      blanks: [
+        { key: "job", label: "Noun (Profession/Job)" },
+        { key: "object", label: "Noun (Silly Object)" },
+        { key: "action", label: "Verb (Weird Action)" },
+        { key: "adjective", label: "Adjective (Goofy)" }
+      ],
       sentences: [
-        "A lost tourist wearing a bright yellow bucket hat attempts to read a upside-down map on a mossy log.",
-        "A sneaky raccoon wearing sunglasses steals the map and climbs up a tall pine tree.",
-        "The tourist climbs up the tree to retrieve the map but gets tangled in a giant, glowing spiderweb.",
-        "The raccoon takes a silly selfie with the trapped tourist using a stolen smartphone."
+        "A lost {job} wearing a bright yellow bucket hat attempts to read a map on a mossy log.",
+        "A sneaky raccoon wearing sunglasses steals the map and drops a {object} in its place.",
+        "The explorer decides to {action} to retrieve the map from the raccoon.",
+        "They become best friends and snap a {adjective} selfie together to post on Instagram."
       ]
     },
     {
       title: "The Canoe Captain 🛶",
+      blanks: [
+        { key: "hat", label: "Noun (Type of Hat)" },
+        { key: "adjective", label: "Adjective (Screaming)" },
+        { key: "monster", label: "Noun (Lake Monster Name)" },
+        { key: "snack", label: "Noun (Silly Snack)" }
+      ],
       sentences: [
-        "A duck wearing a fancy pirate hat takes steering control of a shiny red canoe.",
-        "A sudden giant wave capsizes the canoe, sending the duck captain flying high into the clouds.",
-        "A friendly blue lake monster catches the falling duck perfectly on its wet head.",
-        "The lake monster and duck sail off into the sunset sharing a bag of potato chips."
+        "A duck wearing a fancy {hat} takes steering control of a shiny red canoe.",
+        "A sudden {adjective} wave capsizes the canoe, sending the duck captain flying high into the clouds.",
+        "A friendly blue lake monster named {monster} catches the falling duck perfectly on its head.",
+        "They sail off into the sunset together sharing a huge bucket of {snack}."
       ]
     }
   ],
   5: [
     {
-      title: "The Stressed Bear 🐻",
+      title: "The Energetic Bear 🐻",
+      blanks: [
+        { key: "animal", label: "Noun (Forest Animal)" },
+        { key: "drink", label: "Noun (Silly Drink)" },
+        { key: "dance", label: "Verb (Dance Move)" },
+        { key: "container", label: "Noun (Large Container)" },
+        { key: "feeling", label: "Adjective (Emotional)" }
+      ],
       sentences: [
-        "A stressed-out brown bear decides to brew a giant, steaming mug of hot coffee in the cabin.",
-        "He drinks it and gets so energized that he starts moonwalking through the forest path.",
-        "The bear runs into a squirrel hip-hop dance battle taking place in a sunny clearing.",
-        "He attempts a wild headspin but crashes face-first into a giant pile of soft autumn leaves.",
-        "All the forest critters celebrate his performance and award him a gold pinecone trophy."
+        "A sleepy {animal} decides to brew a giant, steaming mug of {drink}.",
+        "He drinks it and gets so energized that he starts to {dance} through the forest path.",
+        "He loses control and crashes face-first into a giant {container} of soft autumn leaves.",
+        "All the forest critters gather around looking extremely {feeling}.",
+        "They award him a gold pinecone trophy for the best performance of the lake season."
       ]
     },
     {
       title: "The Spa Day 🧖‍♂️",
+      blanks: [
+        { key: "adjective", label: "Adjective (Smelly)" },
+        { key: "food", label: "Noun (Type of Food)" },
+        { key: "fish", label: "Noun (Lake Creature)" },
+        { key: "object", label: "Noun (Slippery Object)" },
+        { key: "place", label: "Noun (Cozy Place)" }
+      ],
       sentences: [
-        "A tired bear decides to have a relaxing spa day inside a steaming hot spring.",
-        "Two friendly raccoons place fresh cucumber slices over the bear's eyes and massage his shoulders.",
-        "A giant trout jumps out of the water to join the hot tub spa session.",
-        "The bear gets startled, slips on a bar of soap, and rolls down the muddy hill.",
-        "He lands perfectly inside a cozy sleeping bag, completely warm and fast asleep."
+        "A stressed-out bear decides to have a relaxing spa day inside a {adjective} hot spring.",
+        "Two friendly raccoons place fresh slices of {food} over the bear's eyes and massage his shoulders.",
+        "A giant {fish} jumps out of the water to join the hot spa session.",
+        "The bear gets startled, slips on a bar of {object}, and rolls down the muddy hill.",
+        "He lands perfectly inside a cozy {place}, completely warm and fast asleep."
       ]
     }
   ],
   6: [
     {
-      title: "The Frog Saloon 🐸",
+      title: "The Frog Cowboy 🤠",
+      blanks: [
+        { key: "hat", label: "Noun (Funny Hat)" },
+        { key: "mount", label: "Noun (Ridable Creature)" },
+        { key: "drink", label: "Noun (Silly Liquid)" },
+        { key: "rivals", label: "Noun (Plural Animal Gang)" },
+        { key: "vehicle", label: "Noun (Flying Object)" },
+        { key: "camper", label: "Noun (Job/Person)" }
+      ],
       sentences: [
-        "A tiny green frog wearing a ten-gallon cowboy hat rides a majestic raccoon like a horse.",
-        "They arrive at the Forest Saloon and order two shots of cold morning dew from a squirrel bartender.",
-        "Suddenly, a rival gang of angry chipmunks bursts through the swinging wooden doors.",
-        "The saloon erupts into a chaotic food fight, with everyone throwing wild berries and pinecones.",
-        "The cowboy frog escapes the berry-throwing chaos by flying out the window on a paper airplane.",
-        "He lands safely inside a warm cup of hot cocoa held by a cozy camper around the fire."
+        "A tiny green frog wearing a ten-gallon {hat} rides a majestic {mount} like a horse.",
+        "They arrive at the saloon and order two shots of cold {drink} from a squirrel bartender.",
+        "Suddenly, a rival gang of angry {rivals} bursts through the swinging wooden doors.",
+        "The saloon erupts into a chaotic food fight, with everyone throwing wild berries.",
+        "The cowboy frog escapes the berry-throwing chaos by flying out the window on a {vehicle}.",
+        "He lands safely inside a warm cup of cocoa held by a cozy {camper} around the fire."
       ]
     }
   ],
   7: [
     {
       title: "The Close Encounter 👽",
+      blanks: [
+        { key: "color", label: "Adjective (Neon Color)" },
+        { key: "clothing", label: "Noun (Cozy Clothing)" },
+        { key: "instrument", label: "Noun (Musical Instrument)" },
+        { key: "dance", label: "Noun (Type of Dance)" },
+        { key: "job", label: "Noun (Profession/Job)" },
+        { key: "animal", label: "Noun (Small Animal)" },
+        { key: "food", label: "Noun (Campfire Food)" }
+      ],
       sentences: [
-        "A glowing neon-green spaceship lands quietly in a dark forest clearing at midnight.",
-        "An alien steps out of the ship wearing a cozy flannel shirt and holding an acoustic guitar.",
-        "He joins three campers around a fire and begins singing an acoustic folk song.",
-        "The alien teaches the campers how to perform a weird, zero-gravity floating dance.",
-        "A park ranger walks up, spots the floating alien, and drops his flashlight in pure shock.",
-        "The startled alien panics and accidentally zaps the ranger, turning him into a glowing green frog.",
-        "They all eat s'mores together while the frog ranger croaks out the musical rhythm."
+        "A glowing {color} spaceship lands quietly in a dark forest clearing at midnight.",
+        "An alien steps out of the ship wearing a cozy {clothing} and holding a {instrument}.",
+        "He joins three campers around a fire and begins performing a weird {dance} song.",
+        "The alien teaches the campers how to float and do a zero-gravity spin.",
+        "A park {job} walks up, spots the floating alien, and drops his flashlight in shock.",
+        "The startled alien panics and accidentally zaps the ranger, turning him into a {animal}.",
+        "They all eat {food} together while the transformed ranger beats out the musical rhythm."
       ]
     }
   ],
   8: [
     {
-      title: "The Bigfoot Sighting 👣",
+      title: "The Bigfoot Selfie 🤳",
+      blanks: [
+        { key: "item", label: "Noun (Outdoor Gear)" },
+        { key: "drink", label: "Noun (Cold Drink)" },
+        { key: "object", label: "Noun (Fragile Object)" },
+        { key: "pose", label: "Noun (Funny Face/Pose)" },
+        { key: "thief", label: "Noun (Sneaky Animal)" },
+        { key: "tree", label: "Noun (Type of Tree)" },
+        { key: "shower", label: "Noun (Plural Falling Object)" },
+        { key: "gesture", label: "Noun (Victory Gesture)" }
+      ],
       sentences: [
-        "An excited hiker looks through massive binoculars, searching for the legendary Bigfoot.",
-        "Directly behind the hiker, Bigfoot is casually wearing sunglasses and drinking pink lemonade.",
-        "The hiker turns around, gasps in shock, and drops his retro camera into a puddle.",
-        "Bigfoot picks up the camera, wipes the lens, and suggests they take a selfie together.",
-        "They pose side-by-side making goofy duck faces under the pine trees.",
-        "A mischievous squirrel steals the camera from Bigfoot and runs up a pine tree.",
-        "Bigfoot and the hiker shake the tree trunk until a shower of pinecones falls down.",
-        "They retrieve the camera safely and share an epic high-five under the starry night sky."
+        "An excited hiker looks through his {item}, searching for the legendary Bigfoot.",
+        "Directly behind the hiker, Bigfoot is casually wearing sunglasses and drinking {drink}.",
+        "The hiker turns around, gasps in shock, and drops his {object} into a muddy puddle.",
+        "Bigfoot picks up the item and suggests they pose side-by-side making {pose} faces.",
+        "A mischievous {thief} steals the camera from Bigfoot and runs up a tall {tree}.",
+        "Bigfoot and the hiker shake the tree trunk until a shower of {shower} falls down.",
+        "They retrieve the device safely and share a glorious {gesture} under the starry night sky."
       ]
     }
   ]
@@ -195,7 +258,7 @@ function renderSetup() {
     el("div", { className: "panel center", style: "max-width: 480px; margin: 0 auto;" }, [
       el("div", { style: "width:64px; height:64px; margin:0 auto 12px; color:var(--sunset-soft);" }, [icons.pen()]),
       el("h2", { text: "Cozy Chronicles" }),
-      el("p", { className: "muted", text: "A secret story drawing game. Each player is assigned a single sentence of a cozy story to draw. No one knows the full plot until the final Illustrated Slideshow review!" }),
+      el("p", { className: "muted", text: "A goated mashup of Mad Libs and secret drawing! Enter funny nouns, adjectives, or verbs. The story is compiled, split up, and secretly illustrated. Read the crazy illustrated storybook at the end!" }),
       listWrap,
       addBtn,
       el("div", { className: "spacer" }),
@@ -206,38 +269,120 @@ function renderSetup() {
 
 function initGame(players) {
   const N = players.length;
-  // Get story templates matching player count
-  // If count is not in 3-8 range, clamp it
   const clampedN = Math.max(3, Math.min(8, N));
   const availableStories = STORIES[clampedN];
   const storyObj = availableStories[Math.floor(Math.random() * availableStories.length)];
 
-  // Shuffle players to assign random order of sentences
+  // Shuffle players to determine a random order of inputs and drawings
   const shuffledPlayers = shuffle(players.slice());
 
-  // Set up game state
-  // Each index i in sentences matches Player i
   const state = {
     players: shuffledPlayers,
     storyTitle: storyObj.title,
-    sentences: storyObj.sentences,
-    drawings: [], // list of dataUrls matching sentences index
-    activeQueueIdx: 0, // active sentence to draw
+    rawSentences: storyObj.sentences,
+    blanks: storyObj.blanks,
+    madlibsAnswers: {}, // key -> user_input
+    compiledSentences: [],
+    drawings: [],
+    // Iterators
+    activeBlankIdx: 0,
+    activeDrawIdx: 0
   };
 
-  runNextDrawingTurn(state);
+  startMadLibsPhase(state);
 }
 
+// ── Mad Libs Word Collection Phase ───────────────────────────────────────────
+function startMadLibsPhase(state) {
+  const idx = state.activeBlankIdx;
+
+  if (idx >= state.blanks.length) {
+    // All words collected! Compile the storybook.
+    compileStorybook(state);
+    return;
+  }
+
+  const currentBlank = state.blanks[idx];
+  // Assign this blank to Player i
+  const currentPlayer = state.players[idx];
+
+  // Pass screen to keep inputs secret/fun
+  const container = el("div", { className: "panel center", style: "max-width: 480px; margin: 30px auto; padding: 24px;" }, [
+    el("h3", { text: "Chronicles Mad Libs!", style: "color:var(--sunset-soft); text-transform:uppercase; margin-top:0;" }),
+    el("h2", { text: `Pass the Device!` }),
+    el("p", { className: "muted", style: "font-size: 1.1rem; margin: 20px 0;", html: `Hand the phone secretly to <strong style="color:var(--sunset-soft); font-size: 1.3rem;">${currentPlayer}</strong> to enter a word.` }),
+    el("button", {
+      className: "btn",
+      text: "I am ready",
+      onClick: () => renderMadLibInput(state, currentPlayer, currentBlank)
+    })
+  ]);
+
+  mount(gameTopbar(`Cozy Chronicles — Mad Libs`, () => confirmQuit(state)), container);
+}
+
+function renderMadLibInput(state, pName, blank) {
+  const inputEl = el("input", {
+    type: "text",
+    placeholder: `Write a ${blank.label.toLowerCase()}...`,
+    maxlength: "20",
+    style: "font-size: 1.25rem; border-radius: 14px; text-align: center; margin: 20px 0; width: 100%;"
+  });
+
+  const submitBtn = el("button", {
+    className: "btn",
+    text: "Lock Word",
+    onClick: () => {
+      const val = inputEl.value.trim();
+      if (!val) {
+        toast(`Please write a valid ${blank.label}!`);
+        return;
+      }
+      state.madlibsAnswers[blank.key] = val;
+      state.activeBlankIdx++;
+      startMadLibsPhase(state);
+    }
+  });
+
+  const layout = el("div", { className: "panel center", style: "max-width: 480px; margin: 0 auto;" }, [
+    el("h3", { text: `${pName}'s Turn to contribute`, style: "color: var(--sunset-soft); margin-top:0;" }),
+    el("h2", { text: `Enter a ${blank.label}`, style: "font-size: 1.5rem;" }),
+    el("p", { className: "muted", text: "Think of something absolutely wacky, cozy, or funny!" }),
+    inputEl,
+    submitBtn
+  ]);
+
+  mount(gameTopbar(`Cozy Chronicles — Mad Libs`, () => confirmQuit(state)), layout);
+  inputEl.focus();
+}
+
+function compileStorybook(state) {
+  // Plug all answers into the raw sentence templates
+  state.compiledSentences = state.rawSentences.map(sentence => {
+    let compiled = sentence;
+    Object.entries(state.madlibsAnswers).forEach(([key, val]) => {
+      compiled = compiled.replaceAll(`{${key}}`, `<span style="color:#00ffaa; text-shadow:0 0 4px rgba(0,255,170,0.25);">${val}</span>`);
+    });
+    return compiled;
+  });
+
+  toast("📖 Story successfully compiled! Illustrating begins...");
+  setTimeout(() => {
+    runNextDrawingTurn(state);
+  }, 1200);
+}
+
+// ── Drawing Illustrating Phase ───────────────────────────────────────────────
 function runNextDrawingTurn(state) {
-  const idx = state.activeQueueIdx;
-  if (idx >= state.sentences.length) {
+  const idx = state.activeDrawIdx;
+  if (idx >= state.compiledSentences.length) {
     // All drawings complete! Go to Illustrated Slideshow
     startSlideshowReview(state);
     return;
   }
 
   const currentPlayer = state.players[idx];
-  const currentSentence = state.sentences[idx];
+  const currentSentence = state.compiledSentences[idx];
 
   // Pass screen
   const container = el("div", { className: "panel center", style: "max-width: 480px; margin: 30px auto; padding: 24px;" }, [
@@ -245,15 +390,15 @@ function runNextDrawingTurn(state) {
     el("p", { className: "muted", style: "font-size: 1.1rem; margin: 20px 0;", html: `Hand the phone secretly to <strong style="color:var(--sunset-soft); font-size: 1.3rem;">${currentPlayer}</strong>.` }),
     el("button", {
       className: "btn",
-      text: "I am ready to draw",
-      onClick: () => renderDrawingBoard(state, currentPlayer, currentSentence, idx)
+      text: "I am ready to illustrate",
+      onClick: () => renderDrawingBoard(state, currentPlayer, currentSentence)
     })
   ]);
 
-  mount(gameTopbar(`Cozy Chronicles — Storybook`, () => confirmQuit(state)), container);
+  mount(gameTopbar(`Cozy Chronicles — Illustrating`, () => confirmQuit(state)), container);
 }
 
-function renderDrawingBoard(state, pName, sentence, idx) {
+function renderDrawingBoard(state, pName, sentenceHtml) {
   const canvas = el("canvas", {
     style: "background: #112228; border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; cursor: crosshair; touch-action: none; width: 100%; display: block; box-shadow: inset 0 2px 8px rgba(0,0,0,0.5);"
   });
@@ -303,15 +448,15 @@ function renderDrawingBoard(state, pName, sentence, idx) {
     onClick: () => {
       const dataUrl = canvas.toDataURL("image/png", 0.4);
       state.drawings.push(dataUrl);
-      state.activeQueueIdx++;
+      state.activeDrawIdx++;
       runNextDrawingTurn(state);
     }
   });
 
   const drawingLayout = el("div", { className: "panel center", style: "max-width: 500px; margin: 0 auto;" }, [
-    el("h3", { text: `${pName}'s Secret Sentence`, style: "color:var(--sunset-soft); margin-top:0;" }),
+    el("h3", { text: `${pName}'s Turn to Draw`, style: "color:var(--sunset-soft); margin-top:0;" }),
     el("blockquote", {
-      html: `Draw this: <strong style="color:#00ffaa; font-size:1.15rem;">"${sentence}"</strong>`,
+      html: `Draw this custom sentence:<br><strong style="font-size:1.15rem; color:#fff;">"${sentenceHtml}"</strong>`,
       style: "margin: 8px 0 16px; line-height: 1.4; border-left: none; padding: 0;"
     }),
     canvas,
@@ -425,12 +570,12 @@ function startSlideshowReview(state) {
 }
 
 function renderReviewSlide(state, slideIdx) {
-  if (slideIdx >= state.sentences.length) {
+  if (slideIdx >= state.compiledSentences.length) {
     renderFinalScorecard(state);
     return;
   }
 
-  const sentence = state.sentences[slideIdx];
+  const sentenceHtml = state.compiledSentences[slideIdx];
   const drawingUrl = state.drawings[slideIdx];
   const illustrator = state.players[slideIdx];
 
@@ -447,12 +592,12 @@ function renderReviewSlide(state, slideIdx) {
       style: "background: #112228; border-radius: 12px; width: 100%; max-height: 260px; object-fit: contain; margin-bottom: 16px; box-shadow: 0 4px 16px rgba(0,0,0,0.5);"
     }),
     el("blockquote", {
-      text: `"${sentence}"`,
-      style: "font-size: 1.3rem; font-weight: bold; margin: 0; line-height: 1.4; border-left: none; padding: 0; text-align: center;"
+      html: `"${sentenceHtml}"`,
+      style: "font-size: 1.3rem; font-weight: bold; margin: 0; line-height: 1.4; border-left: none; padding: 0; text-align: center; color:#fff;"
     })
   ]);
 
-  const hasMore = slideIdx + 1 < state.sentences.length;
+  const hasMore = slideIdx + 1 < state.compiledSentences.length;
   const nextBtn = el("button", {
     className: "btn",
     text: hasMore ? "Read Next Page ➜" : "Close Storybook 📖",
