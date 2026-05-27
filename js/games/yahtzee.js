@@ -3,7 +3,26 @@ import { el, mount, toast, store } from "../ui.js";
 import { icons } from "../icons.js";
 import { renderDiceFaceSVG, playClickTone } from "./dice_hub.js";
 
+const WS_BASE = location.hostname === "localhost" || location.hostname === "127.0.0.1"
+  ? "ws://localhost:3000"
+  : "wss://lakehouse-cardgames-sync.gameassassin777.workers.dev";
+
+const HTTP_BASE = location.hostname === "localhost" || location.hostname === "127.0.0.1"
+  ? "http://localhost:3000"
+  : "https://lakehouse-cardgames-sync.gameassassin777.workers.dev";
+
 let goHome = () => {};
+let socket = null;
+let roomCode = "";
+let myName = "";
+let isHost = false;
+let heartbeatInt = null;
+let roomBrowserRefresh = null;
+
+let isOnline = false;
+let setupMode = "passplay"; // "passplay" or "online"
+
+let gState = null;
 
 function diceTopbar(title, onBack) {
   return el("div", { className: "topbar" }, [
@@ -35,11 +54,44 @@ const YAHTZEE_CATEGORIES = [
 
 export function start(home) {
   goHome = home;
+  resetAll();
   renderSetup();
 }
 
+function resetAll() {
+  if (socket) { try { socket.close(); } catch (_) {} socket = null; }
+  if (heartbeatInt) { clearInterval(heartbeatInt); heartbeatInt = null; }
+  if (roomBrowserRefresh) { clearInterval(roomBrowserRefresh); roomBrowserRefresh = null; }
+  roomCode = ""; myName = ""; isHost = false; gState = null; isOnline = false;
+}
+
 function renderSetup() {
-  const savedNames = store.get("yacht.names", ["Player 1", "Player 2"]);
+  const savedName = localStorage.getItem("yahtzee.name") || "";
+  const nameInput = el("input", {
+    type: "text",
+    placeholder: "Your name…",
+    value: savedName,
+    id: "y-name",
+    style: "font-size:1.1rem; border-radius:14px; text-align:center; margin-bottom:14px; width:100%;"
+  });
+
+  const codeInput = el("input", {
+    type: "text",
+    placeholder: "4-LETTER CODE",
+    id: "y-code",
+    maxLength: 4,
+    style: "font-size:1.3rem; border-radius:14px; text-align:center; text-transform:uppercase; letter-spacing:6px; margin-bottom:10px; width:100%;"
+  });
+  codeInput.addEventListener("input", () => { codeInput.value = codeInput.value.toUpperCase(); });
+
+  const getName = () => {
+    const n = nameInput.value.trim();
+    if (!n) { toast("Enter your name first!"); return null; }
+    localStorage.setItem("yahtzee.name", n);
+    return n;
+  };
+
+  const savedNames = store.get("yacht.names", ["", ""]);
   let names = savedNames.slice();
 
   const listWrap = el("div", { id: "yachtPlayerList", style: "margin: 16px 0;" });
@@ -52,13 +104,15 @@ function renderSetup() {
         value: nm,
         maxlength: "14",
         placeholder: `Player ${i + 1}`,
+        style: "flex:1; border-radius:12px; font-size:1rem; padding: 8px 12px; text-align:center;",
         onInput: (e) => { names[i] = e.target.value; }
       });
-      const row = el("div", { className: "player-row", style: "margin-bottom: 8px;" }, [
+      const row = el("div", { className: "player-row", style: "display:flex; gap:8px; align-items:center; margin-bottom: 8px; width:100%;" }, [
         input,
         el("button", {
-          className: "icon-btn",
+          className: "btn ghost small error",
           text: "✕",
+          style: "margin:0; padding:6px 12px; border-radius:12px; font-size:1.1rem; line-height:1;",
           onClick: () => {
             if (names.length > 1) {
               names.splice(i, 1);
@@ -76,9 +130,10 @@ function renderSetup() {
   const addBtn = el("button", {
     className: "btn ghost small",
     text: "+ Add Player",
+    style: "width:100%; margin-bottom:10px;",
     onClick: () => {
       if (names.length < 6) {
-        names.push(`Player ${names.length + 1}`);
+        names.push("");
         drawList();
       } else {
         toast("Max 6 players for Yahtzee.");
@@ -86,54 +141,390 @@ function renderSetup() {
     }
   });
 
+  const showRulesBtn = el("button", {
+    className: "btn ghost small",
+    text: "📖 Rules & How to Play",
+    style: "width:100%; margin-bottom:16px;",
+    onClick: () => {
+      const existing = document.querySelector(".rules-panel");
+      if (existing) { existing.remove(); return; }
+      const rPanel = el("div", {
+        className: "rules-panel panel",
+        style: "text-align:left; background:rgba(255,255,255,0.02); border:1px dashed rgba(255,255,255,0.12); border-radius:12px; padding:12px; margin-bottom:16px; font-size:0.82rem; line-height:1.4;"
+      }, [
+        el("h4", { text: "How to Play:", style: "margin:0 0 6px; color:var(--sunset-soft);" }),
+        el("ul", { style: "margin:0; padding-left:16px; display:flex; flex-direction:column; gap:4px;" }, [
+          el("li", { text: "Yahtzee is a strategic dice rolling game where players take turns filling in a scorecard of 13 categories." }),
+          el("li", { text: "Objective: On your turn, roll the 5 dice up to 3 times. You can hold any number of dice between rolls." }),
+          el("li", { text: "Scoring: Assign your final roll to one of the 13 categories (Upper section: Aces through Sixes; Lower section: 3-of-a-kind, 4-of-a-kind, Full House, Straights, Chance, or YAHTZEE)." }),
+          el("li", { text: "Scratching: Each category can only be scored ONCE. If your roll doesn't qualify for an open category, you must select one to 'scratch' (score 0)." }),
+          el("li", { text: "Upper Bonus: Score 63+ in the Upper section to gain an additional +35 point bonus!" }),
+          el("li", { text: "Yahtzee Bonus: If you roll another YAHTZEE after scoring your first 50, gain +100 bonus points!" })
+        ])
+      ]);
+      showRulesBtn.parentNode.insertBefore(rPanel, showRulesBtn.nextSibling);
+    }
+  });
+
   const startBtn = el("button", {
     className: "btn",
     text: "Start Scorecard",
+    style: "width:100%;",
     onClick: () => {
-      const cleaned = names.map(n => n.trim() || "Player");
+      const cleaned = names.map((n, idx) => n.trim() || `Player ${idx + 1}`);
       store.set("yacht.names", cleaned);
-      initGame(cleaned);
+      isOnline = false;
+      initLocalGame(cleaned);
     }
   });
+
+  // Toggles for Setup Mode
+  const modeSelector = el("div", {
+    style: "display:flex; background:rgba(255,255,255,0.04); border-radius:14px; padding:4px; margin-bottom:20px; width:100%;"
+  });
+
+  const tabLocal = el("button", {
+    className: setupMode === "passplay" ? "btn small" : "btn ghost small",
+    text: "🔄 Pass & Play",
+    style: "flex:1; margin:0; font-size:0.85rem; padding: 8px 0; border:none; box-shadow:none;",
+    onClick: () => {
+      setupMode = "passplay";
+      tabLocal.className = "btn small";
+      tabOnline.className = "btn ghost small";
+      renderSetupForm();
+    }
+  });
+
+  const tabOnline = el("button", {
+    className: setupMode === "online" ? "btn small" : "btn ghost small",
+    text: "📱 Online Room",
+    style: "flex:1; margin:0; font-size:0.85rem; padding: 8px 0; border:none; box-shadow:none;",
+    onClick: () => {
+      setupMode = "online";
+      tabLocal.className = "btn ghost small";
+      tabOnline.className = "btn small";
+      renderSetupForm();
+    }
+  });
+
+  modeSelector.appendChild(tabLocal);
+  modeSelector.appendChild(tabOnline);
+
+  const dynamicFormWrap = el("div", { style: "width:100%;" });
+
+  function renderSetupForm() {
+    dynamicFormWrap.innerHTML = "";
+    if (setupMode === "passplay") {
+      drawList();
+      [
+        listWrap,
+        addBtn,
+        startBtn
+      ].forEach(child => dynamicFormWrap.appendChild(child));
+    } else {
+      const onlineLayout = el("div", { style: "width:100%;" }, [
+        nameInput,
+        el("button", {
+          className: "btn",
+          text: "Create Room",
+          style: "width:100%; margin-bottom:10px;",
+          onClick: () => {
+            const n = getName();
+            if (n) { myName = n; connectRoom("create"); }
+          }
+        }),
+        el("div", { style: "display:flex; gap:8px; align-items:center; width:100%; margin: 8px 0;" }, [
+          el("hr", { style: "flex:1; border:none; border-top:1px solid rgba(255,255,255,0.06);" }),
+          el("span", { text: "OR JOIN EXISTING", className: "muted", style: "font-size:0.75rem; letter-spacing:1px;" }),
+          el("hr", { style: "flex:1; border:none; border-top:1px solid rgba(255,255,255,0.06);" })
+        ]),
+        codeInput,
+        el("button", {
+          className: "btn ghost",
+          text: "Join Room",
+          style: "width:100%; margin-bottom:10px;",
+          onClick: () => {
+            const n = getName();
+            const code = codeInput.value.trim().toUpperCase();
+            if (!code || code.length !== 4) { toast("Enter a valid 4-letter room code!"); return; }
+            if (n) { myName = n; connectRoom("join", code); }
+          }
+        }),
+        el("button", {
+          className: "btn ghost small",
+          text: "🌐 Browse Open Rooms",
+          style: "width:100%; margin-top: 8px;",
+          onClick: () => renderRoomBrowser()
+        })
+      ]);
+      dynamicFormWrap.appendChild(onlineLayout);
+    }
+  }
 
   drawList();
 
   mount(
-    diceTopbar("Yahtzee Scorecard", goHome),
+    diceTopbar("Yahtzee Setup", goHome),
     el("div", { className: "panel center", style: "max-width: 480px; margin: 0 auto;" }, [
       el("div", { style: "width:64px; height:64px; margin:0 auto 12px; color:var(--sunset-soft);" }, [icons.canoe()]),
       el("h2", { text: "Yahtzee Setup" }),
       el("p", { className: "muted", text: "Enter up to 6 player names. Pass the device to fill in scores. Use physical dice or our built-in virtual roller!" }),
-      listWrap,
-      addBtn,
-      el("div", { className: "spacer" }),
-      startBtn
+      showRulesBtn,
+      modeSelector,
+      dynamicFormWrap
     ])
+  );
+
+  renderSetupForm();
+}
+
+function renderRoomBrowser() {
+  const listEl = el("div", { style: "display:flex; flex-direction:column; gap:8px; margin: 12px 0;" });
+  const loadRooms = async () => {
+    try {
+      listEl.innerHTML = `<p class="muted center" style="margin:16px 0;">Loading active rooms…</p>`;
+      const res = await fetch(`${HTTP_BASE}/rooms/list?game=yahtzee`).then(r => r.json());
+      listEl.innerHTML = "";
+      if (res.length === 0) {
+        listEl.innerHTML = `<p class="muted center" style="margin:16px 0;">No active public rooms found. Create one!</p>`;
+        return;
+      }
+      res.forEach(r => {
+        const info = el("div", { style: "text-align: left;" }, [
+          el("div", { html: `Room <strong style="color:var(--sunset-soft);">${r.code}</strong> • Host: ${r.host}` }),
+          el("div", { className: "muted", style: "font-size: 0.75rem;", text: `${r.playerCount} players active` })
+        ]);
+        const row = el("div", { className: "room-row" }, [
+          info,
+          el("button", {
+            className: "btn small",
+            style: "margin:0; padding:6px 14px;",
+            text: "Join",
+            onClick: () => {
+              clearInterval(roomBrowserRefresh);
+              connectRoom("join", r.code);
+            }
+          })
+        ]);
+        listEl.appendChild(row);
+      });
+    } catch (_) {
+      listEl.innerHTML = `<p class="muted center" style="margin:16px 0;">Failed to fetch rooms.</p>`;
+    }
+  };
+
+  loadRooms();
+  roomBrowserRefresh = setInterval(loadRooms, 8000);
+
+  mount(
+    diceTopbar("Open Yahtzee Rooms", () => { clearInterval(roomBrowserRefresh); renderSetup(); }),
+    el("div", { className: "panel center" }, [
+      el("p", { className: "muted", style: "margin:0; font-size:0.82rem;", text: "Tap Join to enter any open Yahtzee lobby." })
+    ]),
+    el("div", { className: "panel" }, [listEl])
   );
 }
 
-function initGame(players) {
+// ── WebSockets Networking ──────────────────────────────────────────────────
+function connectRoom(type, code = "") {
+  isOnline = true;
+  mount(
+    diceTopbar("Connecting", () => { resetAll(); renderSetup(); }),
+    el("div", { className: "panel center", style: "margin:30px auto; max-width:320px;" }, [
+      el("div", { className: "spin-indicator", style: "font-size:2rem; margin-bottom:12px;", text: "🌀" }),
+      el("p", { text: type === "create" ? "Creating room…" : `Joining ${code}…` })
+    ])
+  );
+
+  const url = type === "create"
+    ? `${WS_BASE}/ws/create?name=${encodeURIComponent(myName)}&game=yahtzee`
+    : `${WS_BASE}/ws/join?code=${code}&name=${encodeURIComponent(myName)}&game=yahtzee`;
+
+  isHost = (type === "create");
+  socket = new WebSocket(url);
+
+  socket.onmessage = (ev) => {
+    try {
+      const d = JSON.parse(ev.data);
+      if (d.type === "created" || d.type === "player_joined") {
+        roomCode = d.code;
+        applyLobby(d.players);
+      } else if (d.type === "player_left") {
+        applyLobby(d.players);
+        if (gState?.phase !== "lobby") toast(`${d.name} left the room.`);
+      } else if (d.type === "relay") {
+        handleRelay(d.action, d.sender);
+      } else if (d.type === "error") {
+        toast(d.message || "Connection error");
+        resetAll();
+        renderSetup();
+      }
+    } catch (e) {
+      console.error("[Yahtzee] Parse error:", e);
+    }
+  };
+
+  socket.onclose = () => {
+    stopHeartbeat();
+    if (gState && gState.phase !== "done") {
+      toast("Disconnected from room.");
+      resetAll();
+      renderSetup();
+    }
+  };
+}
+
+function relay(action) {
+  if (!socket || socket.readyState !== 1) return;
+  socket.send(JSON.stringify({ type: "relay", code: roomCode, sender: myName, action }));
+}
+
+function startHeartbeat(playerCount = 1) {
+  stopHeartbeat();
+  const ping = () => fetch(`${HTTP_BASE}/rooms/heartbeat`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ code: roomCode, playerCount: gState?.players?.length || playerCount })
+  }).catch(() => {});
+  ping();
+  heartbeatInt = setInterval(ping, 25000);
+}
+
+function stopHeartbeat() {
+  if (heartbeatInt) { clearInterval(heartbeatInt); heartbeatInt = null; }
+}
+
+async function registerRoom() {
+  try {
+    await fetch(`${HTTP_BASE}/rooms/register`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        code: roomCode, host: myName, playerCount: gState?.players?.length || 1,
+        game: "yahtzee", private: false,
+        lastPing: Date.now()
+      }),
+    });
+  } catch (_) {}
+}
+
+function applyLobby(playersList) {
+  gState = {
+    phase: "lobby",
+    players: playersList
+  };
+
+  if (isHost) {
+    registerRoom();
+    startHeartbeat(playersList.length);
+  }
+
+  const pRows = playersList.map((p, i) => {
+    return el("div", {
+      style: "display:flex; justify-content:space-between; padding:10px 14px; background:rgba(255,255,255,0.02); border-radius:10px; margin-bottom:6px;"
+    }, [
+      el("span", { text: p, style: "font-weight: 500;" }),
+      el("span", {
+        text: i === 0 ? "👑 HOST" : "READY",
+        style: `font-size:0.75rem; font-weight:bold; color:${i === 0 ? "var(--sunset-soft)" : "#00ffaa"};`
+      })
+    ]);
+  });
+
+  const lobbyLayout = el("div", { className: "panel center", style: "max-width: 440px; margin:0 auto;" }, [
+    el("h3", { text: `Room Lobby: ${roomCode}`, style: "color:var(--sunset-soft); margin-top:0;" }),
+    el("p", { className: "muted", text: "Invite friends using this room code." }),
+    el("div", { style: "margin: 16px 0; width:100%; max-height:240px; overflow-y:auto;" }, pRows),
+    isHost
+      ? el("button", {
+          className: "btn",
+          text: "Start Game ➔",
+          style: "width:100%;",
+          onClick: () => {
+            if (playersList.length < 2) {
+              toast("Need at least 2 players to start Yahtzee!");
+              return;
+            }
+            initOnlineGame();
+          }
+        })
+      : el("p", { className: "muted center anim-pulse", text: "Waiting for host to start..." })
+  ]);
+
+  mount(diceTopbar(`Yahtzee Lobby`, () => { resetAll(); renderSetup(); }), lobbyLayout);
+}
+
+// ── Game Loops Initialization ───────────────────────────────────────────────
+function initLocalGame(players) {
   const scores = players.map(() => {
     const pScore = {};
     YAHTZEE_CATEGORIES.forEach(c => { pScore[c.id] = null; });
     return pScore;
   });
 
-  const yachtState = {
+  gState = {
+    phase: "play",
     players,
     scores,
-    // Turn roller states
+    activePlayerIdx: 0,
     rollsLeft: 3,
     virtualDice: Array(5).fill(null).map(() => ({ val: 1, held: false })),
     virtualRolling: false
   };
 
-  renderBoard(yachtState);
+  renderBoard(gState);
 }
 
+function initOnlineGame() {
+  const scores = gState.players.map(() => {
+    const pScore = {};
+    YAHTZEE_CATEGORIES.forEach(c => { pScore[c.id] = null; });
+    return pScore;
+  });
+
+  const initialState = {
+    phase: "play",
+    players: gState.players,
+    scores,
+    activePlayerIdx: 0,
+    rollsLeft: 3,
+    virtualDice: Array(5).fill(null).map(() => ({ val: 1, held: false })),
+    virtualRolling: false
+  };
+
+  relay({
+    type: "start_game",
+    state: initialState
+  });
+
+  gState = initialState;
+  renderBoard(gState);
+}
+
+function handleRelay(action, sender) {
+  if (action.type === "start_game") {
+    gState = action.state;
+    renderBoard(gState);
+  } else if (action.type === "state_update") {
+    gState = action.state;
+    renderBoard(gState);
+  } else if (action.type === "trigger_roll") {
+    triggerOnlineRollAnimation(action.diceValues);
+  } else if (action.type === "quit") {
+    toast(`${sender} ended the game.`);
+    resetAll();
+    renderSetup();
+  }
+}
+
+// ── Board Renderer ──────────────────────────────────────────────────────────
 function renderBoard(yState) {
   const players = yState.players;
   const scores = yState.scores;
+  const activeIdx = yState.activePlayerIdx;
+  const activePlayerName = players[activeIdx];
+
+  const isMyTurn = isOnline ? (activePlayerName === myName) : true;
 
   const playerStats = players.map((name, pIdx) => {
     const pScores = scores[pIdx];
@@ -168,7 +559,6 @@ function renderBoard(yState) {
     };
   });
 
-  // Table header
   const headerCols = [el("th", { text: "Categories", style: "text-align: left; min-width: 120px;" })];
   players.forEach((pName) => {
     headerCols.push(el("th", { text: pName, style: "text-align: center;" }));
@@ -192,11 +582,16 @@ function renderBoard(yState) {
     players.forEach((name, pIdx) => {
       const val = scores[pIdx][cat.id];
       const isFilled = val !== null;
+      const isCellActive = (pIdx === activeIdx) && isMyTurn;
       
       const btn = el("button", {
         className: isFilled ? "score-cell filled" : "score-cell empty",
+        disabled: !isCellActive && !isFilled,
         text: isFilled ? String(val) : "—",
-        onClick: () => openScoreSelector(yState, pIdx, cat)
+        onClick: () => {
+          if (isFilled) return; // read-only cell if already locked in
+          openScoreSelector(yState, pIdx, cat);
+        }
       });
       cols.push(el("td", { style: "text-align: center;" }, [btn]));
     });
@@ -236,11 +631,16 @@ function renderBoard(yState) {
     players.forEach((name, pIdx) => {
       const val = scores[pIdx][cat.id];
       const isFilled = val !== null;
+      const isCellActive = (pIdx === activeIdx) && isMyTurn;
       
       const btn = el("button", {
         className: isFilled ? "score-cell filled" : "score-cell empty",
+        disabled: !isCellActive && !isFilled,
         text: isFilled ? String(val) : "—",
-        onClick: () => openScoreSelector(yState, pIdx, cat)
+        onClick: () => {
+          if (isFilled) return;
+          openScoreSelector(yState, pIdx, cat);
+        }
       });
       cols.push(el("td", { style: "text-align: center;" }, [btn]));
     });
@@ -262,7 +662,6 @@ function renderBoard(yState) {
     el("tbody", {}, rows)
   ]);
 
-  // Integrated Virtual Dice Roller panel (above scorecard or side-by-side)
   const rollerPanel = el("div", {
     className: "panel center",
     style: "background: #0b1a20; padding: 12px; border: 1px solid rgba(255,255,255,0.06); border-radius: 12px; width: 100%; margin-bottom: 20px;"
@@ -274,7 +673,7 @@ function renderBoard(yState) {
     const titleRow = el("div", {
       style: "display: flex; justify-content: space-between; align-items: center; width: 100%; margin-bottom: 8px;"
     }, [
-      el("h4", { text: "Embedded Virtual Roller", style: "margin: 0; font-size: 0.9rem;" }),
+      el("h4", { text: `${activePlayerName}'s Roller`, style: "margin: 0; font-size: 0.9rem;" }),
       el("div", {
         text: `Rolls Left: ${yState.rollsLeft}`,
         style: "font-size: 0.8rem; font-weight: bold; color: var(--sunset-soft);"
@@ -286,11 +685,13 @@ function renderBoard(yState) {
       const dFace = renderDiceFaceSVG(die.val, die.held);
       const card = el("div", {
         className: "dice-box" + (die.held ? " held" : "") + (yState.virtualRolling && !die.held ? " rolling" : ""),
-        style: `width: 44px; height: 44px; padding: 2px; border: 2px solid ${die.held ? "var(--sunset-soft)" : "rgba(255,255,255,0.1)"}; border-radius: 8px; cursor: pointer;`,
+        style: `width: 44px; height: 44px; padding: 2px; border: 2px solid ${die.held ? "var(--sunset-soft)" : "rgba(255,255,255,0.1)"}; border-radius: 8px; cursor: ${yState.virtualRolling || !isMyTurn ? "not-allowed" : "pointer"};`,
         onClick: () => {
-          if (yState.virtualRolling) return;
+          if (yState.virtualRolling || !isMyTurn) return;
           die.held = !die.held;
           drawRollerPanel();
+          
+          if (isOnline) relay({ type: "state_update", state: yState });
         }
       }, [dFace]);
       diceGrid.appendChild(card);
@@ -299,47 +700,30 @@ function renderBoard(yState) {
     const rollBtn = el("button", {
       className: "btn small",
       text: yState.rollsLeft === 0 ? "No Rolls Left" : "Roll Dice",
-      disabled: yState.rollsLeft === 0 || yState.virtualRolling,
+      disabled: yState.rollsLeft === 0 || yState.virtualRolling || !isMyTurn,
       style: "margin: 0; flex: 1;",
       onClick: () => {
-        if (yState.rollsLeft <= 0 || yState.virtualRolling) return;
-        yState.virtualRolling = true;
-        rollBtn.disabled = true;
-
-        let clicks = 0;
-        const limit = 8;
-        const interval = setInterval(() => {
-          yState.virtualDice.forEach(d => {
-            if (!d.held) d.val = Math.floor(Math.random() * 6) + 1;
-          });
-          drawRollerPanel();
-          playClickTone(480 + Math.random() * 120, 0.03);
-          clicks++;
-
-          if (clicks >= limit) {
-            clearInterval(interval);
-            yState.virtualRolling = false;
-            
-            yState.virtualDice.forEach(d => {
-              if (!d.held) d.val = Math.floor(Math.random() * 6) + 1;
-            });
-            yState.rollsLeft--;
-            playClickTone(750, 0.07);
-            drawRollerPanel();
-          }
-        }, 80);
+        if (yState.rollsLeft <= 0 || yState.virtualRolling || !isMyTurn) return;
+        if (isOnline) {
+          triggerOnlineDiceRoll();
+        } else {
+          triggerLocalDiceRoll();
+        }
       }
     });
 
     const resetRollerBtn = el("button", {
       className: "btn ghost small error",
       text: "Reset",
+      disabled: !isMyTurn,
       style: "margin: 0;",
       onClick: () => {
         yState.rollsLeft = 3;
         yState.virtualDice = Array(5).fill(null).map(() => ({ val: 1, held: false }));
         yState.virtualRolling = false;
         drawRollerPanel();
+        
+        if (isOnline) relay({ type: "state_update", state: yState });
       }
     });
 
@@ -347,21 +731,39 @@ function renderBoard(yState) {
 
     rollerPanel.appendChild(titleRow);
     rollerPanel.appendChild(diceGrid);
-    rollerPanel.appendChild(actionWrap);
+    if (isMyTurn) {
+      rollerPanel.appendChild(actionWrap);
+    } else {
+      rollerPanel.appendChild(el("p", {
+        className: "muted anim-pulse center",
+        style: "margin: 0; font-weight:bold; font-size:0.85rem;",
+        text: `Waiting for ${activePlayerName} to roll or score...`
+      }));
+    }
   }
 
   const leaveBtn = el("button", {
     className: "btn ghost small",
     text: "Quit Game",
     onClick: () => {
-      if (confirm("Are you sure you want to end this game and lose the scores?")) {
+      if (confirm("Are you sure you want to end this game?")) {
+        if (isOnline) relay({ type: "quit" });
+        resetAll();
         goHome();
       }
     }
   });
 
+  const boardTitle = isOnline ? `Yahtzee Room: ${roomCode}` : "Yahtzee Scorecard";
+
   mount(
-    diceTopbar("Yahtzee Scorecard", goHome),
+    diceTopbar(boardTitle, () => {
+      if (confirm("Exit scorecard?")) {
+        if (isOnline) relay({ type: "quit" });
+        resetAll();
+        goHome();
+      }
+    }),
     el("div", { className: "panel center", style: "max-width: 720px; margin: 0 auto; padding: 12px;" }, [
       rollerPanel,
       table,
@@ -372,11 +774,88 @@ function renderBoard(yState) {
   drawRollerPanel();
 }
 
+// ── Dice Rolling Sync and Animation Loops ────────────────────────────────────
+function triggerLocalDiceRoll() {
+  gState.virtualRolling = true;
+  let clicks = 0;
+  const limit = 8;
+  const interval = setInterval(() => {
+    gState.virtualDice.forEach(d => {
+      if (!d.held) d.val = Math.floor(Math.random() * 6) + 1;
+    });
+    renderBoard(gState);
+    playClickTone(480 + Math.random() * 120, 0.03);
+    clicks++;
+
+    if (clicks >= limit) {
+      clearInterval(interval);
+      gState.virtualRolling = false;
+      
+      gState.virtualDice.forEach(d => {
+        if (!d.held) d.val = Math.floor(Math.random() * 6) + 1;
+      });
+      gState.rollsLeft--;
+      playClickTone(750, 0.07);
+      renderBoard(gState);
+    }
+  }, 80);
+}
+
+function triggerOnlineDiceRoll() {
+  // Host generates rolling values
+  const diceValues = gState.virtualDice.map(d => {
+    if (!d.held) return Math.floor(Math.random() * 6) + 1;
+    return d.val;
+  });
+
+  relay({
+    type: "trigger_roll",
+    diceValues
+  });
+
+  triggerOnlineRollAnimation(diceValues);
+}
+
+function triggerOnlineRollAnimation(diceValues) {
+  gState.virtualRolling = true;
+  let clicks = 0;
+  const limit = 8;
+  const interval = setInterval(() => {
+    gState.virtualDice.forEach(d => {
+      if (!d.held) d.val = Math.floor(Math.random() * 6) + 1;
+    });
+    renderBoard(gState);
+    playClickTone(480 + Math.random() * 120, 0.03);
+    clicks++;
+
+    if (clicks >= limit) {
+      clearInterval(interval);
+      gState.virtualRolling = false;
+      
+      gState.virtualDice.forEach((d, idx) => {
+        d.val = diceValues[idx];
+      });
+      gState.rollsLeft--;
+      playClickTone(750, 0.07);
+      
+      if (activePlayerNameMatchesMe()) {
+        relay({ type: "state_update", state: gState });
+      }
+      renderBoard(gState);
+    }
+  }, 80);
+}
+
+function activePlayerNameMatchesMe() {
+  if (!gState) return false;
+  return gState.players[gState.activePlayerIdx] === myName;
+}
+
+// ── Scorecard entry popup ───────────────────────────────────────────────────
 function openScoreSelector(yState, pIdx, category) {
   const currentVal = yState.scores[pIdx][category.id];
   let inputVal = currentVal !== null ? String(currentVal) : "";
 
-  // Auto-fill suggestion if they used the virtual roller!
   const hasRolledVals = yState.virtualDice.map(d => d.val);
   const suggestedScore = getSuggestedYahtzeeScore(category.id, hasRolledVals);
   
@@ -418,7 +897,6 @@ function openScoreSelector(yState, pIdx, category) {
   if (category.id === "yahtzee") [0, 50].forEach(v => quickOptions.push(v));
   if (category.id === "bonus_yahtzee") [0, 100, 200, 300].forEach(v => quickOptions.push(v));
 
-  // If there's an active virtual roll, add it as a suggested button!
   if (suggestedScore !== null) {
     if (!quickOptions.includes(suggestedScore)) {
       quickOptions.unshift(suggestedScore);
@@ -438,7 +916,7 @@ function openScoreSelector(yState, pIdx, category) {
     }));
   });
 
-  const keys = [
+  const numpadKeys = [
     ["1", "2", "3"],
     ["4", "5", "6"],
     ["7", "8", "9"],
@@ -446,7 +924,7 @@ function openScoreSelector(yState, pIdx, category) {
   ];
 
   const padGrid = el("div", { className: "numpad-grid", style: "display: flex; flex-direction: column; gap: 8px; max-width: 280px; margin: 0 auto 16px;" });
-  keys.forEach(rowKeys => {
+  numpadKeys.forEach(rowKeys => {
     const rowEl = el("div", { style: "display: flex; gap: 8px;" });
     rowKeys.forEach(k => {
       rowEl.appendChild(el("button", {
@@ -466,13 +944,18 @@ function openScoreSelector(yState, pIdx, category) {
       const parsed = parseInt(inputVal, 10);
       yState.scores[pIdx][category.id] = isNaN(parsed) ? 0 : parsed;
       
-      // Auto-reset virtual roller for the next player!
       yState.rollsLeft = 3;
       yState.virtualDice = Array(5).fill(null).map(() => ({ val: 1, held: false }));
       yState.virtualRolling = false;
+      yState.activePlayerIdx = (yState.activePlayerIdx + 1) % yState.players.length;
 
       modal.remove();
-      renderBoard(yState);
+
+      if (isOnline) {
+        relay({ type: "state_update", state: yState });
+      } else {
+        renderBoard(yState);
+      }
     }
   });
 
@@ -486,9 +969,15 @@ function openScoreSelector(yState, pIdx, category) {
       yState.rollsLeft = 3;
       yState.virtualDice = Array(5).fill(null).map(() => ({ val: 1, held: false }));
       yState.virtualRolling = false;
+      yState.activePlayerIdx = (yState.activePlayerIdx + 1) % yState.players.length;
 
       modal.remove();
-      renderBoard(yState);
+
+      if (isOnline) {
+        relay({ type: "state_update", state: yState });
+      } else {
+        renderBoard(yState);
+      }
     }
   });
 
@@ -529,7 +1018,6 @@ function getSuggestedYahtzeeScore(catId, vals) {
   vals.forEach(v => counts[v]++);
   const sumOfAll = vals.reduce((a, b) => a + b, 0);
 
-  // Upper section cats sug
   if (catId === "ones") return counts[1] * 1;
   if (catId === "twos") return counts[2] * 2;
   if (catId === "threes") return counts[3] * 3;
@@ -537,29 +1025,23 @@ function getSuggestedYahtzeeScore(catId, vals) {
   if (catId === "fives") return counts[5] * 5;
   if (catId === "sixes") return counts[6] * 6;
 
-  // 3 of a kind
   if (catId === "three_kind") {
     const ok = counts.some(c => c >= 3);
     return ok ? sumOfAll : 0;
   }
-  // 4 of a kind
   if (catId === "four_kind") {
     const ok = counts.some(c => c >= 4);
     return ok ? sumOfAll : 0;
   }
 
-  // Full house
   if (catId === "full_house") {
     const has3 = counts.some(c => c === 3);
     const has2 = counts.some(c => c === 2);
-    // Yahtzee can also act as full house
     const has5 = counts.some(c => c === 5);
     return (has3 && has2) || has5 ? 25 : 0;
   }
 
-  // Small straight (4 consecutive)
   if (catId === "sm_straight") {
-    // Check subsets: 1234, 2345, 3456
     const has = (f) => counts[f] > 0;
     const ok = (has(1) && has(2) && has(3) && has(4)) ||
                (has(2) && has(3) && has(4) && has(5)) ||
@@ -567,7 +1049,6 @@ function getSuggestedYahtzeeScore(catId, vals) {
     return ok ? 30 : 0;
   }
 
-  // Large straight (5 consecutive)
   if (catId === "lg_straight") {
     const has = (f) => counts[f] > 0;
     const ok = (has(1) && has(2) && has(3) && has(4) && has(5)) ||
@@ -575,13 +1056,11 @@ function getSuggestedYahtzeeScore(catId, vals) {
     return ok ? 40 : 0;
   }
 
-  // Yahtzee
   if (catId === "yahtzee") {
     const ok = counts.some(c => c === 5);
     return ok ? 50 : 0;
   }
 
-  // Chance
   if (catId === "chance") {
     return sumOfAll;
   }
