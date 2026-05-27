@@ -200,32 +200,39 @@ function playDoubleQuack() {
   setTimeout(playQuack, 130);
 }
 
-// Spawn `count` wood logs flying in random directions from random edges.
+// Spawn `count` ducks (and yellow chicks if word is long) flying in random directions.
 // Chaos level (angle spread, speed, spin) also increases with count.
-function rainLogs(count) {
+function rainDucks(count, includeChicks = false) {
   const container = document.body;
   const W = window.innerWidth;
   const H = window.innerHeight;
 
-  // Above a certain count we let logs fly in ALL directions (not just downward)
+  // Above a certain count we let ducks fly in ALL directions (not just downward)
   const omnidirectional = count > 20;
 
   for (let i = 0; i < count; i++) {
     // Stagger more tightly for big bursts so they all feel simultaneous
     const delay = i * Math.max(8, Math.floor(1200 / count));
     setTimeout(() => {
-      const log = document.createElement("div");
-      log.style.position = "fixed";
-      log.style.pointerEvents = "none";
-      log.style.zIndex = "99999";
-      log.style.fontSize = "2.5rem";
-      log.style.lineHeight = "1";
-      log.style.userSelect = "none";
-      log.textContent = "🪵";
+      const bird = document.createElement("div");
+      bird.style.position = "fixed";
+      bird.style.pointerEvents = "none";
+      bird.style.zIndex = "99999";
+      bird.style.fontSize = "2.5rem";
+      bird.style.lineHeight = "1";
+      bird.style.userSelect = "none";
 
-      // Travel duration varies slightly per log for organic feel
+      // Select emoji: ducks by default, yellow chicks if long word
+      let emoji = "🦆";
+      if (includeChicks) {
+        const pool = ["🦆", "🦆", "🦆", "🐥", "🐣", "🐤"];
+        emoji = pool[Math.floor(Math.random() * pool.length)];
+      }
+      bird.textContent = emoji;
+
+      // Travel duration varies slightly per bird for organic feel
       const duration = 1400 + Math.random() * 800;
-      log.style.transition = `transform ${duration}ms linear, opacity ${duration}ms ease-out`;
+      bird.style.transition = `transform ${duration}ms linear, opacity ${duration}ms ease-out`;
 
       let startX, startY, targetX, targetY;
 
@@ -265,31 +272,33 @@ function rainLogs(count) {
         targetY = H + 60;
       }
 
-      log.style.left = `${startX}px`;
-      log.style.top = `${startY}px`;
-      container.appendChild(log);
+      bird.style.left = `${startX}px`;
+      bird.style.top = `${startY}px`;
+      container.appendChild(bird);
 
       // Force reflow before animating
-      log.offsetHeight;
+      bird.offsetHeight;
 
       // Spin amount grows with count
       const maxSpin = Math.min(30 + count * 12, 1440);
       const rotate = (Math.random() - 0.5) * maxSpin;
 
-      log.style.transform = `translate(${targetX}px, ${targetY}px) rotate(${rotate}deg)`;
-      log.style.opacity = "0";
+      bird.style.transform = `translate(${targetX}px, ${targetY}px) rotate(${rotate}deg)`;
+      bird.style.opacity = "0";
 
-      setTimeout(() => log.remove(), duration + 50);
+      setTimeout(() => bird.remove(), duration + 50);
     }, delay);
   }
 }
 
 // textLen = length of wrong text typed into the duck prompt
-function startLogStorm(textLen) {
-  // 1 char → 5 logs, each extra char adds ~3 more, hard cap at 120
+function startDuckStorm(textLen) {
+  // 1 char → 5 ducks, each extra char adds ~3 more, hard cap at 120
   const count = Math.min(5 + (textLen || 0) * 3, 120);
 
-  rainLogs(count);
+  // If word is longer than 6 letters, yellow chicks are mixed in!
+  const includeChicks = textLen > 6;
+  rainDucks(count, includeChicks);
 
   // More quacks for longer text
   const quackCount = Math.min(2 + Math.floor(textLen / 3), 10);
@@ -449,7 +458,7 @@ function home() {
           // Reset to wholesome normal mode and re-render instantly
           localStorage.setItem("lakehouse.weird_unlocked", "false");
           toast("*The duck stares at you blankly, then starts quacking hysterically!*");
-          startLogStorm(answer.trim().length);
+          startDuckStorm(answer.trim().length);
           home(); // Re-render instantly to hide everything
         }
       }

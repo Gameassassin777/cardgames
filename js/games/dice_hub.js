@@ -3,6 +3,7 @@ import { el, mount, toast } from "../ui.js";
 import { icons } from "../icons.js";
 import { start as startFarkle } from "./farkle.js";
 import { start as startYahtzee } from "./yahtzee.js";
+import { start as startLiarsDice } from "./liars_dice.js";
 
 let goHome = () => {};
 
@@ -28,7 +29,7 @@ function renderHub() {
     el("div", { className: "panel center", style: "max-width: 480px; margin: 0 auto;" }, [
       el("div", { style: "width:64px; height:64px; margin:0 auto 12px; color:var(--sunset-soft);" }, [icons.dice()]),
       el("h2", { text: "Dice Games Hub" }),
-      el("p", { className: "muted", text: "Welcome to the Dice Hub! Roll virtual dice for your own board games, play Yahtzee, or track high-stakes Farkle scores." }),
+      el("p", { className: "muted", text: "Welcome to the Dice Hub! Roll virtual dice for your own board games, play Yahtzee, bluff in Liar's Dice, or track high-stakes Farkle scores." }),
       el("div", { style: "display: flex; flex-direction: column; gap: 12px; margin-top: 24px; width: 100%;" }, [
         el("button", {
           className: "btn",
@@ -39,6 +40,11 @@ function renderHub() {
           className: "btn",
           text: "🔥 Play Farkle",
           onClick: () => startFarkle(renderHub)
+        }),
+        el("button", {
+          className: "btn",
+          text: "🤫 Play Liar's Dice",
+          onClick: () => startLiarsDice(renderHub)
         }),
         el("button", {
           className: "btn ghost",
