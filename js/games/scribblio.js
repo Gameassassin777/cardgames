@@ -82,7 +82,7 @@ function renderSetup() {
   };
 
   // Pass & Play Names List
-  const savedNames = store.get("scribblio.localNames", ["Alice", "Bob", "Charlie"]);
+  const savedNames = store.get("scribblio.localNames", ["", "", ""]);
   localNames = savedNames.slice();
   const localListWrap = el("div", { style: "margin: 16px 0; max-height:220px; overflow-y:auto; width:100%;" });
 
@@ -127,7 +127,7 @@ function renderSetup() {
     style: "width:100%; margin-bottom:10px;",
     onClick: () => {
       if (localNames.length < 8) {
-        localNames.push(`Player ${localNames.length + 1}`);
+        localNames.push("");
         store.set("scribblio.localNames", localNames);
         drawLocalList();
       } else {
@@ -141,7 +141,7 @@ function renderSetup() {
     text: "Start Local Scribbl.io",
     style: "width:100%;",
     onClick: () => {
-      const cleaned = localNames.map(n => n.trim() || "Player").slice(0, 8);
+      const cleaned = localNames.map((n, idx) => n.trim() || `Player ${idx + 1}`).slice(0, 8);
       if (cleaned.length < 2) {
         toast("Scribbl.io needs at least 2 players.");
         return;
@@ -230,12 +230,36 @@ function renderSetup() {
     }
   }
 
+  const showRulesBtn = el("button", {
+    className: "btn ghost small",
+    text: "📖 Rules & How to Play",
+    style: "width:100%; margin-bottom:16px;",
+    onClick: () => {
+      const existing = document.querySelector(".rules-panel");
+      if (existing) { existing.remove(); return; }
+      const rPanel = el("div", {
+        className: "rules-panel panel",
+        style: "text-align:left; background:rgba(255,255,255,0.02); border:1px dashed rgba(255,255,255,0.12); border-radius:12px; padding:12px; margin-bottom:16px; font-size:0.82rem; line-height:1.4;"
+      }, [
+        el("h4", { text: "How to Play:", style: "margin:0 0 6px; color:var(--sunset-soft);" }),
+        el("ul", { style: "margin:0; padding-left:16px; display:flex; flex-direction:column; gap:4px;" }, [
+          el("li", { text: "Artist Turn: The active drawer secretly chooses a secret word and starts painting on canvas!" }),
+          el("li", { text: "Guessing: All other players watch the canvas in real time and type guesses in the chat input." }),
+          el("li", { text: "Chat Synchronizations: The system automatically evaluates guesses. Getting it correct rewards points!" }),
+          el("li", { text: "Timer Bonuses: Point value is based on the remaining seconds. Draw fast, guess faster!" })
+        ])
+      ]);
+      showRulesBtn.parentNode.insertBefore(rPanel, showRulesBtn.nextSibling);
+    }
+  });
+
   mount(
     gameTopbar("Scribbl.io Setup", () => { resetAll(); goHome(); }),
     el("div", { className: "panel center", style: "max-width: 440px; margin: 0 auto;" }, [
       el("div", { style: "width:64px; height:64px; margin:0 auto 12px; color:var(--sunset-soft);" }, [icons.sibling()]),
       el("h2", { text: "Scribbl.io", style: "margin-bottom: 4px;" }),
-      el("p", { className: "muted", style: "margin-bottom:20px;", text: "A rapid-fire multiplayer drawing game. Draw secret words in real time while others guess!" }),
+      el("p", { className: "muted", style: "margin-bottom:12px;", text: "A rapid-fire multiplayer drawing game. Draw secret words in real time while others guess!" }),
+      showRulesBtn,
       modeSelector,
       dynamicFormWrap
     ])

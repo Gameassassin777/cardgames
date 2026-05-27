@@ -204,12 +204,36 @@ function renderSetup() {
     }
   }
 
+  const showRulesBtn = el("button", {
+    className: "btn ghost small",
+    text: "📖 Rules & How to Play",
+    style: "width:100%; margin-bottom:16px;",
+    onClick: () => {
+      const existing = document.querySelector(".rules-panel");
+      if (existing) { existing.remove(); return; }
+      const rPanel = el("div", {
+        className: "rules-panel panel",
+        style: "text-align:left; background:rgba(255,255,255,0.02); border:1px dashed rgba(255,255,255,0.12); border-radius:12px; padding:12px; margin-bottom:16px; font-size:0.82rem; line-height:1.4;"
+      }, [
+        el("h4", { text: "How to Play:", style: "margin:0 0 6px; color:var(--sunset-soft);" }),
+        el("ul", { style: "margin:0; padding-left:16px; display:flex; flex-direction:column; gap:4px;" }, [
+          el("li", { text: "Forehead Placement: The guesser holds the phone/tablet to their forehead, screen facing outwards to the other players." }),
+          el("li", { text: "Clue Giving: Other players shout hints, mimic sounds, or make gestures to describe the word. They must not spell or say any part of the word!" }),
+          el("li", { text: "Guess & Score: If you guess correctly, tilt the phone DOWN (face to floor) to gain a point and get the next card." }),
+          el("li", { text: "Pass & Skip: If you are stuck, tilt the phone UP (face to ceiling) to pass the word. Score as many as you can in 60 seconds!" })
+        ])
+      ]);
+      showRulesBtn.parentNode.insertBefore(rPanel, showRulesBtn.nextSibling);
+    }
+  });
+
   mount(
     gameTopbar("Heads Up Forehead Setup", () => { resetAll(); goHome(); }),
     el("div", { className: "panel center", style: "max-width: 440px; margin: 0 auto;" }, [
       el("div", { style: "width:64px; height:64px; margin:0 auto 12px; color:var(--sunset-soft);" }, [icons.rizz()]),
       el("h2", { text: "Heads Up", style: "margin-bottom: 4px;" }),
       el("p", { className: "muted", style: "margin-bottom:20px;", text: "Forehead guessing game! Shout clues to help the guessing player name all words on the screen!" }),
+      showRulesBtn,
       modeSelector,
       dynamicFormWrap
     ])

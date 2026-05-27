@@ -23,7 +23,7 @@ let roomBrowserRefresh = null;
 
 let isOnline = false;
 let setupMode = "passplay"; // "passplay" or "online"
-let localPlayers = ["Alice", "Bob", "Charlie"];
+let localPlayers = ["", "", ""];
 let passPlayState = {
   currentStage: "pass",
   currentIdx: 0,
@@ -364,7 +364,7 @@ function renderSetup() {
   // Pass & Play players setup list
   const savedNames = localStorage.getItem("chronicles.localNames") 
     ? JSON.parse(localStorage.getItem("chronicles.localNames")) 
-    : ["Alice", "Bob", "Charlie", "Dave"];
+    : ["", "", "", ""];
   let localNamesList = savedNames.slice();
 
   const localListWrap = el("div", { style: "margin: 16px 0; max-height:220px; overflow-y:auto; width:100%;" });
@@ -412,7 +412,7 @@ function renderSetup() {
     style: "width:100%; margin-bottom:10px;",
     onClick: () => {
       if (localNamesList.length < 8) {
-        localNamesList.push(`Player ${localNamesList.length + 1}`);
+        localNamesList.push("");
         localStorage.setItem("chronicles.localNames", JSON.stringify(localNamesList));
         drawLocalList();
       } else {
@@ -421,12 +421,34 @@ function renderSetup() {
     }
   });
 
+  const showRulesBtn = el("button", {
+    className: "btn ghost small",
+    text: "📖 Rules & How to Play",
+    style: "width:100%; margin-bottom:16px;",
+    onClick: () => {
+      const existing = document.querySelector(".rules-panel");
+      if (existing) { existing.remove(); return; }
+      const rPanel = el("div", {
+        className: "rules-panel panel",
+        style: "text-align:left; background:rgba(255,255,255,0.02); border:1px dashed rgba(255,255,255,0.12); border-radius:12px; padding:12px; margin-bottom:16px; font-size:0.82rem; line-height:1.4;"
+      }, [
+        el("h4", { text: "How to Play:", style: "margin:0 0 6px; color:var(--sunset-soft);" }),
+        el("ul", { style: "margin:0; padding-left:16px; display:flex; flex-direction:column; gap:4px;" }, [
+          el("li", { text: "Fill in Blanks: Players take turns filling in descriptive blanks (nouns, verbs, adjectives) to weave a unique lakeside story." }),
+          el("li", { text: "Cooperative Illustration: Once the story is written, it gets broken up into sentences. Each player is secretly assigned a single sentence to illustrate!" }),
+          el("li", { text: "Cozy Showcase: Finally, review the collaborative masterpiece together page-by-page as a synced slideshow book, complete with all your funny drawings and text!" })
+        ])
+      ]);
+      showRulesBtn.parentNode.insertBefore(rPanel, showRulesBtn.nextSibling);
+    }
+  });
+
   const localStartBtn = el("button", {
     className: "btn",
     text: "Start Cozy Chronicles",
     style: "width:100%;",
     onClick: () => {
-      const cleaned = localNamesList.map(n => n.trim() || "Player").slice(0, 8);
+      const cleaned = localNamesList.map((n, idx) => n.trim() || `Player ${idx + 1}`).slice(0, 8);
       if (cleaned.length < 3) {
         toast("Need at least 3 players.");
         return;
@@ -528,6 +550,7 @@ function renderSetup() {
         style: "margin-bottom:20px;", 
         text: "Illustrated Storybook party game! Cooperatively fill in the blanks, secretly illustrate assigned sentences, and reveal a synced slideshow at the end!" 
       }),
+      showRulesBtn,
       modeSelector,
       dynamicFormWrap
     ])

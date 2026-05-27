@@ -22,7 +22,7 @@ export function start(home) {
 }
 
 function renderSetup() {
-  const savedNames = store.get("liars.localNames", ["Alice", "Bob", "Charlie"]);
+  const savedNames = store.get("liars.localNames", ["", "", ""]);
   let names = savedNames.slice();
 
   const listWrap = el("div", { style: "margin: 16px 0; max-height:220px; overflow-y:auto; width:100%;" });
@@ -68,7 +68,7 @@ function renderSetup() {
     style: "width:100%; margin-bottom:10px;",
     onClick: () => {
       if (names.length < 8) {
-        names.push(`Player ${names.length + 1}`);
+        names.push("");
         store.set("liars.localNames", names);
         drawList();
       } else {
@@ -77,12 +77,37 @@ function renderSetup() {
     }
   });
 
+  const showRulesBtn = el("button", {
+    className: "btn ghost small",
+    text: "📖 Rules & How to Play",
+    style: "width:100%; margin-bottom:16px;",
+    onClick: () => {
+      const existing = document.querySelector(".rules-panel");
+      if (existing) { existing.remove(); return; }
+      const rPanel = el("div", {
+        className: "rules-panel panel",
+        style: "text-align:left; background:rgba(255,255,255,0.02); border:1px dashed rgba(255,255,255,0.12); border-radius:12px; padding:12px; margin-bottom:16px; font-size:0.82rem; line-height:1.4;"
+      }, [
+        el("h4", { text: "How to Play:", style: "margin:0 0 6px; color:var(--sunset-soft);" }),
+        el("ul", { style: "margin:0; padding-left:16px; display:flex; flex-direction:column; gap:4px;" }, [
+          el("li", { text: "Secret Roll: Each player secretly rolls 5 dice and views them without showing others." }),
+          el("li", { text: "Bidding: Players take turns bidding on the total number of dice of a specific face in the whole room (e.g. four 5s)." }),
+          el("li", { text: "Raising: You must raise the bid on your turn by increasing the quantity of dice, or increasing the die face value if keeping the quantity same." }),
+          el("li", { text: "Wildcard rule: In this simplified version, dice faces 2 through 6 are active, with no complex wildcards." }),
+          el("li", { text: "Challenge: If you think the current bid is a bluff, call 'LIAR!' and reveal all cups. If the actual count is less than the bid, the bidder loses a die. If the count is equal or greater, you lose a die!" }),
+          el("li", { text: "Elimination: Lose all 5 of your dice to be eliminated. The last player with dice remaining wins." })
+        ])
+      ]);
+      showRulesBtn.parentNode.insertBefore(rPanel, showRulesBtn.nextSibling);
+    }
+  });
+
   const startBtn = el("button", {
     className: "btn",
     text: "Start Liar's Dice",
     style: "width:100%;",
     onClick: () => {
-      const cleaned = names.map(n => n.trim() || "Player").slice(0, 8);
+      const cleaned = names.map((n, idx) => n.trim() || `Player ${idx + 1}`).slice(0, 8);
       if (cleaned.length < 2) {
         toast("Liar's Dice needs at least 2 players.");
         return;
@@ -99,6 +124,7 @@ function renderSetup() {
       el("div", { style: "width:64px; height:64px; margin:0 auto 12px; color:var(--sunset-soft);" }, [icons.dice()]),
       el("h2", { text: "Liar's Dice", style: "margin-bottom: 4px;" }),
       el("p", { className: "muted", style: "margin-bottom:20px;", text: "A high-stakes bluffing game! Bid on how many total dice of a face exist in the room. Challenge bids by calling 'Liar!'" }),
+      showRulesBtn,
       listWrap,
       addPlayerBtn,
       el("div", { className: "spacer" }),
@@ -450,7 +476,7 @@ function resolveLiarChallenge(state) {
         cupWrap.appendChild(box);
       });
 
-      revealRows.appendChild(el("div", {
+      revealRows.push(el("div", {
         style: "display:flex; justify-content:space-between; align-items:center; padding:8px 12px; background:rgba(255,255,255,0.01); border-radius:10px; margin-bottom:8px; border:1px solid rgba(255,255,255,0.04);"
       }, [
         el("span", { text: pl.name, style: "font-weight: 500; font-size:0.88rem;" }),

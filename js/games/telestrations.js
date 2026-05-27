@@ -82,7 +82,7 @@ function renderSetup() {
   };
 
   // Pass & Play players setup list
-  const savedNames = store.get("telestrations.localNames", ["Alice", "Bob", "Charlie", "Dave"]);
+  const savedNames = store.get("telestrations.localNames", ["", "", "", ""]);
   localNames = savedNames.slice();
   const localListWrap = el("div", { style: "margin: 16px 0; max-height:220px; overflow-y:auto; width:100%;" });
 
@@ -127,7 +127,7 @@ function renderSetup() {
     style: "width:100%; margin-bottom:10px;",
     onClick: () => {
       if (localNames.length < 8) {
-        localNames.push(`Player ${localNames.length + 1}`);
+        localNames.push("");
         store.set("telestrations.localNames", localNames);
         drawLocalList();
       } else {
@@ -141,7 +141,7 @@ function renderSetup() {
     text: "Start Local Telestrations",
     style: "width:100%;",
     onClick: () => {
-      const cleaned = localNames.map(n => n.trim() || "Player").slice(0, 8);
+      const cleaned = localNames.map((n, idx) => n.trim() || `Player ${idx + 1}`).slice(0, 8);
       if (cleaned.length < 3) {
         toast("Telestrations needs at least 3 players.");
         return;
@@ -230,12 +230,36 @@ function renderSetup() {
     }
   }
 
+  const showRulesBtn = el("button", {
+    className: "btn ghost small",
+    text: "📖 Rules & How to Play",
+    style: "width:100%; margin-bottom:16px;",
+    onClick: () => {
+      const existing = document.querySelector(".rules-panel");
+      if (existing) { existing.remove(); return; }
+      const rPanel = el("div", {
+        className: "rules-panel panel",
+        style: "text-align:left; background:rgba(255,255,255,0.02); border:1px dashed rgba(255,255,255,0.12); border-radius:12px; padding:12px; margin-bottom:16px; font-size:0.82rem; line-height:1.4;"
+      }, [
+        el("h4", { text: "How to Play:", style: "margin:0 0 6px; color:var(--sunset-soft);" }),
+        el("ul", { style: "margin:0; padding-left:16px; display:flex; flex-direction:column; gap:4px;" }, [
+          el("li", { text: "Secret Word: Everyone starts with a secret word. If playing online, everyone plays concurrently!" }),
+          el("li", { text: "Pass/Rotate: Your booklet passes to the next player. If they receive a word, they must draw it. If they receive a drawing, they must guess it!" }),
+          el("li", { text: "Telephone Chain: Alternate drawing and writing guesses until your sketchbook returns to you." }),
+          el("li", { text: "The Reveal: Flip through each booklet as a group to laugh at how the starting word mutated!" })
+        ])
+      ]);
+      showRulesBtn.parentNode.insertBefore(rPanel, showRulesBtn.nextSibling);
+    }
+  });
+
   mount(
     gameTopbar("Telestrations Setup", () => { resetAll(); goHome(); }),
     el("div", { className: "panel center", style: "max-width: 440px; margin: 0 auto;" }, [
       el("div", { style: "width:64px; height:64px; margin:0 auto 12px; color:var(--sunset-soft);" }, [icons.doodles()]),
       el("h2", { text: "Telestrations", style: "margin-bottom: 4px;" }),
-      el("p", { className: "muted", style: "margin-bottom:20px;", text: "A telephone game alternating between drawing and writing guesses. 3 to 8 players!" }),
+      el("p", { className: "muted", style: "margin-bottom:12px;", text: "A telephone game alternating between drawing and writing guesses. 3 to 8 players!" }),
+      showRulesBtn,
       modeSelector,
       dynamicFormWrap
     ])

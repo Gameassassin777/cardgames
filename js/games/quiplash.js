@@ -107,7 +107,7 @@ function renderSetup() {
   };
 
   // Pass & Play Names List
-  const savedNames = store.get("quiplash.localNames", ["Alice", "Bob", "Charlie"]);
+  const savedNames = store.get("quiplash.localNames", ["", "", ""]);
   localNames = savedNames.slice();
   const localListWrap = el("div", { style: "margin: 16px 0; max-height:220px; overflow-y:auto; width:100%;" });
 
@@ -152,7 +152,7 @@ function renderSetup() {
     style: "width:100%; margin-bottom:10px;",
     onClick: () => {
       if (localNames.length < 8) {
-        localNames.push(`Player ${localNames.length + 1}`);
+        localNames.push("");
         store.set("quiplash.localNames", localNames);
         drawLocalList();
       } else {
@@ -166,7 +166,7 @@ function renderSetup() {
     text: "Start Local Quiplash",
     style: "width:100%;",
     onClick: () => {
-      const cleaned = localNames.map(n => n.trim() || "Player").slice(0, 8);
+      const cleaned = localNames.map((n, idx) => n.trim() || `Player ${idx + 1}`).slice(0, 8);
       if (cleaned.length < 3) {
         toast("Need at least 3 players.");
         return;
@@ -254,13 +254,35 @@ function renderSetup() {
       dynamicFormWrap.appendChild(onlineLayout);
     }
   }
-
+  const showRulesBtn = el("button", {
+    className: "btn ghost small",
+    text: "📖 Rules & How to Play",
+    style: "width:100%; margin-bottom:16px;",
+    onClick: () => {
+      const existing = document.querySelector(".rules-panel");
+      if (existing) { existing.remove(); return; }
+      const rPanel = el("div", {
+        className: "rules-panel panel",
+        style: "text-align:left; background:rgba(255,255,255,0.02); border:1px dashed rgba(255,255,255,0.12); border-radius:12px; padding:12px; margin-bottom:16px; font-size:0.82rem; line-height:1.4;"
+      }, [
+        el("h4", { text: "How to Play:", style: "margin:0 0 6px; color:var(--sunset-soft);" }),
+        el("ul", { style: "margin:0; padding-left:16px; display:flex; flex-direction:column; gap:4px;" }, [
+          el("li", { text: "Secret Prompts: Each player is secretly given funny fill-in-the-blank prompts to answer on their device." }),
+          el("li", { text: "Matchup Battles: Wacky prompts are displayed alongside two players' anonymized answers." }),
+          el("li", { text: "Anonymous Voting: Everyone else votes secretly on their favorite response." }),
+          el("li", { text: "Points & Quiplashes: Points are scored based on vote percentages. Get 100% of the votes for a grand QUIPLASH!" })
+        ])
+      ]);
+      showRulesBtn.parentNode.insertBefore(rPanel, showRulesBtn.nextSibling);
+    }
+  });
   mount(
     gameTopbar("Quiplash Setup", () => { resetAll(); goHome(); }),
     el("div", { className: "panel center", style: "max-width: 440px; margin: 0 auto;" }, [
       el("div", { style: "width:64px; height:64px; margin:0 auto 12px; color:var(--sunset-soft);" }, [icons.meeting()]),
       el("h2", { text: "Quiplash", style: "margin-bottom: 4px;" }),
-      el("p", { className: "muted", style: "margin-bottom:20px;", text: "Write hilarious answers to wacky prompts, then vote anonymously on the funniest combinations!" }),
+      el("p", { className: "muted", style: "margin-bottom:12px;", text: "Write hilarious answers to wacky prompts, then vote anonymously on the funniest combinations!" }),
+      showRulesBtn,
       modeSelector,
       dynamicFormWrap
     ])
