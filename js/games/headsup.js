@@ -22,6 +22,18 @@ let roomBrowserRefresh = null;
 let isOnline = false;
 let setupMode = "passplay"; // "passplay" or "online"
 
+function requestOrientationPermission() {
+  if (typeof DeviceOrientationEvent !== "undefined" && typeof DeviceOrientationEvent.requestPermission === "function") {
+    DeviceOrientationEvent.requestPermission()
+      .then(response => {
+        if (response === "granted") {
+          console.log("DeviceOrientation permission granted.");
+        }
+      })
+      .catch(err => console.warn("DeviceOrientation permission error:", err));
+  }
+}
+
 const DECKS = {
   lake: {
     name: "Lake House Life 🛶",
@@ -155,6 +167,7 @@ function renderSetup() {
           style: "text-align: left; padding: 16px; border: 1px solid rgba(255,255,255,0.06); border-radius: 14px; background: rgba(255,255,255,0.01); display: block; width: 100%; margin-bottom:10px; transition: transform 0.2s;",
           onClick: () => {
             isOnline = false;
+            requestOrientationPermission();
             startHeadsUpGame(deck);
           }
         }, [
@@ -173,7 +186,11 @@ function renderSetup() {
           style: "width:100%; margin-bottom:10px;",
           onClick: () => {
             const n = getName();
-            if (n) { myName = n; connectRoom("create"); }
+            if (n) { 
+              requestOrientationPermission();
+              myName = n; 
+              connectRoom("create"); 
+            }
           }
         }),
         el("div", { style: "display:flex; gap:8px; align-items:center; width:100%; margin: 8px 0;" }, [
@@ -190,7 +207,11 @@ function renderSetup() {
             const n = getName();
             const code = codeInput.value.trim().toUpperCase();
             if (!code || code.length !== 4) { toast("Enter a valid 4-letter room code!"); return; }
-            if (n) { myName = n; connectRoom("join", code); }
+            if (n) { 
+              requestOrientationPermission();
+              myName = n; 
+              connectRoom("join", code); 
+            }
           }
         }),
         el("button", {
@@ -410,6 +431,7 @@ function applyLobby(playersList) {
                   toast("Need at least 2 players!");
                   return;
                 }
+                requestOrientationPermission();
                 initOnlineGame(d);
               }
             });
@@ -572,14 +594,29 @@ function launchGuesserLoop() {
 
     if (now - lastTiltTime < 1400) return;
 
-    const b = e.beta;
-    if (b !== null) {
-      if (b < 45) {
-        lastTiltTime = now;
-        triggerGuess(true);
-      } else if (b > 135) {
-        lastTiltTime = now;
-        triggerGuess(false);
+    const isLandscape = window.innerWidth > window.innerHeight;
+    if (isLandscape) {
+      const g = e.gamma;
+      if (g !== null) {
+        const absG = Math.abs(g);
+        if (absG < 45) {
+          lastTiltTime = now;
+          triggerGuess(true);
+        } else if (absG > 135) {
+          lastTiltTime = now;
+          triggerGuess(false);
+        }
+      }
+    } else {
+      const b = e.beta;
+      if (b !== null) {
+        if (b < 45) {
+          lastTiltTime = now;
+          triggerGuess(true);
+        } else if (b > 135) {
+          lastTiltTime = now;
+          triggerGuess(false);
+        }
       }
     }
   }
