@@ -67,10 +67,14 @@ export const PROMPTS = [
   { text: `I was ejected from the spacecraft not because I was the impostor, but because I kept leaving ${BLANK} in the vent.`, pick: 1 },
   { text: `My looksmaxxing routine is completely unhinged because it involves rubbing ${BLANK} all over my jawline.`, pick: 1 },
   { text: `What did Drake whisper zestily into my ear right before our bedtime story? ${BLANK}.`, pick: 1 },
+  { text: `I woke up at 3 a.m. and saw the Hawk Tuah girl sitting on my bed, aggressively whispering about ${BLANK}.`, pick: 1 },
+  { text: `What is the ultimate, forbidden online dogwhistle that will get you immediately banned in 195 countries? ${BLANK}.`, pick: 1 },
+  { text: `My mom caught me secretly practicing ${BLANK} with the Hawk Tuah girl on my bed at 3 a.m.`, pick: 1 },
 
   // --- Pick Two (maximally unhinged/sussy) ---
   { text: `First I tax your gyatt with ${BLANK}, then I absolute-rizz your mother with ${BLANK}.`, pick: 2 },
   { text: `My gaming setup is 99% ${BLANK} and 1% ${BLANK} for maximum zesty synergy.`, pick: 2 },
+  { text: `I got sent to a federal rehabilitation facility for trying to execute a zesty ${BLANK} with a high-stakes ${BLANK}.`, pick: 2 },
 ];
 
 // Response cards — chronically-online brain-rot answers.
@@ -233,6 +237,16 @@ export const RESPONSES = [
   "zestily sliding into a Discord mod's direct messages",
   "chewing on room-temperature pre-workout to assert dominance",
   "cheating on my looksmaxxing surgeon with a Roblox character",
+  
+  // --- Wilder/Sussier Responses ---
+  "the Hawk Tuah girl on your bed at 3 a.m.",
+  "a subtle, high-frequency online dogwhistle",
+  "spitting on that thang until it reaches absolute thermal meltdown",
+  "waking up to the Hawk Tuah girl performing zesty tasks on your bed",
+  "a highly zesty, multi-paragraph Discord DM sent at 3 a.m.",
+  "an exceptionally loud, unhinged dogwhistle that alerts the local police",
+  "doing zesty looksmaxxing with the Hawk Tuah girl in a dark cabin",
+  "getting zesty with a Roblox character at 3 a.m.",
 ];
 
 /* ============================================================
