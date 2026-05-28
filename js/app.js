@@ -22,6 +22,7 @@ import { start as startHeadsup } from "./games/headsup.js";
 import { start as startCharades } from "./games/charades.js";
 import { start as startChronicles } from "./games/picture_book.js";
 import { start as startTVHost } from "./games/tv_host.js";
+import { start as startBlankSlate } from "./games/blank_slate.js";
 
 // Force wholesome normal mode on every app restart/page load
 localStorage.setItem("lakehouse.weird_unlocked", "false");
@@ -202,6 +203,13 @@ const GAMES = [
     familyFriendly: true,
     badgeColor: "linear-gradient(145deg, hsl(160,58%,44%), hsl(160,50%,30%))",
   },
+  {
+    id: "blank_slate", icon: icons.slate, title: "Blank Slate",
+    blurb: "Write secret words to complete phrases! Score 3 points if you match exactly one other player, and 1 point if you match multiple. 3-8 players.",
+    start: startBlankSlate,
+    familyFriendly: true,
+    badgeColor: "linear-gradient(145deg, hsl(200,80%,55%), hsl(200,70%,38%))",
+  },
 ];
 
 function playQuack() {
@@ -373,7 +381,7 @@ const CATEGORIES = [
     blurb: "Fast team word guessers, forehead actor screens & wacky response vote-offs.",
     icon: () => icons.meeting(),
     theme: "orange",
-    gameIds: ["catchphrase", "headsup", "charades", "quiplash"]
+    gameIds: ["catchphrase", "headsup", "charades", "quiplash", "blank_slate"]
   },
   {
     id: "dice",

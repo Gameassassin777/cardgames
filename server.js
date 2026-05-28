@@ -148,6 +148,57 @@ const server = http.createServer((req, res) => {
     return;
   }
 
+  // 9. POST /decks/upload
+  if (pathname === "/decks/upload" && req.method === "POST") {
+    getBody((deck) => {
+      if (deck && deck.gameId && deck.name) {
+        const safeGameId = deck.gameId.replace(/[^a-zA-Z0-9_-]/g, "");
+        const safeName = deck.name.replace(/[^a-zA-Z0-9_-]/g, "");
+        const filename = `${safeGameId}_${safeName}.json`;
+        const filePath = path.join(sharedDecksDir, filename);
+        try {
+          fs.writeFileSync(filePath, JSON.stringify(deck, null, 2), "utf8");
+          console.log(`Local Server: Saved shared deck permanently: "${deck.name}" for game "${deck.gameId}"`);
+          res.writeHead(200, { "Content-Type": "application/json" });
+          res.end(JSON.stringify({ success: true }));
+          return;
+        } catch (e) {
+          console.error("Local Server: Error writing shared deck file:", e);
+        }
+      }
+      res.writeHead(500, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ error: "Failed to write shared deck" }));
+    });
+    return;
+  }
+
+  // 10. GET /decks/list
+  if (pathname === "/decks/list" && req.method === "GET") {
+    try {
+      const decks = [];
+      if (fs.existsSync(sharedDecksDir)) {
+        const files = fs.readdirSync(sharedDecksDir);
+        files.forEach(file => {
+          if (file.endsWith(".json")) {
+            try {
+              const fileContent = fs.readFileSync(path.join(sharedDecksDir, file), "utf8");
+              const parsed = JSON.parse(fileContent);
+              decks.push(parsed);
+            } catch (_) {}
+          }
+        });
+      }
+      res.writeHead(200, { "Content-Type": "application/json" });
+      res.end(JSON.stringify(decks));
+      return;
+    } catch (e) {
+      console.error("Local Server: Error listing shared decks:", e);
+    }
+    res.writeHead(500, { "Content-Type": "application/json" });
+    res.end(JSON.stringify({ error: "Failed to list shared decks" }));
+    return;
+  }
+
   // Standard fallback
   res.writeHead(200, { "Content-Type": "text/plain" });
   res.end("Lake House Card Games multiplayer lobby sync server is running!\n");
@@ -163,6 +214,11 @@ const socketMetadata = new Map();
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const customCardsPath = path.join(__dirname, "custom_cards.json");
+const sharedDecksDir = path.join(__dirname, "shared_decks");
+
+if (!fs.existsSync(sharedDecksDir)) {
+  fs.mkdirSync(sharedDecksDir, { recursive: true });
+}
 
 // Helper to load custom cards
 function loadCustomCards() {

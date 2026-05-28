@@ -28,6 +28,50 @@ let guestCustomPrompts = [];   // Temporary guest-submitted custom prompts in lo
 let connectionStatus = "offline"; // "offline" | "connecting" | "lobby"
 let hasSubmittedThisRound = false;
 
+function compilePlayableDecks() {
+  const enabled = store.get(cfg.saveKey + ".enabled_decks", ["core"]);
+  const customDecks = store.get(cfg.saveKey + ".custom_decks", []);
+  
+  const disabledPrompts = store.get(cfg.saveKey + ".disabled_prompts", []);
+  const disabledResponses = store.get(cfg.saveKey + ".disabled_responses", []);
+  
+  let activePrompts = [];
+  let activeResponses = [];
+  
+  if (enabled.includes("core")) {
+    activePrompts = cfg.prompts.filter(p => !disabledPrompts.includes(p.text));
+    activeResponses = cfg.responses.filter(c => c !== CUSTOM_CARD_TEXT && !disabledResponses.includes(c));
+  }
+  
+  customDecks.forEach(deck => {
+    if (enabled.includes(deck.id)) {
+      const deckPrompts = (deck.prompts || []).map(p => {
+        if (typeof p === "string") {
+          const count = (p.match(/_/g) || []).length;
+          return { text: p.replace(/_/g, "_______"), pick: Math.max(1, count) };
+        }
+        return p;
+      }).filter(p => !disabledPrompts.includes(p.text));
+      
+      const deckResponses = (deck.responses || deck.cards || []).filter(c => !disabledResponses.includes(c));
+      
+      activePrompts = activePrompts.concat(deckPrompts);
+      activeResponses = activeResponses.concat(deckResponses);
+    }
+  });
+
+  if (onlineMode) {
+    const activeGuestPrompts = guestCustomPrompts.filter(p => !disabledPrompts.includes(p.text));
+    activePrompts = activePrompts.concat(activeGuestPrompts);
+
+    const activeOnlineCustoms = onlineCustomCards.filter(c => !disabledResponses.includes(c));
+    const activeGuestCustoms = guestCustomResponses.filter(c => !disabledResponses.includes(c));
+    activeResponses = activeResponses.concat(activeOnlineCustoms).concat(activeGuestCustoms);
+  }
+  
+  return { prompts: activePrompts, responses: activeResponses };
+}
+
 // Online coordination
 let heartbeatInt = null;
 let roomBrowserRefresh = null;
@@ -111,13 +155,55 @@ function resetOnlineState() {
 }
 
 function topbar(title) {
+  const showShuffle = state && state.phase && state.phase !== "intro" && state.phase !== "lobby" && state.phase !== "over" && (!state.isOnline || isHost);
+  
+  const actionsGroup = showShuffle
+    ? el("div", { style: "display:flex; gap:6px; align-items:center;" }, [
+        el("button", {
+          className: "btn ghost small",
+          style: "margin:0; padding:6px 10px; border-radius:12px; font-size:0.75rem; display:flex; align-items:center; gap:4px; border-color:rgba(255,255,255,0.15);",
+          onClick: () => {
+            if (confirm("Skip the current prompt card and draw the next one?")) {
+              dealPrompt();
+              if (state.isOnline && isHost) {
+                sendSyncAction({ type: "STATE_SYNC", state });
+              }
+              toast("Prompt card skipped!");
+              render();
+            }
+          }
+        }, [
+          el("span", { style: "width:12px; height:12px; display:inline-block;" }, [icons.chevronRight()]),
+          el("span", { text: "Skip" })
+        ]),
+        el("button", {
+          className: "btn ghost small",
+          style: "margin:0; padding:6px 10px; border-radius:12px; font-size:0.75rem; display:flex; align-items:center; gap:4px; border-color:rgba(255,255,255,0.15);",
+          onClick: () => {
+            if (confirm("Are you sure you want to reshuffle the entire prompt deck box and draw a new card?")) {
+              store.del(cfg.saveKey + ".persistent_prompt_deck");
+              dealPrompt();
+              if (state.isOnline && isHost) {
+                sendSyncAction({ type: "STATE_SYNC", state });
+              }
+              toast("Prompt box reshuffled!");
+              render();
+            }
+          }
+        }, [
+          el("span", { style: "width:12px; height:12px; display:inline-block;" }, [icons.refresh()]),
+          el("span", { text: "Shuffle" })
+        ])
+      ])
+    : el("span", { style: "width:64px" });
+
   return el("div", { className: "topbar" }, [
     el("button", { className: "back", onClick: confirmQuit }, [
       el("span", { style: "width:16px; height:16px; display:inline-block;" }, [icons.back()]),
       el("span", { text: "Lobby" })
     ]),
     el("div", { className: "title", text: title }),
-    el("span", { style: "width:64px" }),
+    actionsGroup
   ]);
 }
 
@@ -353,23 +439,10 @@ function beginGame(rawNames, target, physical) {
   store.set(cfg.targetKey, target);
   store.set(cfg.physicalKey, !!physical);
 
-  // Mix persistent custom prompts from localStorage and filter out disabled ones
-  const localPrompts = store.get(cfg.saveKey + ".custom_prompts", []);
-  const disabledPrompts = store.get(cfg.saveKey + ".disabled_prompts", []);
-  
-  const activeCorePrompts = cfg.prompts.filter(p => !disabledPrompts.includes(p.text));
-  const activeCustomPrompts = localPrompts.filter(p => !disabledPrompts.includes(p.text));
-  const fullPrompts = activeCorePrompts.concat(activeCustomPrompts);
-
-  // Mix persistent custom cards from localStorage and filter out disabled ones
-  const localCustoms = store.get(cfg.saveKey + ".custom_cards", []);
-  const disabledResponses = store.get(cfg.saveKey + ".disabled_responses", []);
-  
-  // Filter out any existing blank card and inject exactly 6 clean blanks
-  const baseResponses = cfg.responses.filter(c => c !== CUSTOM_CARD_TEXT && !disabledResponses.includes(c));
-  const activeCustoms = localCustoms.filter(c => !disabledResponses.includes(c));
+  const compiled = compilePlayableDecks();
+  const fullPrompts = compiled.prompts;
   const blankCopies = Array(6).fill(CUSTOM_CARD_TEXT);
-  const fullResponses = baseResponses.concat(activeCustoms).concat(blankCopies);
+  const fullResponses = compiled.responses.concat(blankCopies);
 
   state = {
     isOnline: false,
@@ -621,27 +694,10 @@ function renderOnlineLobby() {
 function startOnlineGame() {
   if (onlinePlayers.length < 3) return;
 
-  // Mix persistent custom prompts and filter out disabled ones
-  const localPrompts = store.get(cfg.saveKey + ".custom_prompts", []);
-  const disabledPrompts = store.get(cfg.saveKey + ".disabled_prompts", []);
-  
-  const activeCorePrompts = cfg.prompts.filter(p => !disabledPrompts.includes(p.text));
-  const activeCustomPrompts = localPrompts.filter(p => !disabledPrompts.includes(p.text));
-  const activeGuestPrompts = guestCustomPrompts.filter(p => !disabledPrompts.includes(p.text));
-  const fullPrompts = activeCorePrompts.concat(activeCustomPrompts).concat(activeGuestPrompts);
-
-  // Mix persistent custom cards and filter out disabled ones
-  const disabledResponses = store.get(cfg.saveKey + ".disabled_responses", []);
-  
-  // Filter out any existing blank card and inject exactly 6 clean blanks
-  const baseResponses = cfg.responses.filter(c => c !== CUSTOM_CARD_TEXT && !disabledResponses.includes(c));
-  const activeOnlineCustoms = onlineCustomCards.filter(c => !disabledResponses.includes(c));
-  const localCustoms = store.get(cfg.saveKey + ".custom_cards", []);
-  const activeLocalCustoms = localCustoms.filter(c => !disabledResponses.includes(c));
-  const activeGuestCustoms = guestCustomResponses.filter(c => !disabledResponses.includes(c));
-  const activeCustoms = activeOnlineCustoms.concat(activeLocalCustoms).concat(activeGuestCustoms);
+  const compiled = compilePlayableDecks();
+  const fullPrompts = compiled.prompts;
   const blankCopies = Array(6).fill(CUSTOM_CARD_TEXT);
-  const fullResponses = baseResponses.concat(activeCustoms).concat(blankCopies);
+  const fullResponses = compiled.responses.concat(blankCopies);
 
   state = {
     isOnline: true,
@@ -1168,7 +1224,10 @@ function renderOnlineGameOver() {
   mount(
     topbar("Game Over"),
     el("div", { className: "panel center" }, [
-      el("div", { className: "big-emoji", text: `${cfg.icon}👑` }),
+      el("div", { style: "display: flex; align-items: center; justify-content: center; gap: 8px; margin: 0 auto 12px;" }, [
+        el("div", { style: "width:64px; height:64px; color:var(--sunset-soft);" }, [cfg.icon()]),
+        el("span", { style: "font-size: 3rem;" }, "👑")
+      ]),
       el("h2", { text: `${champ.name} is the ${cfg.winnerTitle}!` }),
       el("p", { className: "muted", text: `${champ.score} points achieved` }),
     ]),
@@ -1188,22 +1247,10 @@ function renderOnlineGameOver() {
 }
 
 function playAgainOnline() {
-  // Mix persistent custom prompts and filter out disabled ones
-  const localPrompts = store.get(cfg.saveKey + ".custom_prompts", []);
-  const disabledPrompts = store.get(cfg.saveKey + ".disabled_prompts", []);
-  
-  const activeCorePrompts = cfg.prompts.filter(p => !disabledPrompts.includes(p.text));
-  const activeCustomPrompts = localPrompts.filter(p => !disabledPrompts.includes(p.text));
-  const fullPrompts = activeCorePrompts.concat(activeCustomPrompts);
-
-  // Mix persistent custom cards and filter out disabled ones
-  const disabledResponses = store.get(cfg.saveKey + ".disabled_responses", []);
-  
-  // Filter out any existing blank card and inject exactly 6 clean blanks
-  const baseResponses = cfg.responses.filter(c => c !== CUSTOM_CARD_TEXT && !disabledResponses.includes(c));
-  const activeCustoms = onlineCustomCards.filter(c => !disabledResponses.includes(c));
+  const compiled = compilePlayableDecks();
+  const fullPrompts = compiled.prompts;
   const blankCopies = Array(6).fill(CUSTOM_CARD_TEXT);
-  const fullResponses = baseResponses.concat(activeCustoms).concat(blankCopies);
+  const fullResponses = compiled.responses.concat(blankCopies);
 
   state = {
     isOnline: true,
@@ -1266,13 +1313,28 @@ function drawCards(n) {
 
 function dealPrompt() {
   const promptsList = (state && state.prompts) ? state.prompts : cfg.prompts;
-  if (state.promptDeck.length === 0) {
-    state.promptDeck = shuffle(state.promptUsed);
-    state.promptUsed = [];
+  
+  let pDeckState = store.get(cfg.saveKey + ".persistent_prompt_deck", null);
+  if (!pDeckState || !Array.isArray(pDeckState.deck) || pDeckState.deck.length !== promptsList.length || typeof pDeckState.pos !== "number") {
+    pDeckState = {
+      deck: shuffle(promptsList.map((_, i) => i)),
+      pos: 0
+    };
   }
-  const idx = state.promptDeck.pop();
-  state.promptUsed.push(idx);
+  
+  if (pDeckState.pos >= pDeckState.deck.length) {
+    toast("Deck box empty! Reshuffling all prompts...");
+    pDeckState.deck = shuffle(promptsList.map((_, i) => i));
+    pDeckState.pos = 0;
+  }
+  
+  const idx = pDeckState.deck[pDeckState.pos];
+  pDeckState.pos++;
+  store.set(cfg.saveKey + ".persistent_prompt_deck", pDeckState);
+  
   state.prompt = promptsList[idx];
+  state.promptDeck = pDeckState.deck.slice(pDeckState.pos);
+  state.promptUsed = pDeckState.deck.slice(0, pDeckState.pos);
 }
 
 function save() {
@@ -1683,7 +1745,10 @@ function renderGameOver() {
   mount(
     topbar("Game over"),
     el("div", { className: "panel center" }, [
-      el("div", { className: "big-emoji", text: `${cfg.icon}👑` }),
+      el("div", { style: "display: flex; align-items: center; justify-content: center; gap: 8px; margin: 0 auto 12px;" }, [
+        el("div", { style: "width:64px; height:64px; color:var(--sunset-soft);" }, [cfg.icon()]),
+        el("span", { style: "font-size: 3rem;" }, "👑")
+      ]),
       el("h2", { text: `${champ.name} is the ${cfg.winnerTitle}!` }),
       el("p", { className: "muted", text: `${champ.score} points` }),
     ]),
@@ -1901,11 +1966,24 @@ function renderCustomizer() {
 
   filterCardRows();
 
+  const shuffleDeckBoxBtn = el("button", {
+    className: "btn small ghost",
+    style: "width:100%; margin-top:12px; display:flex; align-items:center; justify-content:center; gap:6px; font-weight:700;",
+    onClick: () => {
+      store.del(cfg.saveKey + ".persistent_prompt_deck");
+      toast("Prompt deck box shuffled!");
+    }
+  }, [
+    el("span", { style: "width:14px; height:14px; display:inline-block;" }, [icons.refresh()]),
+    el("span", { text: "Reshuffle Prompt Deck Box Now" })
+  ]);
+
   mount(
     topbarEl,
     tabRow,
     searchBar,
     bulkRow,
-    listWrap
+    listWrap,
+    shuffleDeckBoxBtn
   );
 }

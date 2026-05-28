@@ -267,5 +267,12 @@ export const icons = {
     { tag: "circle", cx: "12", cy: "12", r: "1.5", fill: "currentColor" },
     { tag: "circle", cx: "8", cy: "16", r: "1.5", fill: "currentColor" },
     { tag: "circle", cx: "16", cy: "8", r: "1.5", fill: "currentColor" }
+  ]),
+
+  slate: () => createSvg([
+    { tag: "rect", x: "3", y: "3", width: "18", height: "18", rx: "3", ry: "3" },
+    { tag: "line", x1: "3", y1: "8", x2: "21", y2: "8" },
+    { tag: "line", x1: "7", y1: "13", x2: "17", y2: "13" },
+    { tag: "line", x1: "7", y1: "17", x2: "13", y2: "17" }
   ])
 };

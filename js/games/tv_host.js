@@ -224,6 +224,44 @@ function handleRoomRelay(rState, action, sender) {
   } else if (action.type === "resolve_challenge") {
     rState.revealedPlayers = action.revealedPlayers;
     rState.challengeAction = action;
+  } else if (action.type === "BLANK_SLATE_START") {
+    rState.game = "blank_slate";
+    rState.state = {
+      phase: "select",
+      selectorName: action.players[0],
+      players: action.players.map(p => ({ name: p, score: 0 })),
+      prompts: action.prompts,
+      promptIndex: action.promptIndex
+    };
+  } else if (action.type === "BLANK_SLATE_CHOSEN_PROMPT") {
+    if (rState.state) {
+      rState.state.phase = "cue";
+      rState.state.prompt = action.prompt;
+      rState.state.answers = {};
+      rState.state.answersCount = 0;
+    }
+  } else if (action.type === "BLANK_SLATE_SUBMIT_WORD") {
+    if (rState.state) {
+      if (!rState.state.answers) rState.state.answers = {};
+      rState.state.answers[action.player] = "Submitted";
+      rState.state.answersCount = Object.keys(rState.state.answers).length;
+    }
+  } else if (action.type === "BLANK_SLATE_REVEAL") {
+    if (rState.state) {
+      rState.state.phase = "reveal";
+      rState.state.answers = action.answers;
+      rState.state.pointsAwarded = action.pointsAwarded;
+      rState.state.players = action.players;
+    }
+  } else if (action.type === "BLANK_SLATE_NEXT_ROUND") {
+    if (rState.state) {
+      rState.state.phase = "select";
+      rState.state.promptIndex = action.promptIndex;
+      rState.state.selectorName = rState.state.players[action.selectorIdx].name;
+      rState.state.prompt = "";
+      rState.state.answers = {};
+      rState.state.answersCount = 0;
+    }
   } else if (action.type === "state_update" && rState.state) {
     rState.state = action.state;
   } else if (action.type === "trigger_roll") {
@@ -327,6 +365,8 @@ function renderRoomInnerContent(room) {
   const state = room.state;
   if (room.game === "quiplash") {
     return drawQuiplashTVSub(state);
+  } else if (room.game === "blank_slate") {
+    return drawBlankSlateTVSub(state);
   } else if (room.game === "liars_dice") {
     if (room.revealedPlayers) return drawLiarsDiceRevealSub(room);
     return drawLiarsDiceTVSub(state);
@@ -546,4 +586,96 @@ function drawDeckTVSub(state) {
       style: "font-size:1.2rem; min-height:110px; justify-content:center; text-align:center; padding:12px;"
     }, [el("span", { text: state.text })])
   ]);
+}
+
+function drawBlankSlateTVSub(state) {
+  if (!state) return el("p", { text: "Connecting..." });
+
+  // 1. Prompt Selection Phase
+  if (state.phase === "select" || !state.phase) {
+    const selectorName = state.selectorName || "Someone";
+    return el("div", { className: "center anim-pulse" }, [
+      el("div", { style: "width:64px; height:64px; margin:0 auto 12px; color:var(--sunset-soft);" }, [icons.slate()]),
+      el("h2", { text: `${selectorName} is choosing a card…`, style: "margin-top:8px;" }),
+      el("p", { className: "muted", text: "Two options are presented secretly on their device.", style: "font-size:0.9rem;" })
+    ]);
+  }
+
+  // 2. Cue/Writing Phase
+  if (state.phase === "cue") {
+    const totalCount = state.players?.length || 0;
+    const answeredCount = state.answersCount || 0;
+    return el("div", { className: "center" }, [
+      el("p", { className: "muted", text: "COMPLETE THE PHRASE CUE", style: "font-size: 0.95rem; letter-spacing:1px; margin-bottom:12px;" }),
+      el("h1", { text: state.prompt || "_____", style: "font-size: 3.5rem; color: var(--sunset-soft); text-shadow: 0 2px 10px rgba(0,0,0,0.5); font-family: Segoe UI, sans-serif; font-weight:800; margin: 10px 0 24px;" }),
+      el("div", { className: "panel center", style: "background:rgba(255,255,255,0.05); padding:16px; border-radius:14px; max-width:320px; margin:0 auto;" }, [
+        el("div", { className: "spin-indicator", style: "font-size:2rem; margin-bottom:8px;", text: "✍️" }),
+        el("h3", { text: `${answeredCount} / ${totalCount} Submitted`, style: "margin:0; font-size:1.2rem; color:var(--cream);" })
+      ])
+    ]);
+  }
+
+  // 2. Reveal Phase
+  if (state.phase === "reveal") {
+    const slatesList = el("div", { style: "display:flex; flex-direction:column; gap:10px; margin:20px 0; width:100%; text-align:left;" });
+    
+    // Group answers by frequency/similarity
+    const wordGroups = {};
+    Object.entries(state.answers || {}).forEach(([name, ans]) => {
+      const clean = ans.trim().toUpperCase();
+      if (!wordGroups[clean]) wordGroups[clean] = [];
+      wordGroups[clean].push(name);
+    });
+
+    Object.entries(wordGroups).forEach(([word, players]) => {
+      const numMatches = players.length;
+      let pointsBadge = "";
+      let borderStyle = "border: 1px solid rgba(255,255,255,0.06); background: rgba(255,255,255,0.02);";
+
+      if (numMatches === 2) {
+        pointsBadge = "⭐ +3 pts (Perfect Pair)";
+        borderStyle = "border: 1.5px solid var(--sunset-soft); background: rgba(230,106,54,0.07);";
+      } else if (numMatches > 2) {
+        pointsBadge = "🤝 +1 pt (Multi Match)";
+        borderStyle = "border: 1px solid rgba(68,165,180,0.4); background: rgba(68,165,180,0.05);";
+      } else {
+        pointsBadge = "❌ +0 pts (Unique)";
+      }
+
+      const row = el("div", {
+        style: `border-radius:14px; padding:12px 16px; ${borderStyle}`
+      }, [
+        el("div", { style: "display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;" }, [
+          el("span", { text: word, style: "font-size:1.3rem; font-weight:800; color:var(--cream); letter-spacing:1px;" }),
+          el("span", { text: pointsBadge, style: "font-size:0.8rem; font-weight:bold; color:var(--sunset-soft);" })
+        ]),
+        el("div", { text: `Written by: ${players.join(", ")}`, className: "muted", style: "font-size:0.85rem;" })
+      ]);
+      slatesList.appendChild(row);
+    });
+
+    const scoreboard = el("div", { className: "scoreboard", style: "margin-top:24px; text-align:left; width:100%;" });
+    const ranked = (state.players || []).slice().sort((a, b) => b.score - a.score);
+    ranked.forEach((p, idx) => {
+      const medal = idx === 0 ? "👑" : idx === 1 ? "🥈" : idx === 2 ? "🥉" : "👤";
+      scoreboard.appendChild(
+        el("div", {
+          style: "display:flex; justify-content:space-between; align-items:center; padding:10px 14px; border-bottom:1px solid rgba(255,255,255,0.04); font-weight:600;"
+        }, [
+          el("span", { text: `${medal} ${p.name}` }),
+          el("span", { text: `${p.score} pts`, style: "color:var(--sunset-soft);" })
+        ])
+      );
+    });
+
+    return el("div", { style: "width:100%; max-width:480px; margin:0 auto;" }, [
+      el("p", { className: "muted center", text: "ROUND REVEAL" }),
+      el("h2", { text: state.prompt || "_____", style: "font-size: 2.2rem; text-align:center; color: var(--sunset-soft); margin: 6px 0 20px;" }),
+      slatesList,
+      el("h3", { text: "Scoreboard", style: "margin-top:28px; border-bottom:1px solid rgba(255,255,255,0.08); padding-bottom:6px;" }),
+      scoreboard
+    ]);
+  }
+
+  return el("div", { text: "Blank Slate Synchronized" });
 }

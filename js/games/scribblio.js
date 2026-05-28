@@ -1039,29 +1039,24 @@ function setupDrawingCanvas(canvas, undoBtn, clearBtn, getColor, getBrushSize, i
   }
 
   if (isAllowedToDraw) {
-    canvas.addEventListener("mousedown", (e) => {
+    canvas.addEventListener("pointerdown", (e) => {
+      e.preventDefault();
+      canvas.setPointerCapture(e.pointerId);
       const r = canvas.getBoundingClientRect();
       drawStart(e.clientX - r.left, e.clientY - r.top);
     });
-    canvas.addEventListener("mousemove", (e) => {
+    canvas.addEventListener("pointermove", (e) => {
+      e.preventDefault();
+      if (!drawing) return;
       const r = canvas.getBoundingClientRect();
       drawMove(e.clientX - r.left, e.clientY - r.top);
     });
-    window.addEventListener("mouseup", drawEnd);
-
-    canvas.addEventListener("touchstart", (e) => {
+    const endStroke = (e) => {
       e.preventDefault();
-      const touch = e.touches[0];
-      const r = canvas.getBoundingClientRect();
-      drawStart(touch.clientX - r.left, touch.clientY - r.top);
-    }, { passive: false });
-    canvas.addEventListener("touchmove", (e) => {
-      e.preventDefault();
-      const touch = e.touches[0];
-      const r = canvas.getBoundingClientRect();
-      drawMove(touch.clientX - r.left, touch.clientY - r.top);
-    }, { passive: false });
-    canvas.addEventListener("touchend", drawEnd);
+      drawEnd();
+    };
+    canvas.addEventListener("pointerup", endStroke);
+    canvas.addEventListener("pointercancel", endStroke);
 
     clearBtn.addEventListener("click", () => {
       ctx.clearRect(0, 0, canvas.width, canvas.height);

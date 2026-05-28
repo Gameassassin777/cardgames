@@ -44,20 +44,60 @@ export function makeGame({ title, source, saveKey }) {
     }
 
     function getFullSource() {
-      const customs = saveKey ? store.get(saveKey + ".custom_cards", []) : [];
-      const customObjects = customs.map(text => ({
-        tag: "Custom",
-        text: text
-      }));
-      return source.concat(customObjects);
+      const enabled = saveKey ? store.get(saveKey + ".enabled_decks", ["core"]) : ["core"];
+      const customDecks = saveKey ? store.get(saveKey + ".custom_decks", []) : [];
+      
+      let cardPool = [];
+      
+      if (enabled.includes("core")) {
+        cardPool = cardPool.concat(source);
+      }
+      
+      customDecks.forEach(deck => {
+        if (enabled.includes(deck.id)) {
+          const cardsList = deck.responses || deck.cards || [];
+          const customObjects = cardsList.map(text => ({
+            tag: deck.name,
+            text: text
+          }));
+          cardPool = cardPool.concat(customObjects);
+        }
+      });
+      
+      return cardPool;
     }
 
-    let deck = shuffle(getFullSource());
+    let deck = [];
     let pos = 0;
 
+    function savePersistentDeck() {
+      if (saveKey) {
+        store.set(saveKey + ".persistent_deck", { deck, pos });
+      }
+    }
+
+    function loadPersistentDeck() {
+      const fullSource = getFullSource();
+      const saved = saveKey ? store.get(saveKey + ".persistent_deck", null) : null;
+      if (saved && Array.isArray(saved.deck) && saved.deck.length === fullSource.length && typeof saved.pos === "number") {
+        deck = saved.deck;
+        pos = saved.pos;
+        if (pos >= deck.length) {
+          reshuffleSilently(fullSource);
+        }
+      } else {
+        reshuffleSilently(fullSource);
+      }
+    }
+
+    function reshuffleSilently(fullSource = getFullSource()) {
+      deck = shuffle(fullSource);
+      pos = 0;
+      savePersistentDeck();
+    }
+
     function reshuffle() { 
-      deck = shuffle(getFullSource()); 
-      pos = 0; 
+      reshuffleSilently(); 
       if (onlineMode && isHost) {
         syncDeckState();
       } else {
@@ -210,7 +250,7 @@ export function makeGame({ title, source, saveKey }) {
             : el("button", { 
                 className: "btn", 
                 style: "display:flex; align-items:center; justify-content:center; gap:6px; margin:0 auto;",
-                onClick: () => { pos++; syncDeckState(); } 
+                onClick: () => { pos++; savePersistentDeck(); syncDeckState(); } 
               }, [
                 el("span", { style: "width:18px; height:18px; display:inline-block;" }, [icons.chevronRight()]),
                 el("span", { text: "Next card" })
@@ -323,7 +363,7 @@ export function makeGame({ title, source, saveKey }) {
           : el("button", { 
               className: "btn", 
               style: "display:flex; align-items:center; justify-content:center; gap:6px; margin:0 auto;",
-              onClick: () => { pos++; render(); } 
+              onClick: () => { pos++; savePersistentDeck(); render(); } 
             }, [
               el("span", { style: "width:18px; height:18px; display:inline-block;" }, [icons.chevronRight()]),
               el("span", { text: "Next card" })
@@ -332,7 +372,11 @@ export function makeGame({ title, source, saveKey }) {
         el("button", { 
           className: "btn ghost", 
           style: "display:flex; align-items:center; justify-content:center; gap:6px; margin:0 auto;",
-          onClick: reshuffle 
+          onClick: () => {
+            if (confirm("Are you sure you want to reshuffle the entire card box?")) {
+              reshuffle();
+            }
+          }
         }, [
           el("span", { style: "width:16px; height:16px; display:inline-block;" }, [icons.refresh()]),
           el("span", { text: "Shuffle now" })
@@ -340,6 +384,7 @@ export function makeGame({ title, source, saveKey }) {
       );
     }
 
+    loadPersistentDeck();
     renderSetup();
   };
 }
