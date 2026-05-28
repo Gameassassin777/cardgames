@@ -57,6 +57,20 @@ export const PROMPTS = [
   { text: `I entered the chat expecting some W rizz, but instead, I was hit with a profoundly sussy ${BLANK} and an even zestier ${BLANK}.`, pick: 2 },
   { text: `Listen, if you survive the Fanum tax, the only things left to worry about are ${BLANK} and ${BLANK}.`, pick: 2 },
   { text: `The judge sentenced him to 100 hours of community service for combining a zesty ${BLANK} with a completely unhinged ${BLANK}.`, pick: 2 },
+  
+  // --- Pick One (maximally unhinged/sussy) ---
+  { text: `My W-rizz was completely nullified when the girl saw my search history and it was just 5,000 queries of ${BLANK}.`, pick: 1 },
+  { text: `I'm not saying I'm sussy, but I would literally let ${BLANK} do the Fanum tax on me any day.`, pick: 1 },
+  { text: `Bro got sent to the shadow realm after confidently attempting looksmaxxing with ${BLANK}.`, pick: 1 },
+  { text: `Forget skibidi. The absolute highest tier of absolute brain-rot is constructing a 10-foot statue of ${BLANK}.`, pick: 1 },
+  { text: `My mom walked into my bedroom and caught me intensely mewing while holding ${BLANK}.`, pick: 1 },
+  { text: `I was ejected from the spacecraft not because I was the impostor, but because I kept leaving ${BLANK} in the vent.`, pick: 1 },
+  { text: `My looksmaxxing routine is completely unhinged because it involves rubbing ${BLANK} all over my jawline.`, pick: 1 },
+  { text: `What did Drake whisper zestily into my ear right before our bedtime story? ${BLANK}.`, pick: 1 },
+
+  // --- Pick Two (maximally unhinged/sussy) ---
+  { text: `First I tax your gyatt with ${BLANK}, then I absolute-rizz your mother with ${BLANK}.`, pick: 2 },
+  { text: `My gaming setup is 99% ${BLANK} and 1% ${BLANK} for maximum zesty synergy.`, pick: 2 },
 ];
 
 // Response cards — chronically-online brain-rot answers.
@@ -199,6 +213,26 @@ export const RESPONSES = [
   "a text that says 'we need to talk' sent right before a 14-hour flight",
   "the quiet satisfaction of out-surviving my high school enemies",
   "talking to my parents while the edible hits",
+  
+  // --- Maximally unhinged/sussy responses ---
+  "a certified zesty submissive baka",
+  "being aggressively looksmaxxed by a group of feral raccoons",
+  "a gooncave thermostatic incident that alerted the FBI",
+  "Drake's secret, zestily whispered audio files",
+  "mewing so hard my jawline cut through the space-time continuum",
+  "an exceptionally large, throbbing gyatt",
+  "unfiltered, industrial-grade brain rot injected directly into my veins",
+  "faking tasks in electrical while wearing absolutely nothing",
+  "my Duolingo bird holding my entire family at gunpoint",
+  "Baby Gronk's high-stakes rizz negotiation team",
+  "a zesty, custom-lit gooncave dungeon",
+  "the Hawk Tuah girl's presidential campaign team",
+  "venting so hard I accidentally broke the space airlock hatch",
+  "Quandale Dingle's highly confidential court files",
+  "my therapist's personal search history which is 90% gooncave setups",
+  "zestily sliding into a Discord mod's direct messages",
+  "chewing on room-temperature pre-workout to assert dominance",
+  "cheating on my looksmaxxing surgeon with a Roblox character",
 ];
 
 /* ============================================================
