@@ -90,7 +90,7 @@ body::after {
   z-index: 1;
   max-width: var(--maxw);
   margin: 0 auto;
-  padding: max(8px, env(safe-area-inset-top)) 20px calc(48px + env(safe-area-inset-bottom));
+  padding: max(16px, env(safe-area-inset-top)) 20px calc(48px + env(safe-area-inset-bottom));
   min-height: 100dvh;
 }
 
@@ -104,7 +104,7 @@ h1, h2, h3, h4 {
 
 .brand {
   text-align: center;
-  padding: 4px 0 10px;
+  padding: 12px 0 10px;
 }
 
 .brand .logo-icon {
