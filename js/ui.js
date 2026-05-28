@@ -28,7 +28,11 @@ export function mount(...nodes) {
   root.innerHTML = "";
   const wrap = el("div", { className: "fade-in" }, nodes);
   root.appendChild(wrap);
-  window.scrollTo(0, 0);
+  setTimeout(() => {
+    window.scrollTo(0, 0);
+    document.documentElement.scrollTop = 0;
+    document.body.scrollTop = 0;
+  }, 20);
 }
 
 export function shuffle(arr) {
