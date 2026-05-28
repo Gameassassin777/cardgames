@@ -64,6 +64,10 @@ export function makeGame({ title, source, saveKey }) {
         }
       });
       
+      if (cardPool.length === 0) {
+        cardPool = source;
+      }
+      
       return cardPool;
     }
 

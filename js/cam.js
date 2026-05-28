@@ -69,6 +69,14 @@ function compilePlayableDecks() {
     activeResponses = activeResponses.concat(activeOnlineCustoms).concat(activeGuestCustoms);
   }
   
+  // Fall back to core if no cards are selected
+  if (activePrompts.length === 0) {
+    activePrompts = cfg.prompts.filter(p => !disabledPrompts.includes(p.text));
+  }
+  if (activeResponses.length === 0) {
+    activeResponses = cfg.responses.filter(c => c !== CUSTOM_CARD_TEXT && !disabledResponses.includes(c));
+  }
+  
   return { prompts: activePrompts, responses: activeResponses };
 }
 

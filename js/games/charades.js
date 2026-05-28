@@ -22,6 +22,18 @@ let roomBrowserRefresh = null;
 let isOnline = false;
 let setupMode = "passplay"; // "passplay" or "online"
 
+function requestOrientationPermission() {
+  if (typeof DeviceOrientationEvent !== "undefined" && typeof DeviceOrientationEvent.requestPermission === "function") {
+    DeviceOrientationEvent.requestPermission()
+      .then(response => {
+        if (response === "granted") {
+          console.log("DeviceOrientation permission granted.");
+        }
+      })
+      .catch(err => console.warn("DeviceOrientation permission error:", err));
+  }
+}
+
 const CHARADES_DECKS = {
   actions: {
     name: "Lake House Outings 🛶",
@@ -147,14 +159,81 @@ function renderSetup() {
   function renderSetupForm() {
     dynamicFormWrap.innerHTML = "";
     if (setupMode === "passplay") {
+      const savedNames = store.get("charades.localNames", ["Player 1", "Player 2"]);
+      let localNames = savedNames.slice();
+      const localListWrap = el("div", { style: "margin: 16px 0; max-height:160px; overflow-y:auto; width:100%;" });
+
+      function drawLocalList() {
+        localListWrap.innerHTML = "";
+        localNames.forEach((nm, i) => {
+          const input = el("input", {
+            type: "text",
+            value: nm,
+            maxlength: "14",
+            placeholder: `Player ${i + 1}`,
+            style: "flex:1; border-radius:12px; font-size:1rem; padding: 8px 12px; text-align:center;",
+            onInput: (e) => { 
+              localNames[i] = e.target.value; 
+              store.set("charades.localNames", localNames);
+            }
+          });
+          const row = el("div", { style: "display:flex; gap:8px; align-items:center; margin-bottom: 8px; width:100%;" }, [
+            input,
+            el("button", {
+              className: "btn ghost small error",
+              text: "✕",
+              style: "margin:0; padding:6px 12px; border-radius:12px; font-size:1.1rem; line-height:1;",
+              onClick: () => {
+                if (localNames.length > 2) {
+                  localNames.splice(i, 1);
+                  store.set("charades.localNames", localNames);
+                  drawLocalList();
+                } else {
+                  toast("Need at least 2 players.");
+                }
+              }
+            })
+          ]);
+          localListWrap.appendChild(row);
+        });
+      }
+
+      drawLocalList();
+
+      const addPlayerBtn = el("button", {
+        className: "btn ghost small",
+        text: "+ Add Player",
+        style: "width:100%; margin-bottom:14px;",
+        onClick: () => {
+          if (localNames.length < 8) {
+            localNames.push("");
+            store.set("charades.localNames", localNames);
+            drawLocalList();
+          } else {
+            toast("Max 8 players for local play.");
+          }
+        }
+      });
+
       const localLayout = el("div", { style: "width:100%;" });
+      localLayout.appendChild(el("label", { text: "Manage Local Guesser Turn List" }));
+      localLayout.appendChild(localListWrap);
+      localLayout.appendChild(addPlayerBtn);
+      localLayout.appendChild(el("label", { text: "Select Category Deck Box to Start" }));
+
       Object.entries(CHARADES_DECKS).forEach(([key, deck]) => {
         const btn = el("button", {
           className: "panel",
           style: "text-align: left; padding: 16px; border: 1px solid rgba(255,255,255,0.06); border-radius: 14px; background: rgba(255,255,255,0.01); display: block; width: 100%; margin-bottom:10px; transition: transform 0.2s;",
           onClick: () => {
+            const cleaned = localNames.map((n, idx) => n.trim() || `Player ${idx + 1}`).slice(0, 8);
+            if (cleaned.length < 2) {
+              toast("Need at least 2 players.");
+              return;
+            }
             isOnline = false;
-            startCharadesGame(deck);
+            requestOrientationPermission();
+            startCharadesGame(deck, cleaned);
           }
         }, [
           el("h3", { text: deck.name, style: "margin: 0 0 4px; color: var(--sunset-soft);" }),
@@ -172,7 +251,11 @@ function renderSetup() {
           style: "width:100%; margin-bottom:10px;",
           onClick: () => {
             const n = getName();
-            if (n) { myName = n; connectRoom("create"); }
+            if (n) { 
+              requestOrientationPermission();
+              myName = n; 
+              connectRoom("create"); 
+            }
           }
         }),
         el("div", { style: "display:flex; gap:8px; align-items:center; width:100%; margin: 8px 0;" }, [
@@ -189,7 +272,11 @@ function renderSetup() {
             const n = getName();
             const code = codeInput.value.trim().toUpperCase();
             if (!code || code.length !== 4) { toast("Enter a valid 4-letter room code!"); return; }
-            if (n) { myName = n; connectRoom("join", code); }
+            if (n) { 
+              requestOrientationPermission();
+              myName = n; 
+              connectRoom("join", code); 
+            }
           }
         }),
         el("button", {
@@ -409,6 +496,7 @@ function applyLobby(playersList) {
                   toast("Need at least 2 players!");
                   return;
                 }
+                requestOrientationPermission();
                 initOnlineGame(d);
               }
             });
@@ -421,11 +509,11 @@ function applyLobby(playersList) {
 }
 
 // ── Game Loops Initialization ───────────────────────────────────────────────
-function startCharadesGame(deck) {
+function startCharadesGame(deck, playerNames = ["You"]) {
   gState = {
     phase: "playing",
     deckName: deck.name,
-    words: shuffle(deck.words),
+    words: shuffle(deck.words.slice()),
     wordIdx: 0,
     history: [],
     timeLeft: 60,
@@ -433,21 +521,24 @@ function startCharadesGame(deck) {
     countdownLeft: 3,
     active: false,
     guesserIdx: 0,
-    players: ["You", "Friends"]
+    round: 1,
+    players: playerNames.map(name => ({ name, score: 0 }))
   };
 
   run321Countdown();
 }
 
 function initOnlineGame(deck) {
+  const pList = gState.players;
   relay({
     type: "start_game",
     deckName: deck.name,
-    words: shuffle(deck.words),
-    players: gState.players
+    words: shuffle(deck.words.slice()),
+    players: pList.map(name => ({ name, score: 0 }))
   });
 }
 
+// Global flash overlay references for synced cluers
 let globalAppScreenOverlay = null;
 let globalWordCardRef = null;
 
@@ -464,9 +555,24 @@ function handleRelay(action, sender) {
       countdownLeft: 3,
       active: false,
       guesserIdx: 0,
+      round: 1,
       players: action.players
     };
     run321Countdown();
+  } else if (action.type === "charades_next_round") {
+    gState.phase = "playing";
+    gState.guesserIdx = action.guesserIdx;
+    gState.round = action.round;
+    gState.players = action.players;
+    gState.words = action.words;
+    gState.wordIdx = 0;
+    gState.timeLeft = 60;
+    gState.countdownLeft = 3;
+    gState.active = false;
+    run321Countdown();
+  } else if (action.type === "charades_game_over") {
+    gState.phase = "gameover";
+    renderGameOverScreen();
   } else if (action.type === "countdown_tick") {
     gState.countdownLeft = action.count;
     if (globalWordCardRef) {
@@ -492,6 +598,8 @@ function handleRelay(action, sender) {
   } else if (action.type === "time_up") {
     gState.active = false;
     if (gState.timerInterval) clearInterval(gState.timerInterval);
+    const correctCount = gState.history.filter(h => h.correct).length;
+    gState.players[gState.guesserIdx].score += correctCount;
     renderSummaryScreen();
   }
 }
@@ -523,13 +631,14 @@ function run321Countdown() {
   });
   globalWordCardRef = textEl;
 
-  const guesserName = gState.players[gState.guesserIdx];
+  const guesserName = typeof gState.players[gState.guesserIdx] === "string" ? gState.players[gState.guesserIdx] : gState.players[gState.guesserIdx].name;
   const isGuesser = !isOnline || (myName === guesserName);
 
   const container = el("div", { className: "panel center", style: "max-width: 400px; margin: 0 auto; text-align: center; padding: 24px;" }, [
     el("p", { className: "muted", text: isGuesser ? "Place the device on your forehead, facing outward!" : `${guesserName} is placing the phone on their forehead!` }),
     textEl,
-    el("p", { text: `Deck: ${gState.deckName}`, style: "font-weight: 500; font-size: 1.1rem; color: #00ffaa;" })
+    el("p", { text: `Deck: ${gState.deckName}`, style: "font-weight: 500; font-size: 1.1rem; color: #00ffaa;" }),
+    el("p", { className: "muted", text: `Turn ${gState.round} of ${gState.players.length}`, style: "font-size:0.85rem;" })
   ]);
 
   mount(gameTopbar("Charades — Get Ready!", () => confirmQuit()), container);
@@ -570,14 +679,29 @@ function launchGuesserLoop() {
 
     if (now - lastTiltTime < 1400) return;
 
-    const b = e.beta;
-    if (b !== null) {
-      if (b < 45) {
-        lastTiltTime = now;
-        triggerGuess(true);
-      } else if (b > 135) {
-        lastTiltTime = now;
-        triggerGuess(false);
+    const isLandscape = window.innerWidth > window.innerHeight;
+    if (isLandscape) {
+      const g = e.gamma;
+      if (g !== null) {
+        const absG = Math.abs(g);
+        if (absG < 45) {
+          lastTiltTime = now;
+          triggerGuess(true);
+        } else if (absG > 135) {
+          lastTiltTime = now;
+          triggerGuess(false);
+        }
+      }
+    } else {
+      const b = e.beta;
+      if (b !== null) {
+        if (b < 45) {
+          lastTiltTime = now;
+          triggerGuess(true);
+        } else if (b > 135) {
+          lastTiltTime = now;
+          triggerGuess(false);
+        }
       }
     }
   }
@@ -643,7 +767,7 @@ function launchGuesserLoop() {
 
     gState.wordIdx++;
     if (gState.wordIdx >= gState.words.length) {
-      gState.words = shuffle(gState.words);
+      gState.words = shuffle(gState.words.slice());
       gState.wordIdx = 0;
     }
 
@@ -651,6 +775,7 @@ function launchGuesserLoop() {
     if (isOnline) relay({ type: "word_change", wordIdx: gState.wordIdx });
   }
 
+  // 60-second Timer Loop controlled by Guesser
   gState.timerInterval = setInterval(() => {
     gState.timeLeft--;
     timerEl.textContent = `${gState.timeLeft}s`;
@@ -667,6 +792,9 @@ function launchGuesserLoop() {
       playTone(300, 0.2);
       setTimeout(() => playTone(300, 0.2), 220);
       
+      const correctCount = gState.history.filter(h => h.correct).length;
+      gState.players[gState.guesserIdx].score += correctCount;
+
       if (isOnline) relay({ type: "time_up" });
       renderSummaryScreen();
     }
@@ -675,7 +803,7 @@ function launchGuesserLoop() {
 
 // ── Clue Givers Device Loop ─────────────────────────────────────────────────
 function launchOnlineClueLoop() {
-  const guesserName = gState.players[gState.guesserIdx];
+  const guesserName = typeof gState.players[gState.guesserIdx] === "string" ? gState.players[gState.guesserIdx] : gState.players[gState.guesserIdx].name;
 
   const wordCard = el("h2", {
     text: gState.words[gState.wordIdx] || "End of Deck!",
@@ -719,24 +847,161 @@ function renderSummaryScreen() {
     ]);
   });
 
-  const guesserName = gState.players[gState.guesserIdx];
+  const guesserObj = gState.players[gState.guesserIdx];
+  const guesserName = typeof guesserObj === "string" ? guesserObj : guesserObj.name;
+
+  const isGameOver = gState.round >= gState.players.length;
+
+  const nextBtn = el("button", {
+    className: "btn",
+    text: isGameOver ? "See Final Results 🏆" : "Next Round ➡️",
+    style: "width:100%; font-weight:bold;",
+    onClick: () => {
+      if (isGameOver) {
+        gState.phase = "gameover";
+        if (isOnline) {
+          if (isHost) relay({ type: "charades_game_over" });
+        }
+        renderGameOverScreen();
+      } else {
+        if (isOnline) {
+          if (isHost) {
+            const nextAction = {
+              type: "charades_next_round",
+              guesserIdx: gState.guesserIdx + 1,
+              round: gState.round + 1,
+              players: gState.players,
+              words: shuffle(gState.words.slice())
+            };
+            relay(nextAction);
+            handleRelay(nextAction, myName);
+          }
+        } else {
+          gState.guesserIdx++;
+          gState.round++;
+          gState.history = [];
+          gState.timeLeft = 60;
+          gState.countdownLeft = 3;
+          gState.active = false;
+          gState.wordIdx = 0;
+          gState.words = shuffle(gState.words.slice());
+          renderHandoffScreen();
+        }
+      }
+    }
+  });
+
+  const scoreboard = el("div", { className: "scoreboard", style: "margin-top:20px; width:100%;" });
+  gState.players.forEach(p => {
+    scoreboard.appendChild(
+      el("div", {
+        style: `display:flex; justify-content:space-between; align-items:center; padding:10px 14px; border-bottom:1px solid rgba(255,255,255,0.04); font-weight:${p.name === guesserName ? "bold" : "600"}; ${p.name === guesserName ? "color:var(--sunset-soft);" : ""}`
+      }, [
+        el("span", { text: p.name + (p.name === guesserName ? " (Guessed)" : "") }),
+        el("span", { text: `${p.score} pts` })
+      ])
+    );
+  });
+
+  mount(
+    gameTopbar(`Round ${gState.round} Complete`, () => confirmQuit()),
+    el("div", { className: "panel center", style: "max-width: 480px; margin: 0 auto;" }, [
+      el("h1", { text: `${correctCount} Correct!`, style: "font-size:3rem; font-weight:900; color:var(--sunset-soft); margin-top:0;" }),
+      el("p", { className: "muted", text: `Guesser: ${guesserName}. Scorecard Summary:` }),
+      el("div", { style: "max-height: 200px; overflow-y: auto; margin: 16px 0; width: 100%;" }, wordRows),
+      el("h4", { text: "Scoreboard", style: "margin-top:20px; text-align:left; border-bottom:1px solid rgba(255,255,255,0.08); padding-bottom:6px;" }),
+      scoreboard,
+      el("div", { className: "spacer" }),
+      (!isOnline || isHost || isGameOver) ? nextBtn : el("p", { className: "muted center anim-pulse", text: "Waiting for host to advance..." })
+    ])
+  );
+}
+
+function renderHandoffScreen() {
+  const nextGuesser = gState.players[gState.guesserIdx].name;
+  
+  const startBtn = el("button", {
+    className: "btn",
+    text: "Start Turn 🚀",
+    style: "width:100%;",
+    onClick: () => {
+      run321Countdown();
+    }
+  });
+
+  mount(
+    gameTopbar("Charades — Forehead Handoff", () => confirmQuit()),
+    el("div", { className: "panel center", style: "max-width: 440px; margin: 0 auto; padding: 40px 20px;" }, [
+      el("p", { className: "muted", text: "Pass the device to the guesser:" }),
+      el("h2", { text: nextGuesser, style: "font-size:2.5rem; margin:16px 0; color:var(--sunset-soft);" }),
+      el("p", { className: "muted", text: "Hold the screen facing away from you on your forehead!", style: "margin-bottom:24px; font-size:0.85rem;" }),
+      startBtn
+    ])
+  );
+}
+
+function renderGameOverScreen() {
+  const ranked = gState.players.slice().sort((a, b) => b.score - a.score);
+  const winner = ranked[0];
 
   const exitBtn = el("button", {
-    className: "btn",
-    text: "Back to Lobby",
+    className: "btn ghost",
+    text: "Leave Room & Lobby",
+    style: "width:100%; margin-top:10px;",
     onClick: () => {
       resetAll();
       goHome();
     }
   });
 
+  const playAgainBtn = el("button", {
+    className: "btn",
+    text: "Play Again 🔄",
+    style: "width:100%;",
+    onClick: () => {
+      if (isOnline) {
+        if (isHost) {
+          relay({
+            type: "start_game",
+            deckName: gState.deckName,
+            words: shuffle(gState.words.slice()),
+            players: gState.players.map(p => ({ name: p.name, score: 0 }))
+          });
+        }
+      } else {
+        const names = gState.players.map(p => p.name);
+        const defaultDeck = CHARADES_DECKS.actions;
+        const matchingDeck = Object.values(CHARADES_DECKS).find(d => d.name === gState.deckName) || defaultDeck;
+        startCharadesGame(matchingDeck, names);
+      }
+    }
+  });
+
+  const scoreboard = el("div", { className: "scoreboard", style: "margin-top:28px; width:100%;" });
+  ranked.forEach((p, idx) => {
+    const medal = idx === 0 ? "👑" : idx === 1 ? "🥈" : idx === 2 ? "🥉" : "👤";
+    scoreboard.appendChild(
+      el("div", {
+        style: "display:flex; justify-content:space-between; align-items:center; padding:10px 14px; border-bottom:1px solid rgba(255,255,255,0.04); font-weight:600;"
+      }, [
+        el("span", { text: `${medal} ${p.name}` }),
+        el("span", { text: `${p.score} pts`, style: "color:var(--sunset-soft);" })
+      ])
+    );
+  });
+
   mount(
-    gameTopbar("Charades — Round Complete", () => { resetAll(); goHome(); }),
-    el("div", { className: "panel center", style: "max-width: 480px; margin: 0 auto;" }, [
-      el("h1", { text: `${correctCount} Correct!`, style: "font-size:3rem; font-weight:900; color:var(--sunset-soft); margin-top:0;" }),
-      el("p", { className: "muted", text: `Guesser: ${guesserName}. Scorecard Summary:` }),
-      el("div", { style: "max-height: 280px; overflow-y: auto; margin: 16px 0; width: 100%;" }, wordRows),
+    gameTopbar("Game Over", () => confirmQuit()),
+    el("div", { className: "panel center", style: "max-width: 440px; margin: 0 auto; padding: 40px 20px;" }, [
+      el("div", { style: "display: flex; align-items: center; justify-content: center; gap: 8px; margin: 0 auto 12px;" }, [
+        el("div", { style: "width:64px; height:64px; color:var(--sunset-soft);" }, [icons.flags()]),
+        el("span", { style: "font-size: 3rem;" }, "👑")
+      ]),
+      el("h2", { text: `${winner.name} wins!`, style: "color:var(--sunset-soft); margin-bottom:8px;" }),
+      el("p", { className: "muted", text: `Crowned Charades Forehead Champion with ${winner.score} points!`, style: "margin-bottom:24px;" }),
+      scoreboard,
       el("div", { className: "spacer" }),
+      (!isOnline || isHost) ? playAgainBtn : el("p", { className: "muted center anim-pulse", text: "Waiting for host to replay..." }),
       exitBtn
     ])
   );
