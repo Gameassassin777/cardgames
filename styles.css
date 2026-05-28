@@ -90,7 +90,7 @@ body::after {
   z-index: 1;
   max-width: var(--maxw);
   margin: 0 auto;
-  padding: max(24px, env(safe-area-inset-top)) 20px calc(48px + env(safe-area-inset-bottom));
+  padding: max(8px, env(safe-area-inset-top)) 20px calc(48px + env(safe-area-inset-bottom));
   min-height: 100dvh;
 }
 
@@ -104,13 +104,13 @@ h1, h2, h3, h4 {
 
 .brand {
   text-align: center;
-  padding: 20px 0 12px;
+  padding: 4px 0 10px;
 }
 
 .brand .logo-icon {
   width: 48px;
   height: 48px;
-  margin: 0 auto 12px;
+  margin: 0 auto 6px;
   color: var(--sunset-soft);
   filter: drop-shadow(0 4px 12px rgba(238, 155, 83, 0.25));
 }
@@ -1105,4 +1105,31 @@ canvas {
   user-select: none;
   -webkit-user-select: none;
 }
+
+/* Bokeh layer styles — keep them absolute/fixed so they don't push document down */
+.bokeh-layer {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: -1;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.bokeh-bubble {
+  position: absolute;
+  border-radius: 50%;
+  background: radial-gradient(circle at 38% 35%, rgba(255,255,255,0.22) 0%, rgba(255,255,255,0.05) 55%, transparent 75%);
+  animation: bokeh-drift var(--dur, 14s) ease-in-out var(--delay, 0s) infinite alternate;
+  pointer-events: none;
+  will-change: transform;
+}
+
+@keyframes bokeh-drift {
+  0%   { transform: translate(0, 0) scale(1);        opacity: var(--op-lo, 0.45); }
+  50%  { transform: translate(var(--tx, 20px), var(--ty, -30px)) scale(1.06); opacity: var(--op-hi, 0.75); }
+  100% { transform: translate(calc(var(--tx, 20px) * 0.3), calc(var(--ty, -30px) * 1.4)) scale(0.97); opacity: var(--op-lo, 0.45); }
+}
+
 
