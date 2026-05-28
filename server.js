@@ -9,7 +9,146 @@ import path from "path";
 import { fileURLToPath } from "url";
 
 const PORT = 3000;
+
+// Local in-memory store
+let openRooms = [];
+let garticGames = [];
+
 const server = http.createServer((req, res) => {
+  // CORS setup
+  res.setHeader("Access-Control-Allow-Origin", "*");
+  res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+
+  if (req.method === "OPTIONS") {
+    res.writeHead(204);
+    res.end();
+    return;
+  }
+
+  const url = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
+  const pathname = url.pathname;
+
+  // 1. GET /rooms/list
+  if (pathname === "/rooms/list" && req.method === "GET") {
+    const gameFilter = url.searchParams.get("game") || "";
+    const now = Date.now();
+    // Clean stale rooms (>60 seconds)
+    openRooms = openRooms.filter(r => (now - r.lastPing) < 60000);
+    const live = openRooms.filter(r => !gameFilter || r.game === gameFilter);
+    res.writeHead(200, { "Content-Type": "application/json" });
+    res.end(JSON.stringify(live));
+    return;
+  }
+
+  // Helper to read request body JSON
+  const getBody = (callback) => {
+    let body = "";
+    req.on("data", chunk => { body += chunk; });
+    req.on("end", () => {
+      try {
+        callback(JSON.parse(body));
+      } catch (e) {
+        res.writeHead(400, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ error: "Invalid JSON" }));
+      }
+    });
+  };
+
+  // 2. POST /rooms/register
+  if (pathname === "/rooms/register" && req.method === "POST") {
+    getBody((room) => {
+      const now = Date.now();
+      openRooms = openRooms.filter(r => r.code !== room.code && (now - r.lastPing) < 60000);
+      openRooms.push({ ...room, lastPing: now });
+      res.writeHead(200, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ success: true }));
+    });
+    return;
+  }
+
+  // 3. POST /rooms/heartbeat
+  if (pathname === "/rooms/heartbeat" && req.method === "POST") {
+    getBody((data) => {
+      const now = Date.now();
+      const idx = openRooms.findIndex(r => r.code === data.code);
+      if (idx !== -1) {
+        openRooms[idx].lastPing = now;
+        if (data.playerCount !== undefined) {
+          openRooms[idx].playerCount = data.playerCount;
+        }
+      }
+      res.writeHead(200, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ success: true }));
+    });
+    return;
+  }
+
+  // 4. POST /rooms/unregister
+  if (pathname === "/rooms/unregister" && req.method === "POST") {
+    getBody((data) => {
+      openRooms = openRooms.filter(r => r.code !== data.code);
+      res.writeHead(200, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ success: true }));
+    });
+    return;
+  }
+
+  // 5. GET /sync/pull-all
+  if (pathname === "/sync/pull-all" && req.method === "GET") {
+    const GAME_IDS = ["family","roasts","cam","cabin","rizz","wyr","flags","truths","catchphrase"];
+    const result = {};
+    const loadedCards = loadCustomCards();
+    
+    for (const game of GAME_IDS) {
+      result[game] = {
+        cards: game === "cam" || game === "cabin" ? loadedCards : [],
+        prompts: []
+      };
+    }
+    res.writeHead(200, { "Content-Type": "application/json" });
+    res.end(JSON.stringify(result));
+    return;
+  }
+
+  // 6. POST /sync/push
+  if (pathname === "/sync/push" && req.method === "POST") {
+    getBody((data) => {
+      let addedCount = 0;
+      if (data && Array.isArray(data.cards)) {
+        data.cards.forEach(c => {
+          if (c && c.trim()) {
+            saveCustomCard(c);
+            addedCount++;
+          }
+        });
+      }
+      res.writeHead(200, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ success: true, addedCards: addedCount, addedPrompts: 0 }));
+    });
+    return;
+  }
+
+  // 7. GET /gartic/gallery
+  if (pathname === "/gartic/gallery" && req.method === "GET") {
+    res.writeHead(200, { "Content-Type": "application/json" });
+    res.end(JSON.stringify(garticGames));
+    return;
+  }
+
+  // 8. POST /gartic/save
+  if (pathname === "/gartic/save" && req.method === "POST") {
+    getBody((game) => {
+      if (game && game.id) {
+        garticGames.unshift(game);
+      }
+      res.writeHead(200, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ success: true, total: garticGames.length }));
+    });
+    return;
+  }
+
+  // Standard fallback
   res.writeHead(200, { "Content-Type": "text/plain" });
   res.end("Lake House Card Games multiplayer lobby sync server is running!\n");
 });
@@ -77,14 +216,17 @@ wss.on("connection", (ws) => {
       switch (data.type) {
         case "create": {
           const code = generateRoomCode();
-          rooms.set(code, new Set([ws]));
+          const clients = new Set([ws]);
+          clients.lastState = null;
+          clients.lastStateSender = null;
+          rooms.set(code, clients);
           socketMetadata.set(ws, { roomCode: code, name: data.name || "Host" });
           
           ws.send(JSON.stringify({
             type: "created",
             code,
             players: [data.name || "Host"],
-            customCards // Include local custom cards database
+            customCards
           }));
           console.log(`Room ${code} created by ${data.name || "Host"}`);
           break;
@@ -106,7 +248,9 @@ wss.on("connection", (ws) => {
           const playerNames = [];
           clients.forEach(client => {
             const meta = socketMetadata.get(client);
-            if (meta) playerNames.push(meta.name);
+            if (meta && !meta.name.startsWith("__")) {
+              playerNames.push(meta.name);
+            }
           });
 
           // Broadcast join + custom cards to room
@@ -115,7 +259,7 @@ wss.on("connection", (ws) => {
             code,
             name,
             players: playerNames,
-            customCards // Include custom cards database
+            customCards
           });
 
           clients.forEach(client => {
@@ -125,6 +269,16 @@ wss.on("connection", (ws) => {
           });
 
           console.log(`Player ${name} joined room ${code}. Total players: ${clients.size}`);
+          
+          // PLAYBACK: Play back the last cached relayed state if it exists
+          if (clients && clients.lastState) {
+            ws.send(JSON.stringify({
+              type: "relay",
+              sender: clients.lastStateSender || "Host",
+              action: clients.lastState
+            }));
+            console.log(`Played back cached state of type "${clients.lastState.type}" to new player "${name}".`);
+          }
           break;
         }
 
@@ -132,12 +286,18 @@ wss.on("connection", (ws) => {
           const code = (data.code || "").toUpperCase();
           if (!rooms.has(code)) return;
 
-          // Check if game action contains a winning custom card to permanently add to database
           if (data.action && data.action.type === "ADD_CUSTOM_CARD") {
             saveCustomCard(data.action.card);
           }
 
           const clients = rooms.get(code);
+          
+          // CACHE state relays:
+          if (data.action && (data.action.state || data.action.type?.startsWith("QUIPLASH") || data.action.type === "start_game" || data.action.type === "start_round" || data.action.type === "state_update" || data.action.type === "STATE_SYNC")) {
+            clients.lastState = data.action;
+            clients.lastStateSender = data.sender || "Host";
+          }
+
           const relayPayload = JSON.stringify({
             type: "relay",
             sender: data.sender || "Unknown",
@@ -184,7 +344,7 @@ wss.on("connection", (ws) => {
         const playerNames = [];
         clients.forEach(client => {
           const m = socketMetadata.get(client);
-          if (m) playerNames.push(m.name);
+          if (m && !m.name.startsWith("__")) playerNames.push(m.name);
         });
 
         const leaveNotification = JSON.stringify({

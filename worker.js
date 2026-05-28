@@ -293,8 +293,21 @@ export class RoomLobby {
       ws.send(JSON.stringify({ type: "created", code, players: [name], customCards }));
     } else {
       const playerNames = [];
-      this.sessions.forEach(s => playerNames.push(s.name));
+      this.sessions.forEach(s => {
+        if (!s.name.startsWith("__")) {
+          playerNames.push(s.name);
+        }
+      });
       this.broadcast(JSON.stringify({ type: "player_joined", code, name, players: playerNames, customCards }));
+    }
+
+    // PLAYBACK: Play back the last cached state relay if it exists
+    if (this.lastState) {
+      ws.send(JSON.stringify({
+        type: "relay",
+        sender: this.lastStateSender || "Host",
+        action: this.lastState
+      }));
     }
 
     ws.addEventListener("message", async (msg) => {
@@ -313,6 +326,12 @@ export class RoomLobby {
           }
         }
 
+        // CACHE state relays:
+        if (data.action && (data.action.state || data.action.type?.startsWith("QUIPLASH") || data.action.type === "start_game" || data.action.type === "start_round" || data.action.type === "state_update" || data.action.type === "STATE_SYNC")) {
+          this.lastState = data.action;
+          this.lastStateSender = data.sender || name;
+        }
+
         const payload = JSON.stringify({ type: "relay", sender: data.sender || name, action: data.action });
         this.broadcast(payload, ws);
       } catch (err) { console.error("DO: Message parse error:", err); }
@@ -322,7 +341,11 @@ export class RoomLobby {
       this.sessions.delete(ws);
       if (this.sessions.size > 0) {
         const remaining = [];
-        this.sessions.forEach(s => remaining.push(s.name));
+        this.sessions.forEach(s => {
+          if (!s.name.startsWith("__")) {
+            remaining.push(s.name);
+          }
+        });
         this.broadcast(JSON.stringify({ type: "player_left", name, players: remaining }));
       }
     };
