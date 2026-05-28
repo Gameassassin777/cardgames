@@ -177,9 +177,11 @@ button {
   width: 20px; height: 20px;
   stroke-width: 2.2;
 }
-.btn:hover { 
-  transform: translateY(-2px); 
-  box-shadow: 0 12px 32px rgba(230, 106, 54, 0.35);
+@media (hover: hover) {
+  .btn:hover { 
+    transform: translateY(-2px); 
+    box-shadow: 0 12px 32px rgba(230, 106, 54, 0.35);
+  }
 }
 .btn:active { 
   transform: translateY(1px); 
@@ -198,8 +200,10 @@ button {
   color: var(--cream);
   box-shadow: 0 8px 24px rgba(18, 99, 114, 0.25);
 }
-.btn.secondary:hover {
-  box-shadow: 0 12px 32px rgba(18, 99, 114, 0.35);
+@media (hover: hover) {
+  .btn.secondary:hover {
+    box-shadow: 0 12px 32px rgba(18, 99, 114, 0.35);
+  }
 }
 .btn.secondary:active {
   box-shadow: 0 4px 12px rgba(18, 99, 114, 0.18);
@@ -210,10 +214,12 @@ button {
   color: var(--cream);
   box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.12);
 }
-.btn.ghost:hover {
-  background: rgba(255, 255, 255, 0.08);
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.25);
-  transform: translateY(-1px);
+@media (hover: hover) {
+  .btn.ghost:hover {
+    background: rgba(255, 255, 255, 0.08);
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.25);
+    transform: translateY(-1px);
+  }
 }
 .btn.ghost:active {
   transform: translateY(1px);
@@ -283,11 +289,13 @@ button {
               box-shadow 0.25s ease;
 }
 
-.tile:hover {
-  transform: translateY(-4px) scale(1.015);
-  background: rgba(255, 255, 255, 0.06);
-  border-color: rgba(255, 255, 255, 0.2);
-  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.4);
+@media (hover: hover) {
+  .tile:hover {
+    transform: translateY(-4px) scale(1.015);
+    background: rgba(255, 255, 255, 0.06);
+    border-color: rgba(255, 255, 255, 0.2);
+    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.4);
+  }
 }
 
 .tile:active {
@@ -307,9 +315,11 @@ button {
   transition: color 0.2s ease, background-color 0.2s ease;
 }
 
-.tile:hover .icon {
-  color: var(--sunset);
-  background: rgba(255, 255, 255, 0.1);
+@media (hover: hover) {
+  .tile:hover .icon {
+    color: var(--sunset);
+    background: rgba(255, 255, 255, 0.1);
+  }
 }
 
 .tile .meta h3 { 
@@ -415,9 +425,11 @@ button {
   cursor: pointer;
   outline: 3px solid transparent;
 }
-.hand .play-card:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.4);
+@media (hover: hover) {
+  .hand .play-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.4);
+  }
 }
 .hand .play-card.selected {
   outline-color: var(--sunset);
@@ -515,8 +527,10 @@ input[type="text"]:focus, input[type="number"]:focus {
   box-shadow: none;
   transition: background-color 0.2s ease, transform 0.1s ease;
 }
-.stepper button:hover {
-  background-color: #177587;
+@media (hover: hover) {
+  .stepper button:hover {
+    background-color: #177587;
+  }
 }
 .stepper button:active {
   transform: translateY(1px);
@@ -559,10 +573,12 @@ input[type="text"]:focus, input[type="number"]:focus {
 .back svg {
   width: 16px; height: 16px;
 }
-.back:hover {
-  background: rgba(255, 255, 255, 0.1);
-  border-color: rgba(255, 255, 255, 0.2);
-  transform: translateX(-2px);
+@media (hover: hover) {
+  .back:hover {
+    background: rgba(255, 255, 255, 0.1);
+    border-color: rgba(255, 255, 255, 0.2);
+    transform: translateX(-2px);
+  }
 }
 
 .center { text-align: center; }
@@ -598,8 +614,10 @@ input[type="text"]:focus, input[type="number"]:focus {
   border: 1px solid rgba(255, 255, 255, 0.06);
   transition: background-color 0.2s ease;
 }
-.score-row:hover {
-  background: rgba(255, 255, 255, 0.06);
+@media (hover: hover) {
+  .score-row:hover {
+    background: rgba(255, 255, 255, 0.06);
+  }
 }
 
 .score-row.leader { 
