@@ -4,7 +4,7 @@ import { APP_VERSION } from "./version.js";
 import { makeGame as makeCardGame } from "./cam.js";
 import * as meeting from "./meeting.js";
 import { makeGame as makeDeck } from "./deckgame.js";
-import { PROMPTS, RESPONSES, NORMAL_PROMPTS, NORMAL_RESPONSES, FAMILY_PROMPTS, FAMILY_RESPONSES, CAMPFIRE_ROASTS, LAKE_TRUTHS, WOULD_YOU_RATHER, RED_GREEN, RIZZ_ROULETTE } from "./data.js";
+import { PROMPTS, RESPONSES, NORMAL_PROMPTS, NORMAL_RESPONSES, FAMILY_PROMPTS, FAMILY_RESPONSES, CAMPFIRE_ROASTS, LAKE_TRUTHS, WOULD_YOU_RATHER, RED_GREEN, RIZZ_ROULETTE, COZY_WOULD_YOU_RATHER, COZY_MOST_LIKELY, COZY_RED_GREEN, COZY_CAMPFIRE_ROASTS, COZY_TRUTHS_DARES, ZESTY_TRUTHS_DARES } from "./data.js";
 import { openCustomCardsManager } from "./custom_cards_ui.js";
 import * as catchphrase from "./catchphrase.js";
 import { pullFromCloud } from "./cloud_sync.js";
@@ -57,10 +57,17 @@ const cabin = makeCardGame({
   saveKey: "cabin.game.v1", namesKey: "cabin.names.v1", targetKey: "cabin.target", physicalKey: "cabin.physical",
 });
 const rizzRoulette = makeDeck({ title: "Rizz Roulette", source: RIZZ_ROULETTE, saveKey: "rizz.game.v1" });
-const wouldYouRather = makeDeck({ title: "Would You Rather", source: WOULD_YOU_RATHER, saveKey: "wyr.game.v1" });
-const redGreen = makeDeck({ title: "Red Flag / Green Flag", source: RED_GREEN, saveKey: "flags.game.v1" });
-const lakeTruths = makeDeck({ title: "Truth or Dare", source: LAKE_TRUTHS, saveKey: "truths.game.v1" });
-const campfireRoasts = makeDeck({ title: "Roast Me", source: CAMPFIRE_ROASTS, saveKey: "roasts.game.v1" });
+const cozyWouldYouRather = makeDeck({ title: "Cabin Would You Rather", source: COZY_WOULD_YOU_RATHER, saveKey: "cabin_wyr.game.v1" });
+const zestyWouldYouRather = makeDeck({ title: "Zesty Would You Rather", source: WOULD_YOU_RATHER, saveKey: "wyr.game.v1" });
+const cozyRedGreen = makeDeck({ title: "Cabin Red Flag / Green Flag", source: COZY_RED_GREEN, saveKey: "cabin_flags.game.v1" });
+const zestyRedGreen = makeDeck({ title: "Zesty Red Flag / Green Flag", source: RED_GREEN, saveKey: "flags.game.v1" });
+const cozyTruths = makeDeck({ title: "Truth or Dare", source: COZY_TRUTHS_DARES, saveKey: "truths.game.v1" });
+const zestyTruths = makeDeck({ title: "Zesty Truth or Dare", source: ZESTY_TRUTHS_DARES, saveKey: "zesty_truths.game.v1" });
+const cozyRoasts = makeDeck({ title: "Cabin Roasts", source: COZY_CAMPFIRE_ROASTS, saveKey: "cabin_roasts.game.v1" });
+const zestyRoasts = makeDeck({ title: "Zesty Roasts", source: CAMPFIRE_ROASTS, saveKey: "roasts.game.v1" });
+const cozyMeeting = meeting.makeGame({ title: "Cabin Most Likely To", source: COZY_MOST_LIKELY, saveKey: "cabin_meeting.game.v1" });
+const zestyMeeting = meeting.makeGame({ title: "Zesty Most Likely To", source: MOST_LIKELY, saveKey: "meeting.game.v1" });
+
 
 const GAMES = [
   {
@@ -78,46 +85,81 @@ const GAMES = [
     badgeColor: "linear-gradient(145deg, hsl(340,70%,50%), hsl(340,62%,34%))",
   },
   {
-    id: "meeting", icon: icons.meeting, title: "Most Likely To",
-    blurb: "Vote on which player is most likely to match a given prompt. 3+ players.",
-    start: meeting.start,
-    familyFriendly: false,
-    badgeColor: "linear-gradient(145deg, hsl(207,82%,56%), hsl(207,72%,38%))",
+    id: "cabin_wyr", icon: icons.wyr, title: "Cabin Would You Rather",
+    blurb: "Read a clean, cozy dilemma with two choices, and have players vote on their preference. 2+ players.",
+    start: cozyWouldYouRather,
+    familyFriendly: true,
+    badgeColor: "linear-gradient(145deg, hsl(36,70%,50%), hsl(36,60%,34%))",
   },
   {
-    id: "rizz", icon: icons.rizz, title: "Rizz Roulette",
-    blurb: "Draw cards to complete interactive dares, answer questions, or discuss conversational prompts. 2+ players.",
-    start: rizzRoulette,
-    familyFriendly: false,
-    badgeColor: "linear-gradient(145deg, hsl(310,65%,52%), hsl(310,55%,36%))",
-  },
-  {
-    id: "wyr", icon: icons.wyr, title: "Would You Rather",
-    blurb: "Read a dilemma with two choices, and have players vote on their preference. 2+ players.",
-    start: wouldYouRather,
+    id: "wyr", icon: icons.wyr, title: "Zesty Would You Rather",
+    blurb: "Read an unhinged, chronically-online dilemma with two sussy choices, and vote. 2+ players.",
+    start: zestyWouldYouRather,
     familyFriendly: false,
     badgeColor: "linear-gradient(145deg, hsl(36,90%,55%), hsl(36,80%,38%))",
   },
   {
-    id: "flags", icon: icons.flags, title: "Red Flag / Green Flag",
-    blurb: "Discuss and judge character traits as positive, negative, or neutral. 2+ players.",
-    start: redGreen,
+    id: "cabin_meeting", icon: icons.meeting, title: "Cabin Most Likely To",
+    blurb: "Identify the suspect! Vote on which player is most likely to match a clean cabin prompt. 3+ players.",
+    start: cozyMeeting,
     familyFriendly: true,
+    badgeColor: "linear-gradient(145deg, hsl(207,62%,46%), hsl(207,52%,30%))",
+  },
+  {
+    id: "meeting", icon: icons.meeting, title: "Zesty Most Likely To",
+    blurb: "Initiate voting protocol! Vote on which crewmate is the most suspicious or zesty. 3+ players.",
+    start: zestyMeeting,
+    familyFriendly: false,
+    badgeColor: "linear-gradient(145deg, hsl(207,82%,56%), hsl(207,72%,38%))",
+  },
+  {
+    id: "cabin_flags", icon: icons.flags, title: "Cabin Red / Green Flag",
+    blurb: "Discuss and judge funny, normal-life character traits as positive, negative, or neutral. 2+ players.",
+    start: cozyRedGreen,
+    familyFriendly: true,
+    badgeColor: "linear-gradient(145deg, hsl(116,45%,38%), hsl(116,38%,24%))",
+  },
+  {
+    id: "flags", icon: icons.flags, title: "Zesty Red / Green Flag",
+    blurb: "Discuss and judge chronically-online, sussy, and zesty traits. 2+ players.",
+    start: zestyRedGreen,
+    familyFriendly: false,
     badgeColor: "linear-gradient(145deg, hsl(116,55%,48%), hsl(116,48%,32%))",
   },
   {
-    id: "truths", icon: icons.truths, title: "Truth or Dare",
-    blurb: "Choose between answering a truth question or completing a dare. Suitable for any group size.",
-    start: lakeTruths,
+    id: "truths", icon: icons.truths, title: "Cabin Truth or Dare",
+    blurb: "Choose between answering a clean truth question or completing a goofy cabin dare. Suitable for any group size.",
+    start: cozyTruths,
     familyFriendly: true,
-    badgeColor: "linear-gradient(145deg, hsl(48,90%,55%), hsl(48,80%,38%))",
+    badgeColor: "linear-gradient(145deg, hsl(48,70%,45%), hsl(48,60%,30%))",
   },
   {
-    id: "roasts", icon: icons.roasts, title: "Roast Me",
-    blurb: "Lighthearted group roasts, goofy dares, and funny social dilemmas. 3+ players.",
-    start: campfireRoasts,
+    id: "zesty_truths", icon: icons.fire, title: "Zesty Truth or Dare",
+    blurb: "The adult version of Truth or Dare. Choose between revealing sussy secrets or doing exotic dares. 2+ players.",
+    start: zestyTruths,
+    familyFriendly: false,
+    badgeColor: "linear-gradient(145deg, hsl(340,85%,55%), hsl(340,75%,38%))",
+  },
+  {
+    id: "cabin_roasts", icon: icons.roasts, title: "Cabin Roasts",
+    blurb: "Lighthearted group roasts, clean dares, and funny social dilemmas. 3+ players.",
+    start: cozyRoasts,
     familyFriendly: true,
+    badgeColor: "linear-gradient(145deg, hsl(18,65%,45%), hsl(18,55%,30%))",
+  },
+  {
+    id: "roasts", icon: icons.roasts, title: "Zesty Roasts",
+    blurb: "Absurd group roasts, edgy dares, and unhinged campfire dilemmas. 3+ players.",
+    start: zestyRoasts,
+    familyFriendly: false,
     badgeColor: "linear-gradient(145deg, hsl(18,85%,55%), hsl(18,75%,38%))",
+  },
+  {
+    id: "rizz", icon: icons.rizz, title: "Rizz Roulette",
+    blurb: "Draw cards to complete interactive zesty dares, confess secrets, or defend hot takes. 2+ players.",
+    start: rizzRoulette,
+    familyFriendly: false,
+    badgeColor: "linear-gradient(145deg, hsl(310,65%,52%), hsl(310,55%,36%))",
   },
   {
     id: "catchphrase", icon: icons.catchphrase, title: "Catchphrase",
@@ -365,7 +407,7 @@ const CATEGORIES = [
     blurb: "Fill-in-the-blank prompts, anonymous voting, truths, dares & campfire roasts.",
     icon: () => icons.monkeys(),
     theme: "blue",
-    gameIds: ["cabin", "cam", "meeting", "rizz", "wyr", "flags", "truths", "roasts"]
+    gameIds: ["cabin", "cam", "cabin_wyr", "wyr", "cabin_meeting", "meeting", "cabin_flags", "flags", "truths", "zesty_truths", "cabin_roasts", "roasts", "rizz"]
   },
   {
     id: "drawing",

@@ -1,19 +1,21 @@
 // Emergency Meeting — pass-and-play "who's most likely / who's the most sus" voting game.
 import { el, mount, shuffle, toast, store } from "./ui.js";
-import { MOST_LIKELY } from "./data.js";
 import { icons } from "./icons.js";
 
-const NAMES_KEY = "meeting.names.v1";
 let goHome = () => {};
 let s = null;
+let cfg = null;
 
-export function start(home) {
-  document.body.classList.add("spaceship-theme");
-  goHome = () => {
-    document.body.classList.remove("spaceship-theme");
-    home();
+export function makeGame(config) {
+  return function start(home) {
+    cfg = config;
+    document.body.classList.add("spaceship-theme");
+    goHome = () => {
+      document.body.classList.remove("spaceship-theme");
+      home();
+    };
+    renderSetup();
   };
-  renderSetup();
 }
 
 function topbar(title) {
@@ -26,7 +28,7 @@ function topbar(title) {
 
 /* ---------------- Setup ---------------- */
 function renderSetup() {
-  const saved = store.get(NAMES_KEY, ["", "", ""]);
+  const saved = store.get(cfg.saveKey + ".names", ["", "", ""]);
   let names = saved.length >= 3 ? saved.slice() : ["", "", ""];
   const listWrap = el("div", { id: "mlist" });
 
@@ -65,10 +67,10 @@ function begin(raw) {
   const players = raw.map((n) => n.trim()).filter(Boolean);
   if (players.length < 3) { toast("Add at least 3 crewmates."); return; }
   if (new Set(players.map((p) => p.toLowerCase())).size !== players.length) { toast("Names must be unique."); return; }
-  store.set(NAMES_KEY, players);
+  store.set(cfg.saveKey + ".names", players);
   s = {
     players: players.map((name) => ({ name, sus: 0 })),
-    deck: shuffle(MOST_LIKELY),
+    deck: shuffle(cfg.source),
     pos: 0,
     round: 1,
     votes: [],     // votes[voterIdx] = targetIdx

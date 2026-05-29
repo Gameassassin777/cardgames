@@ -7,6 +7,7 @@ const TAG_ICON = {
   "Never Have I Ever": icons.monkeys,
   "Truth": icons.truths,
   "Dare": icons.fire,
+  "Challenge": icons.fire,
   "Most Likely To": icons.speak,
   "Red or Green?": icons.flags,
   "Rizz Challenge": icons.rizz,
@@ -22,6 +23,8 @@ const WS_BASE = location.hostname === "localhost" || location.hostname === "127.
 export function makeGame({ title, source, saveKey }) {
   return function start(home) {
     const isCampfire = title === "Campfire Roasts";
+    const isTruthOrDare = title === "Truth or Dare" || title === "Zesty Truth or Dare";
+    
     if (isCampfire) document.body.classList.add("campfire-theme");
 
     const cleanHome = () => {
@@ -36,11 +39,13 @@ export function makeGame({ title, source, saveKey }) {
     let myName = "";
     let isHost = false;
     let onlinePlayers = [];
+    let chosenCard = null;
 
     function resetOnline() {
       if (socket) { try { socket.close(); } catch (_) {} socket = null; }
       onlineMode = false;
       roomCode = ""; myName = ""; isHost = false; onlinePlayers = [];
+      chosenCard = null;
     }
 
     function getFullSource() {
@@ -102,6 +107,7 @@ export function makeGame({ title, source, saveKey }) {
 
     function reshuffle() { 
       reshuffleSilently(); 
+      chosenCard = null;
       if (onlineMode && isHost) {
         syncDeckState();
       } else {
@@ -109,9 +115,82 @@ export function makeGame({ title, source, saveKey }) {
       }
     }
 
+    function chooseCard(category) {
+      const isTruth = category === "truth";
+      const matchFn = c => {
+        const tag = c.tag || c.type || "Card";
+        if (isTruth) {
+          return tag === "Truth" || tag === "Confession";
+        } else {
+          return tag === "Dare" || tag === "Challenge" || tag === "Rizz Challenge";
+        }
+      };
+
+      // Search forward from pos
+      let foundIdx = -1;
+      for (let i = pos; i < deck.length; i++) {
+        if (matchFn(deck[i])) {
+          foundIdx = i;
+          break;
+        }
+      }
+
+      if (foundIdx === -1) {
+        // Reshuffle and search again
+        reshuffleSilently();
+        for (let i = 0; i < deck.length; i++) {
+          if (matchFn(deck[i])) {
+            foundIdx = i;
+            break;
+          }
+        }
+      }
+
+      if (foundIdx !== -1) {
+        // Swap found card to current position
+        const temp = deck[pos];
+        deck[pos] = deck[foundIdx];
+        deck[foundIdx] = temp;
+
+        chosenCard = deck[pos];
+        savePersistentDeck();
+
+        if (onlineMode && isHost) {
+          syncDeckState();
+        } else {
+          render();
+        }
+      } else {
+        toast("No cards found for this category!");
+      }
+    }
+
     function syncDeckState() {
-      const card = deck[pos];
-      const tag = card ? (card.tag || card.type || "Card") : "Card";
+      const card = chosenCard;
+      if (isTruthOrDare && !card) {
+        if (socket && socket.readyState === 1) {
+          socket.send(JSON.stringify({
+            type: "relay",
+            code: roomCode,
+            sender: myName,
+            action: {
+              type: "STATE_SYNC",
+              state: {
+                text: "Waiting for player to choose Truth or Dare...",
+                tag: "Choice",
+                remaining: deck.length - pos,
+                last: pos >= deck.length - 1,
+                deckSize: deck.length,
+                isChoiceLobby: true
+              }
+            }
+          }));
+        }
+        return;
+      }
+
+      const activeCard = card || deck[pos];
+      const tag = activeCard ? (activeCard.tag || activeCard.type || "Card") : "Card";
       const remaining = deck.length - pos - 1;
       const last = pos >= deck.length - 1;
 
@@ -123,11 +202,12 @@ export function makeGame({ title, source, saveKey }) {
           action: {
             type: "STATE_SYNC",
             state: {
-              text: card ? card.text : "Draw a card!",
+              text: activeCard ? activeCard.text : "Draw a card!",
               tag,
               remaining,
               last,
-              deckSize: deck.length
+              deckSize: deck.length,
+              isChoiceLobby: false
             }
           }
         }));
@@ -218,8 +298,9 @@ export function makeGame({ title, source, saveKey }) {
     }
 
     function renderOnlineMirror(syncedState) {
-      // Spectator mirror layout
       const last = syncedState.last;
+      const isLobby = syncedState.isChoiceLobby;
+
       mount(
         el("div", { className: "topbar" }, [
           el("button", { className: "back", text: "‹ Leave", onClick: cleanHome }),
@@ -231,35 +312,50 @@ export function makeGame({ title, source, saveKey }) {
             className: "pill", 
             style: "display:inline-flex; align-items:center; gap:6px; background:rgba(255,255,255,0.06); padding:4px 10px; border-radius:16px; font-weight:700;" 
           }, [
-            el("span", { style: "width:14px; height:14px; display:inline-block;" }, [TAG_ICON[syncedState.tag] ? TAG_ICON[syncedState.tag]() : icons.doodles()]),
+            el("span", { style: "width:14px; height:14px; display:inline-block;" }, [
+              isLobby ? icons.truths() : (TAG_ICON[syncedState.tag] ? TAG_ICON[syncedState.tag]() : icons.doodles())
+            ]),
             el("span", { text: syncedState.tag })
           ]),
           el("div", {
-            className: "play-card response",
+            className: "play-card response" + (isLobby ? " anim-pulse" : ""),
             style: "margin-top:14px; font-size:1.3rem; min-height:180px; justify-content:center; text-align:center;",
           }, [ el("span", { text: syncedState.text }) ]),
           el("p", { className: "muted", text: `${syncedState.remaining} card${syncedState.remaining === 1 ? "" : "s"} left in the deck` }),
         ]),
         el("div", { className: "spacer" }),
         isHost
-          ? (last
-            ? el("button", { 
-                className: "btn", 
-                style: "display:flex; align-items:center; justify-content:center; gap:6px; margin:0 auto;",
-                onClick: reshuffle 
-              }, [
-                el("span", { style: "width:18px; height:18px; display:inline-block;" }, [icons.refresh()]),
-                el("span", { text: "Reshuffle & keep going" })
+          ? (isLobby
+            ? el("div", { style: "display:flex; flex-direction:column; gap:12px; max-width:280px; margin:0 auto; width:100%;" }, [
+                el("button", {
+                  className: "btn",
+                  style: "background:linear-gradient(145deg, #00ffaa, #00aa77); border:none; width:100%;",
+                  onClick: () => chooseCard("truth")
+                }, [el("span", { text: "🔍 TRUTH" })]),
+                el("button", {
+                  className: "btn",
+                  style: "background:linear-gradient(145deg, #ff4757, #c02d37); border:none; width:100%;",
+                  onClick: () => chooseCard("dare")
+                }, [el("span", { text: "🔥 DARE" })])
               ])
-            : el("button", { 
-                className: "btn", 
-                style: "display:flex; align-items:center; justify-content:center; gap:6px; margin:0 auto;",
-                onClick: () => { pos++; savePersistentDeck(); syncDeckState(); } 
-              }, [
-                el("span", { style: "width:18px; height:18px; display:inline-block;" }, [icons.chevronRight()]),
-                el("span", { text: "Next card" })
-              ]))
-          : el("p", { className: "muted center anim-pulse", text: "Waiting for host to flip cards..." })
+            : (last
+              ? el("button", { 
+                  className: "btn", 
+                  style: "display:flex; align-items:center; justify-content:center; gap:6px; margin:0 auto;",
+                  onClick: reshuffle 
+                }, [
+                  el("span", { style: "width:18px; height:18px; display:inline-block;" }, [icons.refresh()]),
+                  el("span", { text: "Reshuffle & keep going" })
+                ])
+              : el("button", { 
+                  className: "btn", 
+                  style: "display:flex; align-items:center; justify-content:center; gap:6px; margin:0 auto;",
+                  onClick: () => { pos++; savePersistentDeck(); chosenCard = null; syncDeckState(); } 
+                }, [
+                  el("span", { style: "width:18px; height:18px; display:inline-block;" }, [icons.chevronRight()]),
+                  el("span", { text: "Next Player ➔" })
+                ])))
+          : el("p", { className: "muted center anim-pulse", text: isLobby ? "Waiting for player to choose..." : "Host is presenting the card..." })
       );
     }
 
@@ -329,7 +425,41 @@ export function makeGame({ title, source, saveKey }) {
     }
 
     function render() {
-      const card = deck[pos];
+      if (isTruthOrDare && !chosenCard) {
+        mount(
+          el("div", { className: "topbar" }, [
+            el("button", { className: "back", text: "‹ Back", onClick: renderSetup }),
+            el("div", { className: "title", text: title }),
+            el("span", { style: "width:64px" }),
+          ]),
+          el("div", { className: "panel center", style: "max-width:440px; margin:0 auto;" }, [
+            el("div", { style: "width:64px; height:64px; margin:0 auto 12px; color:var(--sunset-soft);" }, [icons.truths()]),
+            el("h2", { text: "Choose your fate" }),
+            el("p", { className: "muted", text: "Pass the device to the active player. They must choose between answering a revealing Truth or performing a daring challenge!" }),
+            el("div", { style: "display:flex; flex-direction:column; gap:16px; width:100%; margin-top:24px;" }, [
+              el("button", {
+                className: "btn",
+                style: "display:flex; align-items:center; justify-content:center; gap:10px; padding:18px; font-size:1.2rem; background:linear-gradient(145deg, #00ffaa, #00aa77); border:none; width:100%;",
+                onClick: () => chooseCard("truth")
+              }, [
+                el("span", { style: "width:24px; height:24px; display:inline-block;" }, [icons.truths()]),
+                el("span", { text: "🔍 TRUTH" })
+              ]),
+              el("button", {
+                className: "btn",
+                style: "display:flex; align-items:center; justify-content:center; gap:24px; padding:18px; font-size:1.2rem; background:linear-gradient(145deg, #ff4757, #c02d37); border:none; width:100%;",
+                onClick: () => chooseCard("dare")
+              }, [
+                el("span", { style: "width:24px; height:24px; display:inline-block;" }, [icons.fire()]),
+                el("span", { text: "🔥 DARE" })
+              ])
+            ])
+          ])
+        );
+        return;
+      }
+
+      const card = chosenCard || deck[pos];
       const tag = card.tag || card.type || "Card";
       const remaining = deck.length - pos - 1;
       const last = pos >= deck.length - 1;
@@ -367,10 +497,20 @@ export function makeGame({ title, source, saveKey }) {
           : el("button", { 
               className: "btn", 
               style: "display:flex; align-items:center; justify-content:center; gap:6px; margin:0 auto;",
-              onClick: () => { pos++; savePersistentDeck(); render(); } 
+              onClick: () => {
+                pos++;
+                savePersistentDeck();
+                if (isTruthOrDare) {
+                  chosenCard = null;
+                  if (onlineMode && isHost) {
+                    syncDeckState();
+                  }
+                }
+                render();
+              } 
             }, [
               el("span", { style: "width:18px; height:18px; display:inline-block;" }, [icons.chevronRight()]),
-              el("span", { text: "Next card" })
+              el("span", { text: isTruthOrDare ? "Next Player ➔" : "Next card" })
             ]),
         el("div", { className: "spacer" }),
         el("button", { 
