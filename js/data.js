@@ -76,6 +76,11 @@ export const PROMPTS = [
   { text: `My toxic trait is replacing my personality with ${BLANK} and a deep, lifelong commitment to ${BLANK}.`, pick: 2 },
   { text: `If you combine ${BLANK} with ${BLANK}, the universe will collapse into a black hole of pure cringe.`, pick: 2 },
   { text: `My search history is 95% ${BLANK} and 5% absolute panic about ${BLANK}.`, pick: 2 },
+  
+  // --- Pick One (unhinged Hogwarts expansion) ---
+  { text: `Professor Snape permanently deducted 50 points from Gryffindor after catching Harry secretly doing ${BLANK} in the girl's bathroom.`, pick: 1 },
+  { text: `What is currently hidden deep inside the Chamber of Secrets that Voldemort was too afraid to reveal? ${BLANK}.`, pick: 1 },
+  { text: `The Sorting Hat looked at my head for two seconds and confidently shouted: ${BLANK}!`, pick: 1 },
 ];
 
 // Response cards — chronically-online brain-rot answers.
@@ -251,6 +256,16 @@ export const RESPONSES = [
   "a middle-aged man violently arguing with an automated customer service voice",
   "a stack of unopened mail I fully intend to let my descendants handle",
   "a deeply cursed piece of fan art depicting a house elf in a highly compromising position",
+  
+  // --- Hogwarts/Elf expansion responses ---
+  "Dobby bending over and spreading his cheeks to show his true loyalty",
+  "Professor Snape whispering zestily in my ear during double potions class",
+  "a highly inappropriate relationship with Hagrid's giant spider",
+  "a wand that is suspiciously sticky and smells like pumpkin juice",
+  "Harry Potter's invisible cloak being used for completely sussy activities",
+  "Dobby aggressively looksmaxxing with a zesty golden snitch",
+  "getting zesty in the Gryffindor common room at 3 a.m.",
+  "the Sorting Hat being used as an emotional support bucket",
 ];
 
 /* ============================================================
