@@ -1098,6 +1098,46 @@ hr.divider {
   pointer-events: none;
 }
 
+/* Farkle Scoring Highlights */
+.dice-box.scoring {
+  border-color: #00ffaa !important;
+  box-shadow: 0 0 12px rgba(0, 255, 170, 0.45) !important;
+}
+.dice-box.noscoring {
+  opacity: 0.4;
+  border-color: rgba(255, 255, 255, 0.05) !important;
+}
+
+.farkle-breakdown {
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  padding: 12px;
+  margin-top: 10px;
+  text-align: left;
+  width: 100%;
+}
+
+.farkle-breakdown-title {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--sunset-soft);
+  margin-bottom: 6px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.farkle-breakdown-item {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.8rem;
+  padding: 4px 8px;
+  background: rgba(255, 255, 255, 0.02);
+  border-radius: 6px;
+  margin-bottom: 4px;
+}
+
 /* Drawing Canvas & Page Overscroll Optimizations */
 canvas {
   touch-action: none;

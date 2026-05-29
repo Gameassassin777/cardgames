@@ -476,7 +476,8 @@ function initLocalGame(players, piggybackRule) {
     turnIsPiggybacked: false,
     turnHasRolled: false,
     virtualDice: [],
-    virtualRolling: false
+    virtualRolling: false,
+    usePhysicalDice: false
   };
 
   renderBoard(gState);
@@ -503,7 +504,8 @@ function initOnlineGame() {
     turnIsPiggybacked: false,
     turnHasRolled: false,
     virtualDice: [],
-    virtualRolling: false
+    virtualRolling: false,
+    usePhysicalDice: false
   };
 
   relay({
@@ -578,13 +580,42 @@ function renderBoard(state) {
   const turnPanel = el("div", { className: "panel center", style: "align-self: flex-start; background: #0b1a20;" });
   
   function drawTurnPanel() {
+    if (state.virtualRolling) {
+      const currentHeight = turnPanel.offsetHeight;
+      if (currentHeight > 0) {
+        turnPanel.style.minHeight = `${currentHeight}px`;
+      }
+    } else {
+      turnPanel.style.minHeight = "";
+    }
+
     turnPanel.innerHTML = "";
 
-    const canPiggyback = state.piggybackRule && 
-                         state.lastBankedScore > 0 && 
-                         state.lastBankedRemainingDice > 0 && 
-                         state.lastBankedPlayerName !== activePlayerName &&
-                         !state.turnHasRolled;
+    // Toggle for Virtual vs Physical Dice
+    const typeSelector = el("div", {
+      style: "display: flex; gap: 8px; justify-content: center; margin-bottom: 16px; background: rgba(255,255,255,0.03); padding: 4px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.05); width: 100%;"
+    }, [
+      el("button", {
+        className: !state.usePhysicalDice ? "btn small" : "btn ghost small",
+        text: "📱 Virtual Roller",
+        style: "margin: 0; padding: 6px 12px; font-size: 0.75rem; border: none; box-shadow: none; flex: 1;",
+        onClick: () => {
+          state.usePhysicalDice = false;
+          drawTurnPanel();
+          if (isOnline) relay({ type: "state_update", state });
+        }
+      }),
+      el("button", {
+        className: state.usePhysicalDice ? "btn small" : "btn ghost small",
+        text: "🎲 Physical Dice",
+        style: "margin: 0; padding: 6px 12px; font-size: 0.75rem; border: none; box-shadow: none; flex: 1;",
+        onClick: () => {
+          state.usePhysicalDice = true;
+          drawTurnPanel();
+          if (isOnline) relay({ type: "state_update", state });
+        }
+      })
+    ]);
 
     const heading = el("h3", { text: `${activePlayerName}'s Turn`, style: "margin-top: 0;" });
     const desc = el("p", {
@@ -594,6 +625,13 @@ function renderBoard(state) {
         ? `Running Score: ${state.turnTempScore} • Remaining Dice: ${state.turnRemainingDice}`
         : `Must score 500+ in a turn to get on the board! (Running: ${state.turnTempScore})`
     });
+
+    const canPiggyback = state.piggybackRule && 
+                         state.lastBankedScore > 0 && 
+                         state.lastBankedRemainingDice > 0 && 
+                         state.lastBankedPlayerName !== activePlayerName &&
+                         !state.turnHasRolled &&
+                         !state.usePhysicalDice; // only virtual piggybacking makes sense since dice count is tracked digitally
 
     let piggybackBtn = null;
     if (canPiggyback && isMyTurn) {
@@ -628,11 +666,41 @@ function renderBoard(state) {
         virtualDiceGrid.appendChild(el("div", { className: "muted", style: "font-size:0.8rem; padding: 12px;", text: "Dice ready to roll" }));
         return;
       }
+
+      // Compute scoring highlights
+      const activeIndices = [];
+      const activeVals = [];
+      state.virtualDice.forEach((d, idx) => {
+        if (!d.scored) {
+          activeIndices.push(idx);
+          activeVals.push(d.val);
+        }
+      });
+      const breakdown = getFarkleBreakdown(activeVals);
+      const absoluteScoringIndices = breakdown.scoringIndices.map(localIdx => activeIndices[localIdx]);
+
       state.virtualDice.forEach((die, dIdx) => {
         const dFace = renderDiceFaceSVG(die.val, die.held || die.scored);
+        
+        const showHighlights = state.turnHasRolled && !state.virtualRolling;
+        const isScoring = showHighlights && !die.scored && !die.held && absoluteScoringIndices.includes(dIdx);
+        const isNoScoring = showHighlights && !die.scored && !die.held && !absoluteScoringIndices.includes(dIdx);
+
+        let borderStyle = "rgba(255,255,255,0.1)";
+        if (die.scored) {
+          borderStyle = "#00ffaa";
+        } else if (die.held) {
+          borderStyle = "var(--sunset-soft)";
+        }
+
         const card = el("div", {
-          className: "dice-box" + (die.held ? " held" : "") + (die.scored ? " scored" : "") + (state.virtualRolling && !die.held && !die.scored ? " rolling" : ""),
-          style: `width: 44px; height: 44px; padding: 2px; border: 2px solid ${die.scored ? "#00ffaa" : (die.held ? "var(--sunset-soft)" : "rgba(255,255,255,0.1)")}; border-radius: 8px; cursor: ${die.scored || state.virtualRolling || !isMyTurn ? "not-allowed" : "pointer"};`,
+          className: "dice-box" + 
+            (die.held ? " held" : "") + 
+            (die.scored ? " scored" : "") + 
+            (state.virtualRolling && !die.held && !die.scored ? " rolling" : "") +
+            (isScoring ? " scoring" : "") +
+            (isNoScoring ? " noscoring" : ""),
+          style: `width: 44px; height: 44px; padding: 2px; border: 2px solid ${borderStyle}; border-radius: 8px; cursor: ${die.scored || state.virtualRolling || !isMyTurn ? "not-allowed" : "pointer"};`,
           onClick: () => {
             if (state.virtualRolling || die.scored || !isMyTurn) return;
             die.held = !die.held;
@@ -713,12 +781,89 @@ function renderBoard(state) {
     actionRow.appendChild(rollTriggerBtn);
     actionRow.appendChild(keepTriggerBtn);
 
+    // Quick Button: "Hold All Scoring Dice"
+    let holdAllBtn = null;
+    if (state.turnHasRolled && !state.virtualRolling && state.virtualDice.length > 0 && isMyTurn) {
+      const activeIndices = [];
+      const activeVals = [];
+      state.virtualDice.forEach((d, idx) => {
+        if (!d.scored) {
+          activeIndices.push(idx);
+          activeVals.push(d.val);
+        }
+      });
+      const breakdown = getFarkleBreakdown(activeVals);
+      const absoluteScoringIndices = breakdown.scoringIndices.map(localIdx => activeIndices[localIdx]);
+      
+      // Filter scoring dice that are not already held
+      const unheldScoringIndices = absoluteScoringIndices.filter(idx => !state.virtualDice[idx].held);
+      
+      if (unheldScoringIndices.length > 0) {
+        holdAllBtn = el("button", {
+          className: "btn ghost small",
+          style: "width: 100%; margin-top: 8px; font-size: 0.8rem; border-color: rgba(0, 255, 170, 0.3); color: #00ffaa;",
+          text: "✨ Hold All Scoring Dice",
+          onClick: () => {
+            unheldScoringIndices.forEach(idx => {
+              state.virtualDice[idx].held = true;
+            });
+            drawVirtualDice();
+            updateRollerButtons();
+            if (isOnline) relay({ type: "state_update", state });
+          }
+        });
+      }
+    }
+
+    // Breakdown Banner
+    let breakdownEl = null;
+    if (state.turnHasRolled && !state.virtualRolling && state.virtualDice.length > 0) {
+      const activeVals = state.virtualDice.filter(d => !d.scored).map(d => d.val);
+      const breakdown = getFarkleBreakdown(activeVals);
+      
+      if (breakdown.totalScore === 0) {
+        breakdownEl = el("div", {
+          className: "farkle-breakdown",
+          style: "border-color: #ff5252; background: rgba(255, 82, 82, 0.05); margin-top: 10px; border-radius: 12px; padding: 12px; text-align: left; width: 100%; border: 1px solid;"
+        }, [
+          el("div", {
+            style: "color: #ff5252; font-weight: bold; text-align: center; font-size: 0.95rem;",
+            text: "💥 FARKLE — No scoring dice!"
+          })
+        ]);
+      } else {
+        const items = breakdown.combinations.map(c => 
+          el("div", {
+            className: "farkle-breakdown-item",
+            style: "display: flex; justify-content: space-between; font-size: 0.8rem; padding: 4px 8px; background: rgba(255,255,255,0.02); border-radius: 6px; margin-bottom: 4px;"
+          }, [
+            el("span", { text: c.label }),
+            el("span", { text: `+${c.score} pts`, style: "color: #00ffaa; font-weight: 600;" })
+          ])
+        );
+        
+        breakdownEl = el("div", {
+          className: "farkle-breakdown",
+          style: "margin-top: 10px; background: rgba(255, 255, 255, 0.02); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 12px; padding: 12px; text-align: left; width: 100%;"
+        }, [
+          el("div", {
+            className: "farkle-breakdown-title",
+            style: "font-size: 0.85rem; font-weight: 600; color: var(--sunset-soft); margin-bottom: 6px; display: flex; justify-content: space-between; align-items: center;"
+          }, [
+            document.createTextNode("Available Combinations:"),
+            el("span", { text: `Max: ${breakdown.totalScore} pts`, style: "font-size: 0.75rem; color: #888;" })
+          ]),
+          el("div", { style: "display: flex; flex-direction: column;" }, items)
+        ]);
+      }
+    }
+
     const manualHeading = el("h4", { text: "Or Log Score Manually", style: "margin: 20px 0 6px; font-size: 0.9rem; border-top: 1px solid rgba(255,255,255,0.06); padding-top:16px;" });
     let turnScoreInput = "";
     const inputDisplay = el("div", {
       className: "farkle-score-display",
       text: "0",
-      style: "font-size: 2rem; font-weight: bold; text-align: center; color: var(--sunset-soft); padding: 12px; background: rgba(255,255,255,0.02); border-radius: 10px; margin-bottom: 8px;"
+      style: "font-size: 2rem; font-weight: bold; text-align: center; color: var(--sunset-soft); padding: 12px; background: rgba(255,255,255,0.02); border-radius: 10px; margin-bottom: 8px; width: 100%;"
     });
 
     function pressKey(k) {
@@ -741,7 +886,7 @@ function renderBoard(state) {
       ["C", "0", "⌫"]
     ];
 
-    const padGrid = el("div", { className: "numpad-grid", style: "display: flex; flex-direction: column; gap: 6px; max-width: 240px; margin: 0 auto 12px;" });
+    const padGrid = el("div", { className: "numpad-grid", style: "display: flex; flex-direction: column; gap: 6px; max-width: 240px; margin: 0 auto 12px; width: 100%;" });
     numpadKeys.forEach(rowKeys => {
       const rowEl = el("div", { style: "display: flex; gap: 6px;" });
       rowKeys.forEach(k => {
@@ -808,6 +953,49 @@ function renderBoard(state) {
       }
     });
 
+    // Dedicated Virtual Bank Score button
+    const virtualBankBtn = el("button", {
+      className: "btn",
+      disabled: !isMyTurn || state.turnTempScore === 0,
+      text: `Bank Score (+${state.turnTempScore} pts)`,
+      style: "width: 100%; margin-top: 10px;",
+      onClick: () => {
+        let scoreVal = state.turnTempScore;
+
+        if (scoreVal === 0) {
+          logFarkle(0);
+          return;
+        }
+
+        if (!activeState.onBoard) {
+          if (scoreVal < 500) {
+            toast("⚠️ Must score at least 500 points to get on the board!");
+            return;
+          }
+          activeState.onBoard = true;
+        }
+
+        activeState.total += scoreVal;
+        activeState.history.push(scoreVal);
+        toast(`Banked ${scoreVal} points for ${activePlayerName}!`);
+
+        if (state.piggybackRule) {
+          let remaining = state.virtualDice.filter(d => !d.scored).length;
+          if (remaining > 0 && remaining < 6) {
+            state.lastBankedScore = scoreVal;
+            state.lastBankedRemainingDice = remaining;
+            state.lastBankedPlayerName = activePlayerName;
+          } else {
+            state.lastBankedScore = 0;
+            state.lastBankedRemainingDice = 0;
+            state.lastBankedPlayerName = "";
+          }
+        }
+
+        checkWinAndPass();
+      }
+    });
+
     const farkleBtn = el("button", {
       className: "btn error ghost",
       disabled: !isMyTurn,
@@ -829,30 +1017,61 @@ function renderBoard(state) {
       }
     });
 
+    // Assemble turnPanel based on Physical vs Virtual mode
+    turnPanel.appendChild(typeSelector);
     turnPanel.appendChild(heading);
     turnPanel.appendChild(desc);
-    if (piggybackBtn) turnPanel.appendChild(piggybackBtn);
-    
-    turnPanel.appendChild(rollerHeading);
-    turnPanel.appendChild(virtualDiceGrid);
-    turnPanel.appendChild(actionRow);
-    
-    if (isMyTurn) {
-      turnPanel.appendChild(manualHeading);
-      turnPanel.appendChild(inputDisplay);
-      turnPanel.appendChild(padGrid);
-      turnPanel.appendChild(bankBtn);
-      turnPanel.appendChild(farkleBtn);
-    } else {
+
+    if (state.usePhysicalDice) {
+      // Physical Mode layout
       turnPanel.appendChild(el("p", {
-        className: "muted anim-pulse center",
-        style: "margin-top: 24px; font-weight:bold;",
-        text: `Waiting for ${activePlayerName} to roll/bank...`
+        style: "font-size: 0.85rem; font-weight: 700; color: var(--sunset-soft); margin: 12px 0 4px;",
+        text: "🎲 Physical Dice Mode Active"
       }));
+      turnPanel.appendChild(el("p", {
+        className: "muted",
+        style: "font-size: 0.75rem; margin: 0 0 16px; line-height: 1.4;",
+        text: "Roll your real-life dice, then enter your turn's score using the numpad below."
+      }));
+
+      if (isMyTurn) {
+        turnPanel.appendChild(inputDisplay);
+        turnPanel.appendChild(padGrid);
+        turnPanel.appendChild(bankBtn);
+        turnPanel.appendChild(farkleBtn);
+      } else {
+        turnPanel.appendChild(el("p", {
+          className: "muted anim-pulse center",
+          style: "margin-top: 24px; font-weight:bold;",
+          text: `Waiting for ${activePlayerName} to roll/bank...`
+        }));
+      }
+    } else {
+      // Virtual Mode layout
+      if (piggybackBtn) turnPanel.appendChild(piggybackBtn);
+      turnPanel.appendChild(rollerHeading);
+      turnPanel.appendChild(virtualDiceGrid);
+      turnPanel.appendChild(actionRow);
+      
+      if (holdAllBtn) turnPanel.appendChild(holdAllBtn);
+      if (breakdownEl) turnPanel.appendChild(breakdownEl);
+      
+      if (isMyTurn) {
+        turnPanel.appendChild(virtualBankBtn);
+      } else {
+        turnPanel.appendChild(el("p", {
+          className: "muted anim-pulse center",
+          style: "margin-top: 24px; font-weight:bold;",
+          text: `Waiting for ${activePlayerName} to roll/bank...`
+        }));
+      }
     }
+
     turnPanel.appendChild(quitBtn);
 
-    drawVirtualDice();
+    if (!state.usePhysicalDice) {
+      drawVirtualDice();
+    }
   }
 
   function logFarkle(scoreVal) {
@@ -920,7 +1139,7 @@ function renderBoard(state) {
         playClickTone(700, 0.06);
 
         const unheldPool = state.virtualDice.filter(d => !d.scored && !d.held).map(d => d.val);
-        const maxUnheldScore = getFarkleDiceScore(unheldPool);
+        const maxUnheldScore = getFarkleBreakdown(unheldPool).totalScore;
 
         if (maxUnheldScore === 0) {
           toast("💥 FARKLE! No scoring dice on this roll!");
@@ -990,7 +1209,7 @@ function renderBoard(state) {
 
         if (isMyTurn) {
           const unheldPool = state.virtualDice.filter(d => !d.scored && !d.held).map(d => d.val);
-          const maxUnheldScore = getFarkleDiceScore(unheldPool);
+          const maxUnheldScore = getFarkleBreakdown(unheldPool).totalScore;
 
           if (maxUnheldScore === 0) {
             toast("💥 FARKLE! No scoring dice on this roll!");
@@ -1049,89 +1268,108 @@ function renderBoard(state) {
   drawTurnPanel();
 }
 
-// ── Farkle Score calculation helper ──────────────────────────────────────────
-function getFarkleDiceScore(vals) {
-  if (vals.length === 0) return 0;
-  
+// ── Farkle Score calculation helpers ──────────────────────────────────────────
+function getFarkleBreakdown(vals) {
+  if (vals.length === 0) return { combinations: [], totalScore: 0, scoringIndices: [] };
+
   const counts = Array(7).fill(0);
   vals.forEach(v => counts[v]++);
 
   // Check 1-6 straight
   if (vals.length === 6 && counts.slice(1).every(c => c === 1)) {
-    return 1500;
+    return {
+      combinations: [{ label: "1-6 Straight", score: 1500 }],
+      totalScore: 1500,
+      scoringIndices: [0, 1, 2, 3, 4, 5]
+    };
   }
 
   // Check 3 pairs
   const pairCount = counts.filter(c => c === 2).length;
   if (vals.length === 6 && pairCount === 3) {
-    return 1500;
+    return {
+      combinations: [{ label: "Three Pairs", score: 1500 }],
+      totalScore: 1500,
+      scoringIndices: [0, 1, 2, 3, 4, 5]
+    };
   }
 
   // Check two triplets
   const tripletCount = counts.filter(c => c === 3).length;
   if (vals.length === 6 && tripletCount === 2) {
-    return 2500;
+    return {
+      combinations: [{ label: "Two Triplets", score: 2500 }],
+      totalScore: 2500,
+      scoringIndices: [0, 1, 2, 3, 4, 5]
+    };
   }
 
+  const combinations = [];
   let totalScore = 0;
+  const usedDiceCount = Array(7).fill(0);
 
   // Check multiples (4 or 5 or 6 of a kind)
   for (let face = 1; face <= 6; face++) {
-    const qty = counts[face];
+    let qty = counts[face];
     if (qty >= 6) {
+      combinations.push({ label: `Six-of-a-kind (${face}s)`, score: 3000 });
       totalScore += 3000;
-      counts[face] -= 6;
+      usedDiceCount[face] += 6;
+      qty -= 6;
     } else if (qty === 5) {
+      combinations.push({ label: `Five-of-a-kind (${face}s)`, score: 2000 });
       totalScore += 2000;
-      counts[face] -= 5;
+      usedDiceCount[face] += 5;
+      qty -= 5;
     } else if (qty === 4) {
+      combinations.push({ label: `Four-of-a-kind (${face}s)`, score: 1000 });
       totalScore += 1000;
-      counts[face] -= 4;
+      usedDiceCount[face] += 4;
+      qty -= 4;
+    }
+
+    if (qty >= 3) {
+      const val = (face === 1) ? 1000 : (face * 100);
+      combinations.push({ label: `Three-of-a-kind (${face}s)`, score: val });
+      totalScore += val;
+      usedDiceCount[face] += 3;
+      qty -= 3;
+    }
+
+    if (face === 1 && qty > 0) {
+      combinations.push({ label: `Single 1${qty > 1 ? "s" : ""}`, score: qty * 100 });
+      totalScore += qty * 100;
+      usedDiceCount[face] += qty;
+      qty = 0;
+    } else if (face === 5 && qty > 0) {
+      combinations.push({ label: `Single 5${qty > 1 ? "s" : ""}`, score: qty * 50 });
+      totalScore += qty * 50;
+      usedDiceCount[face] += qty;
+      qty = 0;
     }
   }
 
-  // Check triplets (exactly 3 of a kind left)
-  for (let face = 1; face <= 6; face++) {
-    if (counts[face] >= 3) {
-      if (face === 1) {
-        totalScore += 1000;
-      } else {
-        totalScore += face * 100;
-      }
-      counts[face] -= 3;
+  // Map back to indices of the input vals
+  const scoringIndices = [];
+  const tempUsed = Array(7).fill(0);
+  vals.forEach((v, idx) => {
+    if (tempUsed[v] < usedDiceCount[v]) {
+      scoringIndices.push(idx);
+      tempUsed[v]++;
     }
-  }
+  });
 
-  // Individual 1s and 5s
-  totalScore += counts[1] * 100;
-  totalScore += counts[5] * 50;
+  return {
+    combinations,
+    totalScore,
+    scoringIndices
+  };
+}
 
-  // Verify locked selection has only scoring dice
-  let usedDiceCount = 0;
-  if (vals.length === 6 && counts.slice(1).every(c => c === 1)) {
-    usedDiceCount = 6;
-  } else if (vals.length === 6 && pairCount === 3) {
-    usedDiceCount = 6;
-  } else if (vals.length === 6 && tripletCount === 2) {
-    usedDiceCount = 6;
-  } else {
-    const freshCounts = Array(7).fill(0);
-    vals.forEach(v => freshCounts[v]++);
-    for (let face = 1; face <= 6; face++) {
-      const qty = freshCounts[face];
-      if (qty >= 3) {
-        usedDiceCount += qty;
-      } else {
-        if (face === 1 || face === 5) {
-          usedDiceCount += qty;
-        }
-      }
-    }
-  }
-
-  if (usedDiceCount < vals.length) {
+function getFarkleDiceScore(vals) {
+  const breakdown = getFarkleBreakdown(vals);
+  if (breakdown.scoringIndices.length < vals.length) {
     return 0; // Contains non-scoring dice!
   }
-
-  return totalScore;
+  return breakdown.totalScore;
 }
