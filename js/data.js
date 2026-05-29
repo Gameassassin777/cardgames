@@ -371,6 +371,11 @@ export const RESPONSES = [
   "Moaning Myrtle's ghostly, wet fingers sending a cold, tingling shiver down your spine in the girls' bathroom",
   "Bellatrix Lestrange's wild, dark curls framing a face twisted in a highly intense, unhinged grimace of excitement",
   "Bellatrix Lestrange breathing heavily while tracing the tip of her wand along your collarbone",
+  "Harry Potter getting highly flustered when Cho Chang asks to touch his polished Firebolt broom handle",
+  "Ron Weasley's face turning bright red as Lavender Brown aggressively murmurs 'Won-Won' in his ear",
+  "Hermione Granger keeping a highly confidential, lock-and-key record of Ron's most suggestive late-night mutterings",
+  "Dobby letting out a soft, ecstatic squeak when you slip a warm, freshly knitted wool sock onto his left ear",
+  "Dobby's long, thin fingers trembling with sheer excitement as he organizes your intimate collection of mismatched footwear",
 ];
 
 /* ============================================================
