@@ -65,6 +65,28 @@ export default {
         }
       }
 
+      // ── Shared Decks ───────────────────────────────────────────────────────
+      if (path === "/decks/list" && request.method === "GET") {
+        try {
+          const res  = await store.fetch("http://global/decks-list");
+          return new Response(await res.text(), { headers: { ...CORS, "Content-Type": "application/json" } });
+        } catch (e) {
+          return new Response("[]", { headers: { ...CORS, "Content-Type": "application/json" } });
+        }
+      }
+
+      if (path === "/decks/upload" && request.method === "POST") {
+        try {
+          const body = await request.json();
+          const res  = await store.fetch("http://global/decks-upload", {
+            method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body),
+          });
+          return new Response(await res.text(), { headers: { ...CORS, "Content-Type": "application/json" } });
+        } catch (e) {
+          return json({ error: String(e) }, 500);
+        }
+      }
+
       // ── Open room browser ──────────────────────────────────────────────────
       if (path === "/rooms/list" && request.method === "GET") {
         const game = url.searchParams.get("game") || "";
@@ -214,6 +236,26 @@ export class GlobalStore {
       games.unshift(game); // newest first, NO cap — storage is unlimited
       await this.state.storage.put("gartic_games", games);
       return new Response(JSON.stringify({ success: true, total: games.length }), { headers: { "Content-Type": "application/json" } });
+    }
+
+    // ── Shared Decks ──────────────────────────────────────────────────────────
+    if (url.pathname === "/decks-list") {
+      const decks = await this.state.storage.get("shared_decks") || [];
+      return new Response(JSON.stringify(decks), { headers: { "Content-Type": "application/json" } });
+    }
+
+    if (url.pathname === "/decks-upload" && request.method === "POST") {
+      try {
+        const deck = await request.json();
+        if (deck && deck.gameId && deck.name) {
+          const decks = await this.state.storage.get("shared_decks") || [];
+          const clean = decks.filter(d => d.id !== deck.id && !(d.name === deck.name && d.gameId === deck.gameId));
+          clean.push(deck);
+          await this.state.storage.put("shared_decks", clean);
+          return new Response(JSON.stringify({ success: true }), { headers: { "Content-Type": "application/json" } });
+        }
+      } catch (e) {}
+      return new Response(JSON.stringify({ error: "Failed to save shared deck" }), { status: 500, headers: { "Content-Type": "application/json" } });
     }
 
     // ── Open room browser ─────────────────────────────────────────────────────
