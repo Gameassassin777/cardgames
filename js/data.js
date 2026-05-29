@@ -91,6 +91,11 @@ export const PROMPTS = [
   { text: `The Whomping Willow was originally planted to cover up ${BLANK}.`, pick: 1 },
   { text: `Professor Snape permanently deducted 50 points from Gryffindor after catching Harry secretly doing ${BLANK} in the girl's bathroom.`, pick: 1 },
   { text: `Professor McGonagall turned into a cat just to escape ${BLANK}.`, pick: 1 },
+  { text: `Moaning Myrtle drifted into my bathroom stall and wouldn't stop sighing and whispering about my ${BLANK}.`, pick: 1 },
+  { text: `Snape's private journals reveal that he gets incredibly excited whenever he catches a student perfectly stirring their ${BLANK}.`, pick: 1 },
+  { text: `Gilderoy Lockhart's new bestseller is all about the magical art of gently polishing a wizard's ${BLANK}.`, pick: 1 },
+  { text: `Rumor has it that the centaurs of the Forbidden Forest are secretly obsessed with the human custom of ${BLANK}.`, pick: 1 },
+  { text: `The real reason you aren't allowed in the Restricted Section of the library is because of the illustrated guide to ${BLANK}.`, pick: 1 },
 
   // --- Pick Two (unhinged Hogwarts expansion) ---
   { text: `You haven't lived until you've combined ${BLANK} with ${BLANK} in the Room of Requirement.`, pick: 2 },
@@ -307,6 +312,16 @@ export const RESPONSES = [
   "a highly suspicious, ticking package from Weasleys' Wizard Wheezes",
   "getting hit by a stray spell that makes you speak entirely in Pig Latin",
   "the Whomping Willow being treated for severe separation anxiety",
+  "Moaning Myrtle letting out a high-pitched, echoing sigh as she watches you struggle to get out of your wet robes",
+  "Moaning Myrtle making uncomfortably wet, echoing noises from inside the u-bend of your toilet",
+  "Professor Snape breathing heavily while inspecting the thickness of your potion's bubbles",
+  "Snape slowly unbuttoning his many, many robes while maintaining direct, unblinking eye contact",
+  "gently massaging a Mandrake's root until it stops screaming and starts purring",
+  "polishing your wand with extra-strength dragon dung fertilizer until it sparks",
+  "Dobby making intense, unblinking eye contact while slowly peeling a banana",
+  "getting caught behind the greenhouses with a Herbology student and a very enthusiastic Venomous Tentacula",
+  "a highly illegal potion designed to make your wand expand up to three times its normal length",
+  "a Dementor performing a highly sensual, slow-motion soul-extraction technique",
 ];
 
 /* ============================================================
