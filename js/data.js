@@ -78,9 +78,23 @@ export const PROMPTS = [
   { text: `My search history is 95% ${BLANK} and 5% absolute panic about ${BLANK}.`, pick: 2 },
   
   // --- Pick One (unhinged Hogwarts expansion) ---
+  { text: `Dumbledore stood before the Great Hall and announced that this year, the Triwizard Tournament would be replaced by ${BLANK}.`, pick: 1 },
+  { text: `The real reason Harry was left with the Dursleys was because Lily and James couldn't handle ${BLANK}.`, pick: 1 },
+  { text: `My patronus is not an animal. It's actually a glowing, silver representation of ${BLANK}.`, pick: 1 },
+  { text: `What did Ron Weasley find hiding inside his hand-me-down dress robes? ${BLANK}.`, pick: 1 },
+  { text: `Lord Voldemort's secret eighth Horcrux was actually ${BLANK} all along.`, pick: 1 },
+  { text: `The Daily Prophet published a shocking front-page exposé exposing Hagrid's secret love affair with ${BLANK}.`, pick: 1 },
+  { text: `Gringotts Wizarding Bank permanently closed my vault because they found ${BLANK} inside.`, pick: 1 },
+  { text: `What is the most forbidden ingredient in Snape's private potions cupboard? ${BLANK}.`, pick: 1 },
+  { text: `Fred and George's most dangerous joke shop creation is a trick candy that instantly turns your head into ${BLANK}.`, pick: 1 },
+  { text: `Hermione got a detention because she was caught secretly using the Time-Turner to witness ${BLANK}.`, pick: 1 },
+  { text: `The Whomping Willow was originally planted to cover up ${BLANK}.`, pick: 1 },
   { text: `Professor Snape permanently deducted 50 points from Gryffindor after catching Harry secretly doing ${BLANK} in the girl's bathroom.`, pick: 1 },
-  { text: `What is currently hidden deep inside the Chamber of Secrets that Voldemort was too afraid to reveal? ${BLANK}.`, pick: 1 },
-  { text: `The Sorting Hat looked at my head for two seconds and confidently shouted: ${BLANK}!`, pick: 1 },
+  { text: `Professor McGonagall turned into a cat just to escape ${BLANK}.`, pick: 1 },
+
+  // --- Pick Two (unhinged Hogwarts expansion) ---
+  { text: `You haven't lived until you've combined ${BLANK} with ${BLANK} in the Room of Requirement.`, pick: 2 },
+  { text: `My defense against the dark arts strategy relies on 90% ${BLANK} and 10% ${BLANK}.`, pick: 2 },
 ];
 
 // Response cards — chronically-online brain-rot answers.
@@ -258,7 +272,7 @@ export const RESPONSES = [
   "a deeply cursed piece of fan art depicting a house elf in a highly compromising position",
   
   // --- Hogwarts/Elf expansion responses ---
-  "Dobby bending over and spreading his cheeks to show his true loyalty",
+  "Dobby adopting an exceptionally evocative, double-cheeked-up posture to assert his freedom",
   "Professor Snape whispering zestily in my ear during double potions class",
   "a highly inappropriate relationship with Hagrid's giant spider",
   "a wand that is suspiciously sticky and smells like pumpkin juice",
@@ -266,6 +280,33 @@ export const RESPONSES = [
   "Dobby zestily stroking his golden snitch",
   "getting zesty in the Gryffindor common room at 3 a.m.",
   "the Sorting Hat being used as an emotional support bucket",
+  "Moaning Myrtle watching you shower in the prefects' bathroom",
+  "Dumbledore's secret, highly zesty diary entries",
+  "a boggart that takes the shape of your father's disapproval",
+  "getting aggressively slapped by the Whomping Willow",
+  "a letter from Hogwarts that is actually just a court summons",
+  "eating an entire bowl of cockroach clusters to impress Hermione",
+  "a Gringotts goblin demanding to see your credit score",
+  "drinking expired polyjuice potion and turning into a half-shaved cat",
+  "Lord Voldemort's complete lack of a nose, weaponized",
+  "a highly confidential pamphlet about wizarding puberty",
+  "getting sorted into Hufflepuff and immediately bursting into tears",
+  "using the Marauder's Map to stalk your high school crush",
+  "an exceptionally zesty dance-off with Voldemort in the graveyard",
+  "Hagrid's massive, unwashed beard holding a family of field mice hostage",
+  "a mandrake scream that just sounds like a dial-up modem",
+  "accidentally drinking liquid luck and immediately tripping over a rock",
+  "a centaur who is deeply offended by your lack of horse knowledge",
+  "the ghost of Gryffindor past demanding rent money",
+  "trying to play Quidditch with a regular vacuum cleaner",
+  "a Dementor who is just trying to give you a friendly hug",
+  "Hermione's highly aggressive, multi-page study guide",
+  "a secret chamber under the sink that holds only empty butterbeer bottles",
+  "Ron Weasley's broken wand sparking violently and setting his eyebrows on fire",
+  "Dobby demanding a raise and a matching pair of thigh-high socks",
+  "a highly suspicious, ticking package from Weasleys' Wizard Wheezes",
+  "getting hit by a stray spell that makes you speak entirely in Pig Latin",
+  "the Whomping Willow being treated for severe separation anxiety",
 ];
 
 /* ============================================================
