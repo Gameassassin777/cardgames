@@ -218,13 +218,13 @@ export class GlobalStore {
 
     // ── Open room browser ─────────────────────────────────────────────────────
     // Rooms stored as: { code, host, playerCount, game, private, lastPing }
-    // Stale = lastPing older than 60 seconds
+    // Stale = lastPing older than 12 seconds
 
     if (url.pathname === "/rooms-list") {
       const gameFilter = url.searchParams.get("game") || "";
       const now   = Date.now();
       const rooms = await this.state.storage.get("open_rooms") || [];
-      const live  = rooms.filter(r => (now - r.lastPing) < 60000 && (!gameFilter || r.game === gameFilter));
+      const live  = rooms.filter(r => (now - r.lastPing) < 12000 && (!gameFilter || r.game === gameFilter));
       return new Response(JSON.stringify(live), { headers: { "Content-Type": "application/json" } });
     }
 
@@ -233,7 +233,7 @@ export class GlobalStore {
       const rooms = await this.state.storage.get("open_rooms") || [];
       // Remove stale + any existing with same code
       const now    = Date.now();
-      const clean  = rooms.filter(r => r.code !== room.code && (now - r.lastPing) < 60000);
+      const clean  = rooms.filter(r => r.code !== room.code && (now - r.lastPing) < 12000);
       clean.push({ ...room, lastPing: now });
       await this.state.storage.put("open_rooms", clean);
       return new Response(JSON.stringify({ success: true }), { headers: { "Content-Type": "application/json" } });

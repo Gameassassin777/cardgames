@@ -1,5 +1,5 @@
 // Lake House Card Games — app shell, home menu, routing, PWA wiring.
-import { el, mount, toast } from "./ui.js";
+import { el, mount, toast, HTTP_BASE, WS_BASE } from "./ui.js";
 import { APP_VERSION } from "./version.js";
 import { makeGame as makeCardGame } from "./cam.js";
 import * as meeting from "./meeting.js";

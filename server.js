@@ -33,8 +33,8 @@ const server = http.createServer((req, res) => {
   if (pathname === "/rooms/list" && req.method === "GET") {
     const gameFilter = url.searchParams.get("game") || "";
     const now = Date.now();
-    // Clean stale rooms (>60 seconds)
-    openRooms = openRooms.filter(r => (now - r.lastPing) < 60000);
+    // Clean stale rooms (>12 seconds)
+    openRooms = openRooms.filter(r => (now - r.lastPing) < 12000);
     const live = openRooms.filter(r => !gameFilter || r.game === gameFilter);
     res.writeHead(200, { "Content-Type": "application/json" });
     res.end(JSON.stringify(live));
@@ -59,7 +59,7 @@ const server = http.createServer((req, res) => {
   if (pathname === "/rooms/register" && req.method === "POST") {
     getBody((room) => {
       const now = Date.now();
-      openRooms = openRooms.filter(r => r.code !== room.code && (now - r.lastPing) < 60000);
+      openRooms = openRooms.filter(r => r.code !== room.code && (now - r.lastPing) < 12000);
       openRooms.push({ ...room, lastPing: now });
       res.writeHead(200, { "Content-Type": "application/json" });
       res.end(JSON.stringify({ success: true }));

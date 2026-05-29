@@ -1,16 +1,12 @@
 // Dedicated TV Host & Spectator presentation board for living-room screens.
 // Supports: Manual Code Joining, Background Autoconnect, and real-time up to 2-way Split-Screen game views!
-import { el, mount, toast } from "../ui.js";
+import { el, mount, toast, HTTP_BASE, WS_BASE } from "../ui.js";
 import { icons } from "../icons.js";
 import { renderDiceFaceSVG, playClickTone } from "./dice_hub.js";
 
-const WS_BASE = location.hostname === "localhost" || location.hostname === "127.0.0.1"
-  ? "ws://localhost:3000"
-  : "wss://lakehouse-cardgames-sync.gameassassin777.workers.dev";
 
-const HTTP_BASE = location.hostname === "localhost" || location.hostname === "127.0.0.1"
-  ? "http://localhost:3000"
-  : "https://lakehouse-cardgames-sync.gameassassin777.workers.dev";
+
+
 
 let goHome = () => {};
 let autoconnectInt = null;
@@ -147,7 +143,7 @@ function startAutoconnectMode() {
   };
 
   pollRooms();
-  autoconnectInt = setInterval(pollRooms, 4000);
+  autoconnectInt = setInterval(pollRooms, 2000);
 }
 
 function connectRoom(code, gameId = "") {

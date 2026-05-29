@@ -1,5 +1,5 @@
 // Generic "draw a card" engine configured per game with full Online sync support.
-import { el, mount, shuffle, store, toast } from "./ui.js";
+import { el, mount, shuffle, store, toast, HTTP_BASE, WS_BASE } from "./ui.js";
 import { icons } from "./icons.js";
 
 const TAG_ICON = {
@@ -16,9 +16,7 @@ const TAG_ICON = {
   "Custom": icons.pen,
 };
 
-const WS_BASE = location.hostname === "localhost" || location.hostname === "127.0.0.1"
-  ? "ws://localhost:3000"
-  : "wss://lakehouse-cardgames-sync.gameassassin777.workers.dev";
+
 
 export function makeGame({ title, source, saveKey }) {
   return function start(home) {

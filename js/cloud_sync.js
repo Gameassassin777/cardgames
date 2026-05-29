@@ -2,9 +2,7 @@
 // Every device pushes when it adds cards, and pulls on startup to merge others' additions.
 // Uses the Cloudflare Worker HTTP API (/sync/push, /sync/pull-all).
 
-const HTTP_BASE = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1"
-  ? "http://localhost:3000"
-  : "https://lakehouse-cardgames-sync.gameassassin777.workers.dev";
+
 
 // Master game map — id must match what the worker stores under, saveKey is localStorage namespace.
 const GAME_MAP = [

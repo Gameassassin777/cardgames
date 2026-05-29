@@ -1,15 +1,13 @@
 // Game engine for Cards Against Monkeys / Cabin.
 // Supports: Local Pass-and-Play, Physical Cards, and Real-Time Online Play (Cloudflare Worker).
-import { el, mount, shuffle, toast, store, fillPrompt } from "./ui.js";
+import { el, mount, shuffle, toast, store, fillPrompt, HTTP_BASE, WS_BASE } from "./ui.js";
 import { icons } from "./icons.js";
 import { BLANK, CUSTOM_CARD_TEXT } from "./data.js";
 
 const HAND_SIZE = 4; // High-intensity, strategic hand size
 
 // Dynamic WebSockets Server Discovery
-const wsUrl = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1"
-  ? "ws://localhost:3000"
-  : "wss://lakehouse-cardgames-sync.gameassassin777.workers.dev";
+const wsUrl = WS_BASE;
 
 let goHome = () => {};
 let state = null;
@@ -83,9 +81,7 @@ function compilePlayableDecks() {
 // Online coordination
 let heartbeatInt = null;
 let roomBrowserRefresh = null;
-const HTTP_BASE = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1"
-  ? "http://localhost:3000"
-  : "https://lakehouse-cardgames-sync.gameassassin777.workers.dev";
+
 
 function startHeartbeat(playerCount = 1) {
   stopHeartbeat();
@@ -95,7 +91,7 @@ function startHeartbeat(playerCount = 1) {
     body: JSON.stringify({ code: roomCode, playerCount: onlinePlayers.length || playerCount })
   }).catch(() => {});
   ping();
-  heartbeatInt = setInterval(ping, 25000);
+  heartbeatInt = setInterval(ping, 5000);
 }
 
 function stopHeartbeat() {
@@ -622,7 +618,7 @@ function renderRoomBrowser() {
   };
 
   loadRooms();
-  roomBrowserRefresh = setInterval(loadRooms, 8000);
+  roomBrowserRefresh = setInterval(loadRooms, 3000);
 
   mount(
     el("div", { className: "topbar" }, [
@@ -631,7 +627,7 @@ function renderRoomBrowser() {
       el("span",   { style: "width:64px" })
     ]),
     el("div", { className: "panel center", style: "padding:10px 14px;" }, [
-      el("p", { className: "muted", style: "margin:0; font-size:0.82rem;", text: "Refreshes every 8s. Tap Join to enter." })
+      el("p", { className: "muted", style: "margin:0; font-size:0.82rem;", text: "Refreshes every 3s. Tap Join to enter." })
     ]),
     el("div", { className: "panel", style: "padding:10px;" }, [listEl]),
     el("button", { className: "btn ghost", style: "margin-top:4px;", text: "🔄 Refresh",
