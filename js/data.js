@@ -816,6 +816,15 @@ export const COZY_TRUTHS_DARES = [
 // Zesty / Suggestive adult-themed Truth or Dare deck.
 export const ZESTY_TRUTHS_DARES = [
   // --- TRUTHS ---
+  { tag: "Truth", text: "Rank the top 3 hottest Harry Potter characters, and explain exactly what makes their wizarding aura so exotic." },
+  { tag: "Truth", text: "Name the bottom 3 least attractive Harry Potter characters, and describe their absolute most repelling habits." },
+  { tag: "Truth", text: "Who are the 3 smelliest Harry Potter characters, and what specific potion ingredients or beast enclosures do they smell like?" },
+  { tag: "Truth", text: "Which Harry Potter character do you think has the absolute sussiest 'bedroom energy', and what is your highly zesty reasoning?" },
+  { tag: "Truth", text: "If you were forced to drink a Polyjuice Potion to spend a zesty evening with a Hogwarts professor, who would you transform into and who would be your partner?" },
+  { tag: "Confession", text: "Confess which Harry Potter character you had a highly inappropriate, secret childhood crush on, and defend it to the room." },
+  { tag: "Truth", text: "If you could use the Imperius Curse once, what highly sussy or zesty command would you give to Draco Malfoy?" },
+  { tag: "Truth", text: "Which Hogwarts house do you think is secretly the absolute wildest behind locked doors, and why is it Hufflepuff?" },
+  { tag: "Confession", text: "If you were caught by Filch in the corridors at midnight, what is the most zesty, exotic excuse you would confidently attempt to use?" },
   { tag: "Truth", text: "What is your sussiest, most zesty habit that would immediately cost you 100 aura if the group chat found out?" },
   { tag: "Truth", text: "Have you ever caught yourself secretly admiring a friend's throbbing physical traits or 'gyatt' in 4K?" },
   { tag: "Truth", text: "If wands were real, whose tap-wrapped wand shooty-spark potential are you secretly most curious about?" },
@@ -872,6 +881,10 @@ export const ZESTY_TRUTHS_DARES = [
 
 // Would You Rather: Unhinged — chronically-online dilemmas. Read both, everyone votes.
 export const WOULD_YOU_RATHER = [
+  { tag: "Would You Rather", text: "Spend a private night in the Restricted Section with Snape, or have to scrub cauldrons with a highly sweaty, shirtless Hagrid?" },
+  { tag: "Would You Rather", text: "Have a tape-wrapped wand that aggressively shoots sticky white sparks every time you think about Cho Chang, or have Dobby as your zesty personal trainer?" },
+  { tag: "Would You Rather", text: "Accidentally consume a highly potent Love Potion keyed to Voldemort, or keyed to Moaning Myrtle?" },
+  { tag: "Would You Rather", text: "Get caught red-handed by McGonagall doing a zesty dance in the Great Hall, or get caught by Filch polishing Draco Malfoy's Nimbus 2000?" },
   { tag: "Would You Rather", text: "Lose your entire 400-day streak, or have the group chat read your search history out loud?" },
   { tag: "Would You Rather", text: "Get caught venting in 4K, or get Fanum-taxed every single meal for a year?" },
   { tag: "Would You Rather", text: "Only communicate in TikTok audios forever, or only in Drake lyrics forever?" },
@@ -894,6 +907,11 @@ export const WOULD_YOU_RATHER = [
 
 // Red Flag / Green Flag — read a trait aloud, group debates and shouts the verdict.
 export const RED_GREEN = [
+  { tag: "Red or Green?", text: "They unironically claim that Lord Voldemort is a '10 out of 10' on the hotness scale." },
+  { tag: "Red or Green?", text: "Traces their wand slowly along your collarbone to cast a basic unlocking spell." },
+  { tag: "Red or Green?", text: "Claims they are 'Slytherin in the sheets' but has a -1000 bedroom aura." },
+  { tag: "Red or Green?", text: "Refuses to date anyone who doesn't unironically possess a thong in their Quidditch gear." },
+  { tag: "Red or Green?", text: "Gently whispers 'Dobby is a free elf' in a highly breathy, Drake-like voice during a private moment." },
   { tag: "Red or Green?", text: "Their entire personality is one TikTok audio." },
   { tag: "Red or Green?", text: "Refers to their bedroom, unironically, as 'the command center'." },
   { tag: "Red or Green?", text: "Calls everyone 'little sussy baka', including their boss." },
@@ -920,6 +938,12 @@ export const RED_GREEN = [
 
 // Most Likely To — used by Emergency Meeting (voting game).
 export const MOST_LIKELY = [
+  "get caught secretly trying to use the Engorgement Charm on a highly private, sensitive body part",
+  "be caught using the Invisibility Cloak to spy on the Gryffindor Quidditch team showers",
+  "have a secret, full-size body pillow of the Sorting Hat in their command center",
+  "get caught by Snape secretly reading an illustrated guide to exotic wand-waving behind their Herbology textbook",
+  "attempt to rizz up a very aggressive hippogriff using a highly zesty pelvic thrust",
+  "be sorting their friends by how sussy and sticky their wands look",
   "get voted off the spaceship first, fairly",
   "be the actual impostor and get away with it",
   "lose a 400-day streak to a single notification",
