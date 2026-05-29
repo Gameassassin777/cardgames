@@ -250,6 +250,7 @@ export const RESPONSES = [
   "a suspiciously cheap air mattress that deflates if you breathe too loud",
   "a middle-aged man violently arguing with an automated customer service voice",
   "a stack of unopened mail I fully intend to let my descendants handle",
+  "a deeply cursed piece of fan art depicting a house elf in a highly compromising position",
 ];
 
 /* ============================================================
