@@ -21,6 +21,9 @@ let roomBrowserRefresh = null;
 
 let isOnline = false;
 let setupMode = "passplay"; // "passplay" or "online"
+let isTripleMode = false;
+let viewedPlayerIdx = 0;
+let drawRollerFn = null;
 
 let gState = null;
 
@@ -178,6 +181,37 @@ function renderSetup() {
     }
   });
 
+  // Game Variant selection (Standard vs Triple)
+  isTripleMode = false;
+  const variantSelector = el("div", {
+    style: "display:flex; background:rgba(255,255,255,0.04); border-radius:14px; padding:4px; margin-bottom:20px; width:100%;"
+  });
+
+  const tabStandard = el("button", {
+    className: "btn small",
+    text: "🎲 Standard",
+    style: "flex:1; margin:0; font-size:0.85rem; padding: 8px 0; border:none; box-shadow:none;",
+    onClick: () => {
+      isTripleMode = false;
+      tabStandard.className = "btn small";
+      tabTriple.className = "btn ghost small";
+    }
+  });
+
+  const tabTriple = el("button", {
+    className: "btn ghost small",
+    text: "🏆 Triple Yahtzee",
+    style: "flex:1; margin:0; font-size:0.85rem; padding: 8px 0; border:none; box-shadow:none;",
+    onClick: () => {
+      isTripleMode = true;
+      tabStandard.className = "btn ghost small";
+      tabTriple.className = "btn small";
+    }
+  });
+
+  variantSelector.appendChild(tabStandard);
+  variantSelector.appendChild(tabTriple);
+
   // Toggles for Setup Mode
   const modeSelector = el("div", {
     style: "display:flex; background:rgba(255,255,255,0.04); border-radius:14px; padding:4px; margin-bottom:20px; width:100%;"
@@ -271,6 +305,10 @@ function renderSetup() {
       el("p", { className: "muted", text: "Enter up to 6 player names. Pass the device to fill in scores. Use physical dice or our built-in virtual roller!" }),
       showRulesBtn,
       modeSelector,
+      el("div", { style: "margin-top: 10px; width: 100%;" }, [
+        el("label", { text: "GAME MODE", style: "font-size:0.75rem; text-align:left; letter-spacing:1px; display:block; margin-bottom:6px; color:var(--sunset-soft);" }),
+        variantSelector
+      ]),
       dynamicFormWrap
     ])
   );
@@ -455,15 +493,101 @@ function applyLobby(playersList) {
 }
 
 // ── Game Loops Initialization ───────────────────────────────────────────────
+// ── Scoring and Completion helpers ──────────────────────────────────────────
+function computePlayerStats(pScores, isTriple) {
+  if (isTriple) {
+    const cols = Array(3).fill(null).map((_, colIdx) => {
+      let upperSum = 0;
+      YAHTZEE_CATEGORIES.filter(c => c.section === "upper").forEach(c => {
+        const val = pScores[c.id]?.[colIdx];
+        if (val !== null && val !== undefined) upperSum += val;
+      });
+
+      const upperBonus = upperSum >= 63 ? 35 : 0;
+      const upperTotal = upperSum + upperBonus;
+
+      let lowerSum = 0;
+      YAHTZEE_CATEGORIES.filter(c => c.section === "lower").forEach(c => {
+        const val = pScores[c.id]?.[colIdx];
+        if (val !== null && val !== undefined) lowerSum += val;
+      });
+
+      const subtotal = upperTotal + lowerSum;
+      const multiplier = colIdx + 1;
+      const multipliedTotal = subtotal * multiplier;
+
+      return {
+        upperSum,
+        upperBonus,
+        upperTotal,
+        lowerSum,
+        subtotal,
+        multipliedTotal
+      };
+    });
+
+    const grandTotal = cols.reduce((sum, col) => sum + col.multipliedTotal, 0);
+
+    return {
+      columns: cols,
+      grandTotal
+    };
+  } else {
+    let upperSum = 0;
+    YAHTZEE_CATEGORIES.filter(c => c.section === "upper").forEach(c => {
+      const val = pScores[c.id];
+      if (val !== null && val !== undefined) upperSum += val;
+    });
+
+    const upperBonus = upperSum >= 63 ? 35 : 0;
+    const upperTotal = upperSum + upperBonus;
+
+    let lowerSum = 0;
+    YAHTZEE_CATEGORIES.filter(c => c.section === "lower").forEach(c => {
+      const val = pScores[c.id];
+      if (val !== null && val !== undefined) lowerSum += val;
+    });
+
+    const grandTotal = upperTotal + lowerSum;
+
+    return {
+      upperSum,
+      upperBonus,
+      upperTotal,
+      lowerSum,
+      grandTotal
+    };
+  }
+}
+
+function isGameFinished(yState) {
+  if (!yState || !yState.scores) return false;
+  return yState.scores.every(pScore => {
+    return YAHTZEE_CATEGORIES.every(cat => {
+      const val = pScore[cat.id];
+      if (yState.isTriple) {
+        return Array.isArray(val) && val.every(v => v !== null && v !== undefined);
+      } else {
+        return val !== null && val !== undefined;
+      }
+    });
+  });
+}
+
+// ── Game Loops Initialization ───────────────────────────────────────────────
 function initLocalGame(players) {
   const scores = players.map(() => {
     const pScore = {};
-    YAHTZEE_CATEGORIES.forEach(c => { pScore[c.id] = null; });
+    YAHTZEE_CATEGORIES.forEach(c => {
+      pScore[c.id] = isTripleMode ? [null, null, null] : null;
+    });
     return pScore;
   });
 
   gState = {
     phase: "play",
+    isTriple: isTripleMode,
+    usePhysicalDice: false,
     players,
     scores,
     activePlayerIdx: 0,
@@ -472,18 +596,23 @@ function initLocalGame(players) {
     virtualRolling: false
   };
 
+  viewedPlayerIdx = 0;
   renderBoard(gState);
 }
 
 function initOnlineGame() {
   const scores = gState.players.map(() => {
     const pScore = {};
-    YAHTZEE_CATEGORIES.forEach(c => { pScore[c.id] = null; });
+    YAHTZEE_CATEGORIES.forEach(c => {
+      pScore[c.id] = isTripleMode ? [null, null, null] : null;
+    });
     return pScore;
   });
 
   const initialState = {
     phase: "play",
+    isTriple: isTripleMode,
+    usePhysicalDice: false,
     players: gState.players,
     scores,
     activePlayerIdx: 0,
@@ -498,6 +627,7 @@ function initOnlineGame() {
   });
 
   gState = initialState;
+  viewedPlayerIdx = 0;
   renderBoard(gState);
 }
 
@@ -518,6 +648,7 @@ function handleRelay(action, sender) {
 }
 
 // ── Board Renderer ──────────────────────────────────────────────────────────
+// ── Board Renderer ──────────────────────────────────────────────────────────
 function renderBoard(yState) {
   const players = yState.players;
   const scores = yState.scores;
@@ -526,48 +657,103 @@ function renderBoard(yState) {
 
   const isMyTurn = isOnline ? (activePlayerName === myName) : true;
 
+  // Auto-switch view to active player on turn transition
+  if (viewedPlayerIdx === undefined || viewedPlayerIdx >= players.length) {
+    viewedPlayerIdx = activeIdx;
+  }
+  if (renderBoard.lastActiveIdx !== activeIdx) {
+    viewedPlayerIdx = activeIdx;
+    renderBoard.lastActiveIdx = activeIdx;
+  }
+
+  // Pre-calculate player stats
   const playerStats = players.map((name, pIdx) => {
-    const pScores = scores[pIdx];
-    
-    let upperSum = 0;
-    const upperCats = YAHTZEE_CATEGORIES.filter(c => c.section === "upper");
-    upperCats.forEach(c => {
-      if (pScores[c.id] !== null) {
-        upperSum += pScores[c.id];
-      }
-    });
-
-    const upperBonus = upperSum >= 63 ? 35 : 0;
-    const upperTotal = upperSum + upperBonus;
-
-    let lowerSum = 0;
-    const lowerCats = YAHTZEE_CATEGORIES.filter(c => c.section === "lower");
-    lowerCats.forEach(c => {
-      if (pScores[c.id] !== null) {
-        lowerSum += pScores[c.id];
-      }
-    });
-
-    const grandTotal = upperTotal + lowerSum;
-
-    return {
-      upperSum,
-      upperBonus,
-      upperTotal,
-      lowerSum,
-      grandTotal
-    };
+    return computePlayerStats(scores[pIdx], yState.isTriple);
   });
 
+  // Check if game is completed
+  const isComplete = isGameFinished(yState);
+  if (isComplete || yState.phase === "done") {
+    // Sort players by grand total for the podium
+    const standings = players.map((name, pIdx) => ({
+      name,
+      total: playerStats[pIdx].grandTotal
+    })).sort((a, b) => b.total - a.total);
+
+    const podiumRows = standings.map((ps, rank) => {
+      const isWinner = rank === 0;
+      return el("div", {
+        className: isWinner ? "podium-row winner-row" : "podium-row"
+      }, [
+        el("div", { style: "display: flex; align-items: center; gap: 12px;" }, [
+          el("span", { className: "podium-rank", text: String(rank + 1) }),
+          el("span", {
+            text: (isWinner ? "👑 " : "") + ps.name,
+            style: "font-weight: 700; font-size: 1.05rem;"
+          })
+        ]),
+        el("span", {
+          text: `${ps.total} pts`,
+          style: "font-weight: 800; font-size: 1.15rem; color: var(--sunset-soft);"
+        })
+      ]);
+    });
+
+    const playAgainBtn = el("button", {
+      className: "btn",
+      text: "Play Again ➔",
+      style: "margin-top: 20px;",
+      onClick: () => {
+        resetAll();
+        renderSetup();
+      }
+    });
+
+    const leaveBtn = el("button", {
+      className: "btn ghost small",
+      text: "Back to Lobby",
+      style: "margin-top: 10px;",
+      onClick: () => {
+        resetAll();
+        renderSetup();
+      }
+    });
+
+    const doneLayout = el("div", { className: "panel center", style: "max-width: 520px; margin: 20px auto; padding: 24px;" }, [
+      el("div", { style: "width:64px; height:64px; margin:0 auto 12px; color:var(--sunset-soft);" }, [icons.canoe()]),
+      el("h2", { text: "Game Over!" }),
+      el("p", { className: "muted", style: "margin-bottom:20px;", text: "All categories have been locked. Here are the final scores:" }),
+      el("div", { className: "podium-container" }, podiumRows),
+      playAgainBtn,
+      leaveBtn
+    ]);
+
+    mount(
+      diceTopbar("Game Finished", () => { resetAll(); renderSetup(); }),
+      doneLayout
+    );
+    return;
+  }
+
+  // ── Normal Gameplay rendering ──────────────────────────────────────────────
   const headerCols = [el("th", { text: "Categories", style: "text-align: left; min-width: 120px;" })];
-  players.forEach((pName) => {
-    headerCols.push(el("th", { text: pName, style: "text-align: center;" }));
-  });
+  
+  if (yState.isTriple) {
+    // Viewed player's three columns
+    headerCols.push(el("th", { text: "Col 1 (x1)", style: "text-align: center;" }));
+    headerCols.push(el("th", { text: "Col 2 (x2)", style: "text-align: center;" }));
+    headerCols.push(el("th", { text: "Col 3 (x3)", style: "text-align: center;" }));
+  } else {
+    // All players' standard columns
+    players.forEach((pName) => {
+      headerCols.push(el("th", { text: pName, style: "text-align: center;" }));
+    });
+  }
 
   const rows = [];
 
   rows.push(el("tr", { className: "section-header" }, [
-    el("td", { text: "UPPER SECTION", colSpan: String(players.length + 1), style: "font-weight: bold; background: rgba(255,255,255,0.02); font-size: 0.75rem; letter-spacing: 1px;" })
+    el("td", { text: "UPPER SECTION", colSpan: String(yState.isTriple ? 4 : players.length + 1), style: "font-weight: bold; background: rgba(255,255,255,0.02); font-size: 0.75rem; letter-spacing: 1px;" })
   ]));
 
   const upperCats = YAHTZEE_CATEGORIES.filter(c => c.section === "upper");
@@ -579,44 +765,105 @@ function renderBoard(yState) {
       ])
     ];
 
-    players.forEach((name, pIdx) => {
-      const val = scores[pIdx][cat.id];
-      const isFilled = val !== null;
-      const isCellActive = (pIdx === activeIdx) && isMyTurn;
-      
-      const btn = el("button", {
-        className: isFilled ? "score-cell filled" : "score-cell empty",
-        disabled: !isCellActive && !isFilled,
-        text: isFilled ? String(val) : "—",
-        onClick: () => {
-          if (isFilled) return; // read-only cell if already locked in
-          openScoreSelector(yState, pIdx, cat);
+    if (yState.isTriple) {
+      for (let colIdx = 0; colIdx < 3; colIdx++) {
+        const val = scores[viewedPlayerIdx][cat.id]?.[colIdx];
+        const isFilled = val !== null && val !== undefined;
+        const isCellActive = (viewedPlayerIdx === activeIdx) && isMyTurn;
+
+        let previewText = "—";
+        let isPreview = false;
+        if (!isFilled && isCellActive && !yState.usePhysicalDice && yState.rollsLeft < 3) {
+          const diceVals = yState.virtualDice.map(d => d.val);
+          const pot = getSuggestedYahtzeeScore(cat.id, diceVals);
+          if (pot !== null) {
+            previewText = String(pot * (colIdx + 1));
+            isPreview = true;
+          }
         }
+
+        const btn = el("button", {
+          className: isFilled ? "score-cell filled" : (isPreview ? "score-cell empty preview-score" : "score-cell empty"),
+          disabled: !isCellActive && !isFilled,
+          text: isFilled ? String(val) : previewText,
+          onClick: () => {
+            if (isFilled) return;
+            openScoreSelector(yState, viewedPlayerIdx, cat, colIdx);
+          }
+        });
+        cols.push(el("td", { style: "text-align: center;" }, [btn]));
+      }
+    } else {
+      players.forEach((name, pIdx) => {
+        const val = scores[pIdx][cat.id];
+        const isFilled = val !== null && val !== undefined;
+        const isCellActive = (pIdx === activeIdx) && isMyTurn;
+
+        let previewText = "—";
+        let isPreview = false;
+        if (!isFilled && isCellActive && !yState.usePhysicalDice && yState.rollsLeft < 3) {
+          const diceVals = yState.virtualDice.map(d => d.val);
+          const pot = getSuggestedYahtzeeScore(cat.id, diceVals);
+          if (pot !== null) {
+            previewText = String(pot);
+            isPreview = true;
+          }
+        }
+        
+        const btn = el("button", {
+          className: isFilled ? "score-cell filled" : (isPreview ? "score-cell empty preview-score" : "score-cell empty"),
+          disabled: !isCellActive && !isFilled,
+          text: isFilled ? String(val) : previewText,
+          onClick: () => {
+            if (isFilled) return;
+            openScoreSelector(yState, pIdx, cat);
+          }
+        });
+        cols.push(el("td", { style: "text-align: center;" }, [btn]));
       });
-      cols.push(el("td", { style: "text-align: center;" }, [btn]));
-    });
+    }
 
     rows.push(el("tr", {}, cols));
   });
 
+  // Subtotal & Bonus Rows
   const upperSumCols = [el("td", { text: "Upper Subtotal", style: "font-weight: bold; font-size: 0.85rem;" })];
-  players.forEach((name, pIdx) => {
-    upperSumCols.push(el("td", { text: `${playerStats[pIdx].upperSum} / 63`, style: "font-weight: bold; text-align: center; font-size: 0.85rem;" }));
-  });
+  if (yState.isTriple) {
+    const stats = playerStats[viewedPlayerIdx];
+    for (let colIdx = 0; colIdx < 3; colIdx++) {
+      upperSumCols.push(el("td", { text: `${stats.columns[colIdx].upperSum} / 63`, style: "font-weight: bold; text-align: center; font-size: 0.85rem;" }));
+    }
+  } else {
+    players.forEach((name, pIdx) => {
+      upperSumCols.push(el("td", { text: `${playerStats[pIdx].upperSum} / 63`, style: "font-weight: bold; text-align: center; font-size: 0.85rem;" }));
+    });
+  }
   rows.push(el("tr", { style: "background: rgba(255,255,255,0.01);" }, upperSumCols));
 
   const upperBonusCols = [el("td", { text: "Upper Bonus (+35)", style: "font-weight: bold; font-size: 0.85rem;" })];
-  players.forEach((name, pIdx) => {
-    upperBonusCols.push(el("td", {
-      text: playerStats[pIdx].upperBonus > 0 ? "+35" : "0",
-      className: playerStats[pIdx].upperBonus > 0 ? "text-success" : "muted",
-      style: "font-weight: bold; text-align: center; font-size: 0.85rem;"
-    }));
-  });
+  if (yState.isTriple) {
+    const stats = playerStats[viewedPlayerIdx];
+    for (let colIdx = 0; colIdx < 3; colIdx++) {
+      const bonus = stats.columns[colIdx].upperBonus;
+      upperBonusCols.push(el("td", {
+        text: bonus > 0 ? "+35" : "0",
+        className: bonus > 0 ? "text-success" : "muted",
+        style: "font-weight: bold; text-align: center; font-size: 0.85rem;"
+      }));
+    }
+  } else {
+    players.forEach((name, pIdx) => {
+      upperBonusCols.push(el("td", {
+        text: playerStats[pIdx].upperBonus > 0 ? "+35" : "0",
+        className: playerStats[pIdx].upperBonus > 0 ? "text-success" : "muted",
+        style: "font-weight: bold; text-align: center; font-size: 0.85rem;"
+      }));
+    });
+  }
   rows.push(el("tr", { style: "background: rgba(255,255,255,0.01);" }, upperBonusCols));
 
   rows.push(el("tr", { className: "section-header" }, [
-    el("td", { text: "LOWER SECTION", colSpan: String(players.length + 1), style: "font-weight: bold; background: rgba(255,255,255,0.02); font-size: 0.75rem; letter-spacing: 1px;" })
+    el("td", { text: "LOWER SECTION", colSpan: String(yState.isTriple ? 4 : players.length + 1), style: "font-weight: bold; background: rgba(255,255,255,0.02); font-size: 0.75rem; letter-spacing: 1px;" })
   ]));
 
   const lowerCats = YAHTZEE_CATEGORIES.filter(c => c.section === "lower");
@@ -628,34 +875,104 @@ function renderBoard(yState) {
       ])
     ];
 
-    players.forEach((name, pIdx) => {
-      const val = scores[pIdx][cat.id];
-      const isFilled = val !== null;
-      const isCellActive = (pIdx === activeIdx) && isMyTurn;
-      
-      const btn = el("button", {
-        className: isFilled ? "score-cell filled" : "score-cell empty",
-        disabled: !isCellActive && !isFilled,
-        text: isFilled ? String(val) : "—",
-        onClick: () => {
-          if (isFilled) return;
-          openScoreSelector(yState, pIdx, cat);
+    if (yState.isTriple) {
+      for (let colIdx = 0; colIdx < 3; colIdx++) {
+        const val = scores[viewedPlayerIdx][cat.id]?.[colIdx];
+        const isFilled = val !== null && val !== undefined;
+        const isCellActive = (viewedPlayerIdx === activeIdx) && isMyTurn;
+
+        let previewText = "—";
+        let isPreview = false;
+        if (!isFilled && isCellActive && !yState.usePhysicalDice && yState.rollsLeft < 3) {
+          const diceVals = yState.virtualDice.map(d => d.val);
+          const pot = getSuggestedYahtzeeScore(cat.id, diceVals);
+          if (pot !== null) {
+            previewText = String(pot * (colIdx + 1));
+            isPreview = true;
+          }
         }
+
+        const btn = el("button", {
+          className: isFilled ? "score-cell filled" : (isPreview ? "score-cell empty preview-score" : "score-cell empty"),
+          disabled: !isCellActive && !isFilled,
+          text: isFilled ? String(val) : previewText,
+          onClick: () => {
+            if (isFilled) return;
+            openScoreSelector(yState, viewedPlayerIdx, cat, colIdx);
+          }
+        });
+        cols.push(el("td", { style: "text-align: center;" }, [btn]));
+      }
+    } else {
+      players.forEach((name, pIdx) => {
+        const val = scores[pIdx][cat.id];
+        const isFilled = val !== null && val !== undefined;
+        const isCellActive = (pIdx === activeIdx) && isMyTurn;
+
+        let previewText = "—";
+        let isPreview = false;
+        if (!isFilled && isCellActive && !yState.usePhysicalDice && yState.rollsLeft < 3) {
+          const diceVals = yState.virtualDice.map(d => d.val);
+          const pot = getSuggestedYahtzeeScore(cat.id, diceVals);
+          if (pot !== null) {
+            previewText = String(pot);
+            isPreview = true;
+          }
+        }
+        
+        const btn = el("button", {
+          className: isFilled ? "score-cell filled" : (isPreview ? "score-cell empty preview-score" : "score-cell empty"),
+          disabled: !isCellActive && !isFilled,
+          text: isFilled ? String(val) : previewText,
+          onClick: () => {
+            if (isFilled) return;
+            openScoreSelector(yState, pIdx, cat);
+          }
+        });
+        cols.push(el("td", { style: "text-align: center;" }, [btn]));
       });
-      cols.push(el("td", { style: "text-align: center;" }, [btn]));
-    });
+    }
 
     rows.push(el("tr", {}, cols));
   });
 
-  const grandTotalCols = [el("td", { text: "GRAND TOTAL", style: "font-weight: 900; font-size: 1rem; color: var(--sunset-soft);" })];
-  players.forEach((name, pIdx) => {
-    grandTotalCols.push(el("td", {
-      text: String(playerStats[pIdx].grandTotal),
-      style: "font-weight: 900; text-align: center; font-size: 1rem; color: var(--sunset-soft);"
-    }));
-  });
-  rows.push(el("tr", { style: "background: rgba(255, 100, 100, 0.05); border-top: 2px solid rgba(255,255,255,0.15);" }, grandTotalCols));
+  // End of table columns totals
+  if (yState.isTriple) {
+    const stats = playerStats[viewedPlayerIdx];
+    
+    const subtotalCols = [el("td", { text: "Column Subtotals", style: "font-weight: bold; font-size: 0.85rem;" })];
+    for (let colIdx = 0; colIdx < 3; colIdx++) {
+      subtotalCols.push(el("td", { text: String(stats.columns[colIdx].subtotal), style: "font-weight: bold; text-align: center; font-size: 0.85rem;" }));
+    }
+    rows.push(el("tr", { style: "background: rgba(255,255,255,0.01);" }, subtotalCols));
+
+    const multCols = [el("td", { text: "Multipliers", style: "font-weight: bold; font-size: 0.85rem;" })];
+    for (let colIdx = 0; colIdx < 3; colIdx++) {
+      multCols.push(el("td", { text: `x${colIdx + 1}`, style: "font-weight: bold; text-align: center; font-size: 0.85rem; color: var(--sunset-soft);" }));
+    }
+    rows.push(el("tr", { style: "background: rgba(255,255,255,0.01);" }, multCols));
+
+    const multTotalsCols = [el("td", { text: "Multiplied Totals", style: "font-weight: bold; font-size: 0.85rem;" })];
+    for (let colIdx = 0; colIdx < 3; colIdx++) {
+      multTotalsCols.push(el("td", { text: String(stats.columns[colIdx].multipliedTotal), style: "font-weight: bold; text-align: center; font-size: 0.85rem; color: var(--sunset-soft);" }));
+    }
+    rows.push(el("tr", { style: "background: rgba(255,255,255,0.02); border-top: 1px dashed rgba(255,255,255,0.15);" }, multTotalsCols));
+
+    const grandTotalCols = [
+      el("td", { text: "GRAND TOTAL", style: "font-weight: 900; font-size: 1rem; color: var(--sunset-soft);" }),
+      el("td", { text: String(stats.grandTotal), colSpan: "3", style: "font-weight: 900; text-align: center; font-size: 1.15rem; color: var(--sunset-soft);" })
+    ];
+    rows.push(el("tr", { style: "background: rgba(255, 100, 100, 0.05); border-top: 2px solid rgba(255,255,255,0.15);" }, grandTotalCols));
+  } else {
+    const grandTotalCols = [el("td", { text: "GRAND TOTAL", style: "font-weight: 900; font-size: 1rem; color: var(--sunset-soft);" })];
+    players.forEach((name, pIdx) => {
+      grandTotalCols.push(el("td", {
+        text: String(playerStats[pIdx].grandTotal),
+        style: "font-weight: 900; text-align: center; font-size: 1rem; color: var(--sunset-soft);"
+      }));
+    });
+    rows.push(el("tr", { style: "background: rgba(255, 100, 100, 0.05); border-top: 2px solid rgba(255,255,255,0.15);" }, grandTotalCols));
+  }
 
   const table = el("table", { className: "yahtzee-table", style: "width: 100%; border-collapse: collapse; margin-bottom: 20px;" }, [
     el("thead", {}, [el("tr", {}, headerCols)]),
@@ -668,8 +985,61 @@ function renderBoard(yState) {
   });
 
   function drawRollerPanel() {
+    // Prevent layout thrashing and spastic screen by locking height during active rolling
+    if (yState.virtualRolling) {
+      const currentHeight = rollerPanel.offsetHeight;
+      if (currentHeight > 0) {
+        rollerPanel.style.minHeight = `${currentHeight}px`;
+      }
+    } else {
+      rollerPanel.style.minHeight = "";
+    }
+
     rollerPanel.innerHTML = "";
     
+    // Toggle for Virtual vs Physical Dice
+    const typeSelector = el("div", {
+      style: "display: flex; gap: 8px; justify-content: center; margin-bottom: 12px; background: rgba(255,255,255,0.03); padding: 4px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.05);"
+    }, [
+      el("button", {
+        className: !yState.usePhysicalDice ? "btn small" : "btn ghost small",
+        text: "📱 Virtual Roller",
+        style: "margin: 0; padding: 6px 12px; font-size: 0.75rem; border: none; box-shadow: none; flex: 1;",
+        onClick: () => {
+          yState.usePhysicalDice = false;
+          drawRollerPanel();
+          renderBoard(yState);
+          if (isOnline) relay({ type: "state_update", state: yState });
+        }
+      }),
+      el("button", {
+        className: yState.usePhysicalDice ? "btn small" : "btn ghost small",
+        text: "🎲 Physical Dice",
+        style: "margin: 0; padding: 6px 12px; font-size: 0.75rem; border: none; box-shadow: none; flex: 1;",
+        onClick: () => {
+          yState.usePhysicalDice = true;
+          drawRollerPanel();
+          renderBoard(yState);
+          if (isOnline) relay({ type: "state_update", state: yState });
+        }
+      })
+    ]);
+
+    rollerPanel.appendChild(typeSelector);
+
+    if (yState.usePhysicalDice) {
+      rollerPanel.appendChild(el("p", {
+        style: "font-size: 0.85rem; font-weight: 700; color: var(--sunset-soft); margin: 12px 0 4px;",
+        text: "🎲 Physical Dice Mode Active"
+      }));
+      rollerPanel.appendChild(el("p", {
+        className: "muted",
+        style: "font-size: 0.75rem; margin: 0 0 10px; line-height: 1.4;",
+        text: "Roll your real-life dice, then tap any empty scorecard cell to record your score."
+      }));
+      return;
+    }
+
     const titleRow = el("div", {
       style: "display: flex; justify-content: space-between; align-items: center; width: 100%; margin-bottom: 8px;"
     }, [
@@ -756,6 +1126,47 @@ function renderBoard(yState) {
 
   const boardTitle = isOnline ? `Yahtzee Room: ${roomCode}` : "Yahtzee Scorecard";
 
+  // Build the Triple tabs element
+  let tabEl = el("div");
+  if (yState.isTriple) {
+    const tabs = players.map((name, pIdx) => {
+      const stats = playerStats[pIdx];
+      const isViewing = (pIdx === viewedPlayerIdx);
+      const isActive = (pIdx === activeIdx);
+      
+      return el("button", {
+        className: isViewing ? "triple-tab-btn btn small" : "triple-tab-btn btn ghost small",
+        style: `margin: 0; padding: 6px 12px; font-size: 0.8rem; flex-shrink: 0; border: 1.5px solid ${isActive ? "var(--sunset-soft)" : "transparent"}; max-width: 120px;`,
+        onClick: () => {
+          viewedPlayerIdx = pIdx;
+          renderBoard(yState);
+        }
+      }, [
+        el("span", { text: name, style: "font-weight: bold; display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" }),
+        el("span", { text: `${stats.grandTotal} pts`, style: "font-size: 0.7rem; opacity: 0.8;" })
+      ]);
+    });
+
+    tabEl = el("div", {
+      className: "triple-tabs-container"
+    }, tabs);
+  }
+
+  const mainPanelChildren = [
+    rollerPanel
+  ];
+
+  if (yState.isTriple) {
+    mainPanelChildren.push(el("div", { style: "width: 100%; margin-bottom: 8px;" }, [
+      el("label", { text: "VIEW SCORES FOR PLAYER:", style: "font-size: 0.7rem; color: var(--sunset-soft); text-align: left; display: block; margin-bottom: 4px; letter-spacing: 0.5px;" }),
+      tabEl
+    ]));
+    mainPanelChildren.push(el("h3", { text: `${players[viewedPlayerIdx]}'s Scorecard`, style: "margin: 8px 0 14px; text-align: center; color: var(--sunset-soft); font-size: 1.1rem;" }));
+  }
+
+  mainPanelChildren.push(table);
+  mainPanelChildren.push(el("div", { style: "display: flex; gap: 8px; justify-content: center;" }, [leaveBtn]));
+
   mount(
     diceTopbar(boardTitle, () => {
       if (confirm("Exit scorecard?")) {
@@ -764,16 +1175,14 @@ function renderBoard(yState) {
         goHome();
       }
     }),
-    el("div", { className: "panel center", style: "max-width: 720px; margin: 0 auto; padding: 12px;" }, [
-      rollerPanel,
-      table,
-      el("div", { style: "display: flex; gap: 8px; justify-content: center;" }, [leaveBtn])
-    ])
+    el("div", { className: "panel center", style: "max-width: 720px; margin: 0 auto; padding: 12px;" }, mainPanelChildren)
   );
 
+  drawRollerFn = drawRollerPanel;
   drawRollerPanel();
 }
 
+// ── Dice Rolling Sync and Animation Loops ────────────────────────────────────
 // ── Dice Rolling Sync and Animation Loops ────────────────────────────────────
 function triggerLocalDiceRoll() {
   gState.virtualRolling = true;
@@ -783,7 +1192,14 @@ function triggerLocalDiceRoll() {
     gState.virtualDice.forEach(d => {
       if (!d.held) d.val = Math.floor(Math.random() * 6) + 1;
     });
-    renderBoard(gState);
+    
+    // Smooth rendering: only redraw the roller panel during rolling
+    if (drawRollerFn) {
+      drawRollerFn();
+    } else {
+      renderBoard(gState);
+    }
+    
     playClickTone(480 + Math.random() * 120, 0.03);
     clicks++;
 
@@ -796,6 +1212,8 @@ function triggerLocalDiceRoll() {
       });
       gState.rollsLeft--;
       playClickTone(750, 0.07);
+      
+      // Roll complete: redraw the full board to update scorecard previews!
       renderBoard(gState);
     }
   }, 80);
@@ -824,7 +1242,14 @@ function triggerOnlineRollAnimation(diceValues) {
     gState.virtualDice.forEach(d => {
       if (!d.held) d.val = Math.floor(Math.random() * 6) + 1;
     });
-    renderBoard(gState);
+    
+    // Smooth rendering: only redraw the roller panel during rolling
+    if (drawRollerFn) {
+      drawRollerFn();
+    } else {
+      renderBoard(gState);
+    }
+    
     playClickTone(480 + Math.random() * 120, 0.03);
     clicks++;
 
@@ -841,6 +1266,8 @@ function triggerOnlineRollAnimation(diceValues) {
       if (activePlayerNameMatchesMe()) {
         relay({ type: "state_update", state: gState });
       }
+      
+      // Roll complete: redraw the full board to update scorecard previews!
       renderBoard(gState);
     }
   }, 80);
@@ -852,19 +1279,47 @@ function activePlayerNameMatchesMe() {
 }
 
 // ── Scorecard entry popup ───────────────────────────────────────────────────
-function openScoreSelector(yState, pIdx, category) {
-  const currentVal = yState.scores[pIdx][category.id];
-  let inputVal = currentVal !== null ? String(currentVal) : "";
+function openScoreSelector(yState, pIdx, category, colIdx = null) {
+  const isPhysical = !!yState.usePhysicalDice;
+
+  const currentVal = colIdx !== null 
+    ? yState.scores[pIdx][category.id]?.[colIdx]
+    : yState.scores[pIdx][category.id];
+    
+  let inputVal = currentVal !== null && currentVal !== undefined ? String(currentVal) : "";
 
   const hasRolledVals = yState.virtualDice.map(d => d.val);
   const suggestedScore = getSuggestedYahtzeeScore(category.id, hasRolledVals);
   
-  if (suggestedScore !== null && inputVal === "") {
+  if (!isPhysical && suggestedScore !== null && inputVal === "") {
     inputVal = String(suggestedScore);
   }
 
+  // Check if roll is required in virtual mode
+  if (!isPhysical && yState.rollsLeft === 3) {
+    const modalContent = el("div", {
+      className: "panel",
+      style: "max-width: 320px; width: 90%; background: #0b1a20; border: 1px solid rgba(255,255,255,0.1); border-radius: 16px; padding: 20px; box-shadow: 0 10px 40px rgba(0,0,0,0.5); text-align: center;"
+    }, [
+      el("h3", { text: "Roll Required", style: "color: var(--sunset-soft);" }),
+      el("p", { className: "muted", style: "font-size:0.85rem; margin: 12px 0 18px; line-height: 1.4;", text: "You must roll the virtual dice first before scoring. Alternatively, enable 'Physical Dice' mode at the top of the scorecard." }),
+      el("button", { className: "btn", text: "OK", onClick: () => modal.remove() })
+    ]);
+    const modal = el("div", {
+      className: "modal-overlay",
+      style: "position: fixed; inset: 0; background: rgba(0,0,0,0.8); z-index: 100000; display: flex; align-items: center; justify-content: center; backdrop-filter: blur(8px);"
+    }, [modalContent]);
+    document.body.appendChild(modal);
+    return;
+  }
+
   const title = el("h3", { text: `Enter ${yState.players[pIdx]}'s Score` });
-  const subTitle = el("p", { className: "muted", text: `${category.name} (${category.desc})` });
+  
+  let subtitleText = `${category.name} (${category.desc})`;
+  if (colIdx !== null) {
+    subtitleText += ` • Col ${colIdx + 1} (x${colIdx + 1} Multiplier)`;
+  }
+  const subTitle = el("p", { className: "muted", text: subtitleText });
 
   const inputDisplay = el("div", {
     className: "score-input-display",
@@ -885,21 +1340,25 @@ function openScoreSelector(yState, pIdx, category) {
   }
 
   const quickOptions = [];
-  if (category.id === "ones") [0, 1, 2, 3, 4, 5].forEach(v => quickOptions.push(v));
-  if (category.id === "twos") [0, 2, 4, 6, 8, 10].forEach(v => quickOptions.push(v));
-  if (category.id === "threes") [0, 3, 6, 9, 12, 15].forEach(v => quickOptions.push(v));
-  if (category.id === "fours") [0, 4, 8, 12, 16, 20].forEach(v => quickOptions.push(v));
-  if (category.id === "fives") [0, 5, 10, 15, 20, 25].forEach(v => quickOptions.push(v));
-  if (category.id === "sixes") [0, 6, 12, 18, 24, 30].forEach(v => quickOptions.push(v));
-  if (category.id === "full_house") [0, 25].forEach(v => quickOptions.push(v));
-  if (category.id === "sm_straight") [0, 30].forEach(v => quickOptions.push(v));
-  if (category.id === "lg_straight") [0, 40].forEach(v => quickOptions.push(v));
-  if (category.id === "yahtzee") [0, 50].forEach(v => quickOptions.push(v));
-  if (category.id === "bonus_yahtzee") [0, 100, 200, 300].forEach(v => quickOptions.push(v));
-
-  if (suggestedScore !== null) {
-    if (!quickOptions.includes(suggestedScore)) {
-      quickOptions.unshift(suggestedScore);
+  if (isPhysical) {
+    // Enable full suggestions for physical mode
+    if (category.id === "ones") [0, 1, 2, 3, 4, 5].forEach(v => quickOptions.push(v));
+    if (category.id === "twos") [0, 2, 4, 6, 8, 10].forEach(v => quickOptions.push(v));
+    if (category.id === "threes") [0, 3, 6, 9, 12, 15].forEach(v => quickOptions.push(v));
+    if (category.id === "fours") [0, 4, 8, 12, 16, 20].forEach(v => quickOptions.push(v));
+    if (category.id === "fives") [0, 5, 10, 15, 20, 25].forEach(v => quickOptions.push(v));
+    if (category.id === "sixes") [0, 6, 12, 18, 24, 30].forEach(v => quickOptions.push(v));
+    if (category.id === "full_house") [0, 25].forEach(v => quickOptions.push(v));
+    if (category.id === "sm_straight") [0, 30].forEach(v => quickOptions.push(v));
+    if (category.id === "lg_straight") [0, 40].forEach(v => quickOptions.push(v));
+    if (category.id === "yahtzee") [0, 50].forEach(v => quickOptions.push(v));
+    if (category.id === "bonus_yahtzee") [0, 100, 200, 300].forEach(v => quickOptions.push(v));
+  } else {
+    // Virtual Mode: Cheat-proof suggestions. The only option is the mathematically correct suggested score!
+    if (suggestedScore !== null) {
+      quickOptions.push(suggestedScore);
+    } else {
+      quickOptions.push(0);
     }
   }
 
@@ -916,33 +1375,47 @@ function openScoreSelector(yState, pIdx, category) {
     }));
   });
 
-  const numpadKeys = [
-    ["1", "2", "3"],
-    ["4", "5", "6"],
-    ["7", "8", "9"],
-    ["C", "0", "⌫"]
-  ];
-
   const padGrid = el("div", { className: "numpad-grid", style: "display: flex; flex-direction: column; gap: 8px; max-width: 280px; margin: 0 auto 16px;" });
-  numpadKeys.forEach(rowKeys => {
-    const rowEl = el("div", { style: "display: flex; gap: 8px;" });
-    rowKeys.forEach(k => {
-      rowEl.appendChild(el("button", {
-        className: "btn ghost",
-        text: k,
-        style: "flex: 1; height: 50px; font-size: 1.2rem; font-weight: 700; border-radius: 10px;",
-        onClick: () => pressKey(k)
-      }));
+  if (isPhysical) {
+    // Numpad is only displayed/enabled in Physical Mode!
+    const numpadKeys = [
+      ["1", "2", "3"],
+      ["4", "5", "6"],
+      ["7", "8", "9"],
+      ["C", "0", "⌫"]
+    ];
+
+    numpadKeys.forEach(rowKeys => {
+      const rowEl = el("div", { style: "display: flex; gap: 8px;" });
+      rowKeys.forEach(k => {
+        rowEl.appendChild(el("button", {
+          className: "btn ghost",
+          text: k,
+          style: "flex: 1; height: 50px; font-size: 1.2rem; font-weight: 700; border-radius: 10px;",
+          onClick: () => pressKey(k)
+        }));
+      });
+      padGrid.appendChild(rowEl);
     });
-    padGrid.appendChild(rowEl);
-  });
+  }
 
   const saveBtn = el("button", {
     className: "btn",
     text: "Save Score",
     onClick: () => {
       const parsed = parseInt(inputVal, 10);
-      yState.scores[pIdx][category.id] = isNaN(parsed) ? 0 : parsed;
+      let valToSave = isNaN(parsed) ? 0 : parsed;
+      
+      // Cheat-proofing: if not physical, clamp to mathematically correct score
+      if (!isPhysical) {
+        valToSave = suggestedScore !== null ? suggestedScore : 0;
+      }
+
+      if (colIdx !== null) {
+        yState.scores[pIdx][category.id][colIdx] = valToSave;
+      } else {
+        yState.scores[pIdx][category.id] = valToSave;
+      }
       
       yState.rollsLeft = 3;
       yState.virtualDice = Array(5).fill(null).map(() => ({ val: 1, held: false }));
@@ -964,7 +1437,11 @@ function openScoreSelector(yState, pIdx, category) {
     text: "Scratch (0)",
     style: "margin-top: 8px;",
     onClick: () => {
-      yState.scores[pIdx][category.id] = 0;
+      if (colIdx !== null) {
+        yState.scores[pIdx][category.id][colIdx] = 0;
+      } else {
+        yState.scores[pIdx][category.id] = 0;
+      }
       
       yState.rollsLeft = 3;
       yState.virtualDice = Array(5).fill(null).map(() => ({ val: 1, held: false }));
@@ -988,19 +1465,40 @@ function openScoreSelector(yState, pIdx, category) {
     onClick: () => modal.remove()
   });
 
+  const modalContentChildren = [
+    title,
+    subTitle,
+    inputDisplay
+  ];
+
+  if (quickOptions.length > 0) {
+    modalContentChildren.push(
+      el("label", { text: isPhysical ? "QUICK OPTIONS:" : "CALCULATED SCORE:", style: "font-size:0.7rem; color:var(--sunset-soft); margin-top:8px; display:block;" }),
+      quickRow
+    );
+  }
+
+  if (isPhysical) {
+    modalContentChildren.push(padGrid);
+  } else {
+    // Add cheat-proof details for virtual mode
+    modalContentChildren.push(el("p", {
+      className: "muted",
+      style: "font-size:0.75rem; margin: 8px 0 16px; line-height:1.4;",
+      text: "Playing with Virtual Roller. Custom inputs are disabled to ensure fair play. Tapping 'Save Score' will lock in the mathematically calculated value."
+    }));
+  }
+
+  modalContentChildren.push(saveBtn);
+  if (suggestedScore !== 0) {
+    modalContentChildren.push(scratchBtn);
+  }
+  modalContentChildren.push(cancelBtn);
+
   const modalContent = el("div", {
     className: "panel",
     style: "max-width: 320px; width: 90%; background: #0b1a20; border: 1px solid rgba(255,255,255,0.1); border-radius: 16px; padding: 20px; box-shadow: 0 10px 40px rgba(0,0,0,0.5); text-align: center;"
-  }, [
-    title,
-    subTitle,
-    inputDisplay,
-    quickOptions.length > 0 ? quickRow : el("div"),
-    padGrid,
-    saveBtn,
-    scratchBtn,
-    cancelBtn
-  ]);
+  }, modalContentChildren);
 
   const modal = el("div", {
     className: "modal-overlay",

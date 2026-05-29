@@ -1150,4 +1150,140 @@ canvas {
   100% { transform: translate(calc(var(--tx, 20px) * 0.3), calc(var(--ty, -30px) * 1.4)) scale(0.97); opacity: var(--op-lo, 0.45); }
 }
 
+/* ---------- Premium Yahtzee Upgrades ---------- */
+.yahtzee-table th {
+  padding: 10px;
+  font-weight: 800;
+  font-family: "Outfit", sans-serif;
+  color: var(--water-foam);
+  border-bottom: 2px solid rgba(255, 255, 255, 0.1);
+  font-size: 0.85rem;
+  letter-spacing: 0.5px;
+}
+
+.yahtzee-table td {
+  padding: 8px 6px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.yahtzee-table tr:hover {
+  background: rgba(255, 255, 255, 0.01);
+}
+
+.score-cell {
+  width: 100%;
+  max-width: 68px;
+  height: 38px;
+  border-radius: 10px;
+  font-weight: 800;
+  font-size: 0.95rem;
+  font-family: "Outfit", sans-serif;
+  border: 1px solid transparent;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto;
+}
+
+.score-cell.empty {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px dashed rgba(255, 255, 255, 0.15);
+  color: rgba(255, 255, 255, 0.25);
+}
+
+.score-cell.empty:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.07);
+  border-color: rgba(255, 255, 255, 0.35);
+  color: var(--cream);
+  transform: translateY(-1px);
+}
+
+.score-cell.empty:disabled {
+  cursor: not-allowed;
+  opacity: 0.4;
+  border-style: dotted;
+}
+
+.score-cell.filled {
+  background: linear-gradient(135deg, var(--sunset-soft), var(--sunset));
+  color: #200f07 !important;
+  box-shadow: 0 4px 12px rgba(230, 106, 54, 0.2);
+}
+
+.score-cell.empty.preview-score {
+  color: var(--sunset-soft);
+  opacity: 0.55;
+  border: 1px dashed rgba(230, 106, 54, 0.45);
+  background: rgba(230, 106, 54, 0.04);
+}
+
+.score-cell.empty.preview-score:hover:not(:disabled) {
+  opacity: 1;
+  background: rgba(230, 106, 54, 0.12);
+  border-color: var(--sunset);
+  transform: scale(1.05);
+}
+
+/* Triple Yahtzee Tabs & UI elements */
+.triple-tabs-container {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding: 8px;
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 14px;
+  margin-bottom: 16px;
+  scrollbar-width: none; /* Hide scrollbar for clean aesthetic */
+}
+.triple-tabs-container::-webkit-scrollbar {
+  display: none;
+}
+
+.triple-tab-btn {
+  flex: 1;
+  min-width: 90px;
+  padding: 8px 12px;
+  border-radius: 10px;
+  font-family: "Outfit", sans-serif;
+  text-align: center;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  border: 1.5px solid transparent;
+  cursor: pointer;
+}
+
+/* Podium layouts for finished game state */
+.podium-container {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 20px 0;
+}
+
+.podium-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 18px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.podium-row.winner-row {
+  background: linear-gradient(135deg, rgba(230, 106, 54, 0.15), rgba(230, 106, 54, 0.05));
+  border: 1.5px solid rgba(230, 106, 54, 0.45);
+  box-shadow: 0 8px 24px rgba(230, 106, 54, 0.15);
+}
+
+.podium-rank {
+  font-family: "Outfit", sans-serif;
+  font-weight: 900;
+  font-size: 1.15rem;
+  color: var(--sunset-soft);
+  width: 24px;
+}
+
 

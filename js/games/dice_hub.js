@@ -7,6 +7,18 @@ import { start as startLiarsDice } from "./liars_dice.js";
 
 let goHome = () => {};
 
+// ── Shared AudioContext (reused across all sounds to avoid CPU spikes) ─────────
+let _audioCtx = null;
+function getAudioCtx() {
+  if (!_audioCtx) {
+    _audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  }
+  if (_audioCtx.state === "suspended") {
+    _audioCtx.resume();
+  }
+  return _audioCtx;
+}
+
 function hubTopbar(title, onBack) {
   return el("div", { className: "topbar" }, [
     el("button", { className: "back", onClick: onBack }, [
@@ -260,7 +272,7 @@ export function renderDiceFaceSVG(val, held = false) {
 // ── Web Audio API synth tones for rolls ──────────────────────────────────────
 export function playClickTone(freq, duration) {
   try {
-    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    const audioCtx = getAudioCtx();
     const osc = audioCtx.createOscillator();
     const gain = audioCtx.createGain();
 

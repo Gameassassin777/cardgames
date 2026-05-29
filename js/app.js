@@ -4,7 +4,7 @@ import { APP_VERSION } from "./version.js";
 import { makeGame as makeCardGame } from "./cam.js";
 import * as meeting from "./meeting.js";
 import { makeGame as makeDeck } from "./deckgame.js";
-import { PROMPTS, RESPONSES, NORMAL_PROMPTS, NORMAL_RESPONSES, FAMILY_PROMPTS, FAMILY_RESPONSES, CAMPFIRE_ROASTS, LAKE_TRUTHS, WOULD_YOU_RATHER, RED_GREEN, RIZZ_ROULETTE, COZY_WOULD_YOU_RATHER, COZY_MOST_LIKELY, COZY_RED_GREEN, COZY_CAMPFIRE_ROASTS, COZY_TRUTHS_DARES, ZESTY_TRUTHS_DARES } from "./data.js";
+import { PROMPTS, RESPONSES, NORMAL_PROMPTS, NORMAL_RESPONSES, FAMILY_PROMPTS, FAMILY_RESPONSES, CAMPFIRE_ROASTS, LAKE_TRUTHS, WOULD_YOU_RATHER, MOST_LIKELY, RED_GREEN, RIZZ_ROULETTE, COZY_WOULD_YOU_RATHER, COZY_MOST_LIKELY, COZY_RED_GREEN, COZY_CAMPFIRE_ROASTS, COZY_TRUTHS_DARES, ZESTY_TRUTHS_DARES } from "./data.js";
 import { openCustomCardsManager } from "./custom_cards_ui.js";
 import * as catchphrase from "./catchphrase.js";
 import { pullFromCloud } from "./cloud_sync.js";
@@ -254,9 +254,21 @@ const GAMES = [
   },
 ];
 
+// ── Shared AudioContext (reused to prevent CPU spikes) ─────────────────────
+let _audioCtx = null;
+function getAudioCtx() {
+  if (!_audioCtx) {
+    _audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  }
+  if (_audioCtx.state === "suspended") {
+    _audioCtx.resume();
+  }
+  return _audioCtx;
+}
+
 function playQuack() {
   try {
-    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    const audioCtx = getAudioCtx();
     const osc = audioCtx.createOscillator();
     const filter = audioCtx.createBiquadFilter();
     const gain = audioCtx.createGain();

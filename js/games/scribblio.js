@@ -23,6 +23,18 @@ let isOnline = false;
 let setupMode = "passplay"; // "passplay" or "online"
 let localNames = ["Alice", "Bob", "Charlie"];
 
+// ── Shared AudioContext (reused to prevent CPU spikes) ─────────────────────
+let _audioCtx = null;
+function getAudioCtx() {
+  if (!_audioCtx) {
+    _audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  }
+  if (_audioCtx.state === "suspended") {
+    _audioCtx.resume();
+  }
+  return _audioCtx;
+}
+
 const WORD_POOL = [
   "Canoe", "Marshmallow", "Mosquito", "Campfire", "Sleeping bag", "Pinecone", "Dock", 
   "Squirrel", "Cabin", "Beaver", "Fishing rod", "Compass", "Life jacket", "Bear", 
@@ -1151,7 +1163,7 @@ function applyOnlineStroke(action) {
 // ── Web Audio Synth ─────────────────────────────────────────────────────────
 function playTone(freq, duration) {
   try {
-    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    const audioCtx = getAudioCtx();
     const osc = audioCtx.createOscillator();
     const gain = audioCtx.createGain();
 

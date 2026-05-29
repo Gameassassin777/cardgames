@@ -22,6 +22,18 @@ let roomBrowserRefresh = null;
 let isOnline = false;
 let setupMode = "passplay"; // "passplay" or "online"
 
+// ── Shared AudioContext (reused to prevent CPU spikes) ─────────────────────
+let _audioCtx = null;
+function getAudioCtx() {
+  if (!_audioCtx) {
+    _audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  }
+  if (_audioCtx.state === "suspended") {
+    _audioCtx.resume();
+  }
+  return _audioCtx;
+}
+
 function requestOrientationPermission() {
   if (typeof DeviceOrientationEvent !== "undefined" && typeof DeviceOrientationEvent.requestPermission === "function") {
     DeviceOrientationEvent.requestPermission()
@@ -1010,7 +1022,7 @@ function renderGameOverScreen() {
 // ── Web Audio Synth Tone ─────────────────────────────────────────────────────
 function playTone(freq, duration) {
   try {
-    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    const audioCtx = getAudioCtx();
     const osc = audioCtx.createOscillator();
     const gain = audioCtx.createGain();
 

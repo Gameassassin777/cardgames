@@ -26,6 +26,18 @@ let setupMode = "passplay"; // "passplay" or "online"
 let masterState = null;
 let gState = null;
 
+// ── Shared AudioContext (reused to prevent CPU spikes) ─────────────────────
+let _audioCtx = null;
+function getAudioCtx() {
+  if (!_audioCtx) {
+    _audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  }
+  if (_audioCtx.state === "suspended") {
+    _audioCtx.resume();
+  }
+  return _audioCtx;
+}
+
 function gameTopbar(title, onBack) {
   return el("div", { className: "topbar" }, [
     el("button", { className: "back", onClick: onBack }, [
@@ -1081,7 +1093,7 @@ function declareWinner(state) {
 // ── Web Audio Synth Tones ───────────────────────────────────────────────────
 function playTone(freq, duration) {
   try {
-    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    const audioCtx = getAudioCtx();
     const osc = audioCtx.createOscillator();
     const gain = audioCtx.createGain();
 

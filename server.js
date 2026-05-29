@@ -199,6 +199,40 @@ const server = http.createServer((req, res) => {
     return;
   }
 
+  // Serve static files relative to __dirname
+  const MIME_TYPES = {
+    ".html": "text/html; charset=utf-8",
+    ".css": "text/css; charset=utf-8",
+    ".js": "application/javascript; charset=utf-8",
+    ".json": "application/json; charset=utf-8",
+    ".webmanifest": "application/manifest+json; charset=utf-8",
+    ".png": "image/png",
+    ".jpg": "image/jpeg",
+    ".jpeg": "image/jpeg",
+    ".gif": "image/gif",
+    ".svg": "image/svg+xml",
+    ".ico": "image/x-icon"
+  };
+
+  let safePath = path.normalize(pathname).replace(/^(\.\.[\/\\])+/, "");
+  if (safePath === "/") safePath = "/index.html";
+  const filePath = path.join(__dirname, safePath);
+
+  if (fs.existsSync(filePath)) {
+    try {
+      const stat = fs.statSync(filePath);
+      if (stat.isFile()) {
+        const ext = path.extname(filePath).toLowerCase();
+        const contentType = MIME_TYPES[ext] || "application/octet-stream";
+        res.writeHead(200, { "Content-Type": contentType });
+        fs.createReadStream(filePath).pipe(res);
+        return;
+      }
+    } catch (err) {
+      console.error("Local Server: Error serving static file:", err);
+    }
+  }
+
   // Standard fallback
   res.writeHead(200, { "Content-Type": "text/plain" });
   res.end("Lake House Card Games multiplayer lobby sync server is running!\n");
