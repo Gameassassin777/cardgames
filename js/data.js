@@ -263,7 +263,7 @@ export const RESPONSES = [
   "a highly inappropriate relationship with Hagrid's giant spider",
   "a wand that is suspiciously sticky and smells like pumpkin juice",
   "Harry Potter's invisible cloak being used for completely sussy activities",
-  "Dobby aggressively looksmaxxing with a zesty golden snitch",
+  "Dobby zestily stroking his golden snitch",
   "getting zesty in the Gryffindor common room at 3 a.m.",
   "the Sorting Hat being used as an emotional support bucket",
 ];
