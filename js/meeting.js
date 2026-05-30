@@ -312,7 +312,7 @@ function renderSetup() {  resetOnline();
 
   const tabLocal = el("button", {
     className: "btn small",
-    text: "🔄 Pass & Play",
+    text: "Pass & Play",
     style: "flex:1; margin:0; font-size:0.85rem; padding: 8px 0; border:none; box-shadow:none;",
     onClick: () => {
       setupMode = "passplay";
@@ -324,7 +324,7 @@ function renderSetup() {  resetOnline();
 
   const tabOnline = el("button", {
     className: "btn ghost small",
-    text: "📱 Online Room",
+    text: "Online Room",
     style: "flex:1; margin:0; font-size:0.85rem; padding: 8px 0; border:none; box-shadow:none;",
     onClick: () => {
       setupMode = "online";
@@ -386,7 +386,7 @@ function renderSetup() {  resetOnline();
         }),
         el("button", {
           className: "btn ghost small",
-          text: "🌐 Browse Open Rooms",
+          text: "Browse Open Rooms",
           style: "width:100%; margin-top: 8px;",
           onClick: () => {
             const n = nameInput.value.trim();

@@ -144,7 +144,7 @@ function renderSetup() {  const savedName = localStorage.getItem("lakehouse.play
 
   const showRulesBtn = el("button", {
     className: "btn ghost small",
-    text: "📖 Rules & How to Play",
+    text: "Rules & How to Play",
     style: "width:100%; margin-bottom:16px;",
     onClick: () => {
       const existing = document.querySelector(".rules-panel");
@@ -187,7 +187,7 @@ function renderSetup() {  const savedName = localStorage.getItem("lakehouse.play
 
   const tabLocal = el("button", {
     className: setupMode === "passplay" ? "btn small" : "btn ghost small",
-    text: "🔄 Pass & Play",
+    text: "Pass & Play",
     style: "flex:1; margin:0; font-size:0.85rem; padding: 8px 0; border:none; box-shadow:none;",
     onClick: () => {
       setupMode = "passplay";
@@ -199,7 +199,7 @@ function renderSetup() {  const savedName = localStorage.getItem("lakehouse.play
 
   const tabOnline = el("button", {
     className: setupMode === "online" ? "btn small" : "btn ghost small",
-    text: "📱 Online Room",
+    text: "Online Room",
     style: "flex:1; margin:0; font-size:0.85rem; padding: 8px 0; border:none; box-shadow:none;",
     onClick: () => {
       setupMode = "online";
@@ -255,7 +255,7 @@ function renderSetup() {  const savedName = localStorage.getItem("lakehouse.play
         }),
         el("button", {
           className: "btn ghost small",
-          text: "🌐 Browse Open Rooms",
+          text: "Browse Open Rooms",
           style: "width:100%; margin-top: 8px;",
           onClick: () => renderRoomBrowser()
         })
@@ -615,7 +615,7 @@ function renderBoard(state) {
     }, [
       el("button", {
         className: !state.usePhysicalDice ? "btn small" : "btn ghost small",
-        text: "📱 Virtual Roller",
+        text: "Virtual Roller",
         style: "margin: 0; padding: 6px 12px; font-size: 0.75rem; border: none; box-shadow: none; flex: 1;",
         onClick: () => {
           state.usePhysicalDice = false;

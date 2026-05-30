@@ -340,13 +340,13 @@ function renderSetup() {  resetGame();
   const passPlayBtn = el("button", {
     className: "btn" + (onlineMode ? " ghost" : ""),
     style: "flex:1; margin:0; font-weight:700; border-radius:12px; font-size:0.9rem; padding: 10px 14px;",
-    text: "📱 Single Phone",
+    text: "Single Phone",
     onClick: () => { resetOnlineState(); renderSetup(); }
   });
   const onlineBtn = el("button", {
     className: "btn" + (onlineMode ? "" : " ghost"),
     style: "flex:1; margin:0; font-weight:700; border-radius:12px; font-size:0.9rem; padding: 10px 14px;",
-    text: "🌐 Separate Phones",
+    text: "Separate Phones",
     onClick: () => { onlineMode = true; renderSetup(); }
   });
   const modeTab = el("div", {
@@ -532,11 +532,11 @@ function renderOnlineJoinHost(modeTab) {
       el("hr", { className: "divider" }),
       el("label", { text: "2. Host a New Match" }),
       hostBtn,
-      el("label", { style: "margin-top:14px;", text: "👀 Or Browse Open Rooms" }),
+      el("label", { style: "margin-top:14px;", text: "Or Browse Open Rooms" }),
       el("button", {
         className: "btn ghost",
         style: "width:100%; margin-top:6px;",
-        text: "📋 Browse Rooms",
+        text: "Browse Rooms",
         onClick: () => {
           if (!myName) { toast("Please enter your display name first!"); return; }
           renderRoomBrowser();
@@ -856,7 +856,7 @@ function renderRoomBrowser() {
       el("p", { className: "muted", style: "margin:0; font-size:0.82rem;", text: "Refreshes every 3s. Tap Join to enter." })
     ]),
     el("div", { className: "panel", style: "padding:10px;" }, [listEl]),
-    el("button", { className: "btn ghost", style: "margin-top:4px;", text: "🔄 Refresh",
+    el("button", { className: "btn ghost", style: "margin-top:4px;", text: "Refresh",
       onClick: () => loadRooms()
     })
   );

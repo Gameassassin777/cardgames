@@ -647,7 +647,7 @@ function home() {
     style: "margin-top: 14px; padding: 14px 16px;"
   }, [
     el("div", { style: "display:flex; align-items:center; gap:6px; margin-bottom:4px;" }, [
-      el("span", { text: "\u{1F464}", style: "font-size:0.9rem; opacity:0.8;" }),
+      
       el("span", { text: "Online Name", style: "font-size:0.75rem; font-weight:600; color:var(--text-mid); letter-spacing:0.5px; text-transform:uppercase;" })
     ]),
     el("input", {
@@ -663,7 +663,7 @@ function home() {
       style: "width:100%; margin-bottom:10px; display:flex; align-items:center; justify-content:center; gap:6px;",
       onClick: () => renderLobbyBrowser()
     }, [
-      el("span", { text: "\uD83C\uDF10" }),
+      el("span", { text: "→" }),
       el("span", { text: "Browse Open Rooms" })
     ]),
     el("hr", { style: "border:none; border-top:1px solid rgba(255,255,255,0.06); margin: 4px 0 10px;" }),

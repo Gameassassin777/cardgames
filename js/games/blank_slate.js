@@ -247,7 +247,7 @@ function renderSetup() {  const savedName = localStorage.getItem("lakehouse.play
 
   const tabLocal = el("button", {
     className: setupMode === "passplay" ? "btn small" : "btn ghost small",
-    text: "🔄 Pass & Play",
+    text: "Pass & Play",
     style: "flex:1; margin:0; font-size:0.85rem; padding: 8px 0; border:none; box-shadow:none;",
     onClick: () => {
       setupMode = "passplay";
@@ -259,7 +259,7 @@ function renderSetup() {  const savedName = localStorage.getItem("lakehouse.play
 
   const tabOnline = el("button", {
     className: setupMode === "online" ? "btn small" : "btn ghost small",
-    text: "📱 Online Room",
+    text: "Online Room",
     style: "flex:1; margin:0; font-size:0.85rem; padding: 8px 0; border:none; box-shadow:none;",
     onClick: () => {
       setupMode = "online";

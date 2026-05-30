@@ -274,7 +274,7 @@ function renderSetup() {
   ]);
 
   let physical = store.get(cfg.physicalKey, false);
-  const digitalBtn = el("button", { className: "btn", text: "📱 Digital Hand" });
+  const digitalBtn = el("button", { className: "btn", text: "Digital Hand" });
   const physicalBtn = el("button", { className: "btn ghost", text: "🃏 Physical Cards" });
   const modeDesc = el("p", { className: "muted", style: "margin:8px 0 0; font-size:0.85rem;" });
   
@@ -293,13 +293,13 @@ function renderSetup() {
   const localTab = el("button", {
     className: "btn" + (!onlineMode ? " small" : " ghost small"),
     style: "flex:1; margin:0; font-size:0.85rem; padding: 8px 0; border:none; box-shadow:none;",
-    text: "🔄 Pass & Play",
+    text: "Pass & Play",
     onClick: () => { onlineMode = false; renderSetup(); }
   });
   const onlineTab = el("button", {
     className: "btn" + (onlineMode ? " small" : " ghost small"),
     style: "flex:1; margin:0; font-size:0.85rem; padding: 8px 0; border:none; box-shadow:none;",
-    text: "📱 Online Room",
+    text: "Online Room",
     onClick: () => { onlineMode = true; renderSetup(); }
   });
 
@@ -326,7 +326,7 @@ function renderSetup() {
       style: "width:100%; display:flex; align-items:center; justify-content:center; gap:6px; font-weight:700; border: 1.5px dashed var(--water-foam); border-radius:12px; padding:10px; margin-bottom:12px; margin-top:4px;",
       onClick: () => openDeckCustomizer()
     }, [
-      el("span", { text: "🎴" }),
+      
       el("span", { text: "Customize Playable Deck" }),
       totalDisabled > 0 
         ? el("span", { className: "badge", style: "background:#c62828; color:#fff; margin-left:4px; font-size:0.65rem; padding:1px 6px;", text: `${totalDisabled} filtered` })
@@ -399,7 +399,7 @@ function renderSetup() {
     }));
     setupCard.appendChild(el("button", {
       className: "btn ghost small",
-      text: "🌐 Browse Open Rooms",
+      text: "Browse Open Rooms",
       style: "width:100%; margin-top: 8px;",
       onClick: () => {
         const val = nameInput.value.trim();
@@ -632,7 +632,7 @@ function renderRoomBrowser() {
       el("p", { className: "muted", style: "margin:0; font-size:0.82rem;", text: "Refreshes every 3s. Tap Join to enter." })
     ]),
     el("div", { className: "panel", style: "padding:10px;" }, [listEl]),
-    el("button", { className: "btn ghost", style: "margin-top:4px;", text: "🔄 Refresh",
+    el("button", { className: "btn ghost", style: "margin-top:4px;", text: "Refresh",
       onClick: () => loadRooms()
     })
   );
@@ -1218,7 +1218,7 @@ function renderOnlineGameOver() {
 
   const restartBtn = el("button", {
     className: "btn",
-    text: "Play Again 🔄",
+    text: "Play Again",
     onClick: playAgainOnline
   });
 
