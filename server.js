@@ -293,8 +293,84 @@ function generateRoomCode() {
   return code;
 }
 
-wss.on("connection", (ws) => {
+wss.on("connection", (ws, req) => {
   console.log("New WebSocket client connected.");
+
+  // ── URL-based Room Routing ────────────────────────────────────────────────
+  let parsedUrl = null;
+  try {
+    if (req && req.url) {
+      parsedUrl = new URL(req.url, `http://${req.headers.host || "localhost"}`);
+    }
+  } catch (_) {}
+
+  if (parsedUrl && parsedUrl.pathname.startsWith("/ws/")) {
+    const type = parsedUrl.pathname.includes("create") ? "create" : "join";
+    const name = decodeURIComponent(parsedUrl.searchParams.get("name") || "Guest").trim();
+    const game = parsedUrl.searchParams.get("game") || "cam";
+    const code = (parsedUrl.searchParams.get("code") || "").toUpperCase().trim();
+
+    if (type === "create") {
+      const newCode = generateRoomCode();
+      const clients = new Set([ws]);
+      clients.lastState = null;
+      clients.lastStateSender = null;
+      rooms.set(newCode, clients);
+      socketMetadata.set(ws, { roomCode: newCode, name: name || "Host" });
+      
+      ws.send(JSON.stringify({
+        type: "created",
+        code: newCode,
+        players: [name || "Host"],
+        customCards: loadCustomCards()
+      }));
+      console.log(`Room ${newCode} created by ${name || "Host"} via URL`);
+    } else if (type === "join" && code) {
+      if (rooms.has(code)) {
+        const clients = rooms.get(code);
+        clients.add(ws);
+        socketMetadata.set(ws, { roomCode: code, name });
+
+        const playerNames = [];
+        clients.forEach(client => {
+          const meta = socketMetadata.get(client);
+          if (meta && !meta.name.startsWith("__")) {
+            playerNames.push(meta.name);
+          }
+        });
+
+        // Broadcast join + custom cards to room
+        const joinNotification = JSON.stringify({
+          type: "player_joined",
+          code,
+          name,
+          players: playerNames,
+          customCards: loadCustomCards()
+        });
+
+        clients.forEach(client => {
+          if (client.readyState === 1) {
+            client.send(joinNotification);
+          }
+        });
+
+        console.log(`Player ${name} joined room ${code} via URL. Total players: ${clients.size}`);
+        
+        // PLAYBACK: Play back the last cached relayed state if it exists
+        if (clients && clients.lastState) {
+          ws.send(JSON.stringify({
+            type: "relay",
+            sender: clients.lastStateSender || "Host",
+            action: clients.lastState
+          }));
+        }
+      } else {
+        ws.send(JSON.stringify({ type: "error", message: `Room ${code} not found.` }));
+        ws.close();
+        return;
+      }
+    }
+  }
 
   ws.on("message", (rawMessage) => {
     try {

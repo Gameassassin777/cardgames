@@ -121,7 +121,12 @@ export default {
     if (url.pathname.startsWith("/ws/")) {
       let code = (url.searchParams.get("code") || "").toUpperCase().trim();
       const type = url.pathname.includes("create") ? "create" : "join";
-      if (type === "create") code = generateRoomCode();
+      if (type === "create") {
+        code = generateRoomCode();
+        const newUrl = new URL(request.url);
+        newUrl.searchParams.set("code", code);
+        request = new Request(newUrl.toString(), request);
+      }
       if (!code || (type === "join" && code.length !== 4)) {
         return new Response("Invalid room code.", { status: 400 });
       }
