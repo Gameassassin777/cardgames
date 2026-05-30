@@ -328,6 +328,15 @@ function sendRelay(action) {
 
 /* ---------------- 1. Setup / Lobby Screen ---------------- */
 function renderSetup() {
+  // ── Direct join from main-menu lobby browser ──────────────────────
+  try {
+    const _pj = JSON.parse(sessionStorage.getItem("lakehouse.pendingJoin") || "null");
+    if (_pj && _pj.game === "catchphrase" && _pj.code && (Date.now() - _pj.ts) < 20000) {
+      sessionStorage.removeItem("lakehouse.pendingJoin");
+      myName = localStorage.getItem("lakehouse.playerName") || "";
+      if (myName) { connectRoom("join", _pj.code); return; }
+    }
+  } catch (_) {}
   resetGame();
 
   // Mode Selection tab (Pass & Play vs Online)
@@ -469,7 +478,7 @@ function renderOfflineSetup(modeTab) {
 
 /* --- B. Online Play Join/Host Setup --- */
 function renderOnlineJoinHost(modeTab) {
-  const savedName = localStorage.getItem("catchphrase.myname") || localStorage.getItem("lakehouse.playerName") || "";
+  const savedName = localStorage.getItem("lakehouse.playerName") || localStorage.getItem("catchphrase.myname") || "";
   const nameInput = el("input", {
     type: "text",
     value: savedName,

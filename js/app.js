@@ -524,18 +524,9 @@ function renderLobbyBrowser() {
               if (!startFn) { toast(`Can't auto-join ${gameLabel} yet.`); return; }
               const name = localStorage.getItem("lakehouse.playerName") || "";
               if (!name) { toast("Set your online name on the home screen first!"); return; }
+              sessionStorage.setItem("lakehouse.pendingJoin",
+                JSON.stringify({ code: r.code, game: r.game, ts: Date.now() }));
               startFn(home);
-              setTimeout(() => {
-                const codeInput = document.querySelector('input[maxlength="4"]');
-                if (codeInput) {
-                  codeInput.value = r.code.toUpperCase();
-                  codeInput.dispatchEvent(new Event("input"));
-                }
-                const joinBtn = [...document.querySelectorAll("button")].find(b =>
-                  /join.*(room|online|game)/i.test(b.textContent)
-                );
-                if (joinBtn) joinBtn.click();
-              }, 350);
             }
           })
         ]);

@@ -11,6 +11,7 @@ let goHome = () => {};
 let socket = null;
 let roomCode = "";
 let myName = "";
+let myPlayerIdx = -1;
 let isHost = false;
 let heartbeatInt = null;
 let roomBrowserRefresh = null;
@@ -41,11 +42,20 @@ function resetAll() {
   if (socket) { try { socket.close(); } catch (_) {} socket = null; }
   if (heartbeatInt) { clearInterval(heartbeatInt); heartbeatInt = null; }
   if (roomBrowserRefresh) { clearInterval(roomBrowserRefresh); roomBrowserRefresh = null; }
-  roomCode = ""; myName = ""; isHost = false; gState = null; isOnline = false;
+  roomCode = ""; myName = ""; myPlayerIdx = -1; isHost = false; gState = null; isOnline = false;
 }
 
 function renderSetup() {
-  const savedName = localStorage.getItem("farkle.name") || localStorage.getItem("lakehouse.playerName") || "";
+  // ── Direct join from main-menu lobby browser ──────────────────────
+  try {
+    const _pj = JSON.parse(sessionStorage.getItem("lakehouse.pendingJoin") || "null");
+    if (_pj && _pj.game === "farkle" && _pj.code && (Date.now() - _pj.ts) < 20000) {
+      sessionStorage.removeItem("lakehouse.pendingJoin");
+      myName = localStorage.getItem("lakehouse.playerName") || "";
+      if (myName) { connectRoom("join", _pj.code); return; }
+    }
+  } catch (_) {}
+  const savedName = localStorage.getItem("lakehouse.playerName") || localStorage.getItem("farkle.name") || "";
   const nameInput = el("input", {
     type: "text",
     placeholder: "Your name…",
@@ -407,6 +417,7 @@ async function registerRoom() {
 
 function applyLobby(playersList) {
   gState = {
+  myPlayerIdx = playersList.indexOf(myName);
     phase: "lobby",
     players: playersList
   };
@@ -539,7 +550,7 @@ function renderBoard(state) {
   const activePlayerName = players[activeIdx];
   const activeState = states[activeIdx];
 
-  const isMyTurn = isOnline ? (activePlayerName === myName) : true;
+  const isMyTurn = isOnline ? (activeIdx === myPlayerIdx) : true;
 
   const standings = players.map((name, pIdx) => ({
     name,

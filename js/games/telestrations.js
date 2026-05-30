@@ -378,7 +378,16 @@ function resetAll() {
 }
 
 function renderSetup() {
-  const savedName = localStorage.getItem("telestrations.name") || localStorage.getItem("lakehouse.playerName") || "";
+  // ── Direct join from main-menu lobby browser ──────────────────────
+  try {
+    const _pj = JSON.parse(sessionStorage.getItem("lakehouse.pendingJoin") || "null");
+    if (_pj && _pj.game === "telestrations" && _pj.code && (Date.now() - _pj.ts) < 20000) {
+      sessionStorage.removeItem("lakehouse.pendingJoin");
+      myName = localStorage.getItem("lakehouse.playerName") || "";
+      if (myName) { connectRoom("join", _pj.code); return; }
+    }
+  } catch (_) {}
+  const savedName = localStorage.getItem("lakehouse.playerName") || localStorage.getItem("telestrations.name") || "";
   const nameInput = el("input", {
     type: "text",
     placeholder: "Your name…",

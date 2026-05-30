@@ -11,6 +11,7 @@ let goHome = () => {};
 let socket = null;
 let roomCode = "";
 let myName = "";
+let myPlayerIdx = -1;
 let isHost = false;
 let heartbeatInt = null;
 let roomBrowserRefresh = null;
@@ -55,11 +56,20 @@ function resetAll() {
   if (socket) { try { socket.close(); } catch (_) {} socket = null; }
   if (heartbeatInt) { clearInterval(heartbeatInt); heartbeatInt = null; }
   if (roomBrowserRefresh) { clearInterval(roomBrowserRefresh); roomBrowserRefresh = null; }
-  roomCode = ""; myName = ""; isHost = false; gState = null; masterState = null; isOnline = false;
+  roomCode = ""; myName = ""; myPlayerIdx = -1; isHost = false; gState = null; masterState = null; isOnline = false;
 }
 
 function renderSetup() {
-  const savedName = localStorage.getItem("liars.name") || localStorage.getItem("lakehouse.playerName") || "";
+  // ── Direct join from main-menu lobby browser ──────────────────────
+  try {
+    const _pj = JSON.parse(sessionStorage.getItem("lakehouse.pendingJoin") || "null");
+    if (_pj && _pj.game === "liars_dice" && _pj.code && (Date.now() - _pj.ts) < 20000) {
+      sessionStorage.removeItem("lakehouse.pendingJoin");
+      myName = localStorage.getItem("lakehouse.playerName") || "";
+      if (myName) { connectRoom("join", _pj.code); return; }
+    }
+  } catch (_) {}
+  const savedName = localStorage.getItem("lakehouse.playerName") || localStorage.getItem("liars.name") || "";
   const nameInput = el("input", {
     type: "text",
     placeholder: "Your name…",
@@ -412,6 +422,7 @@ async function registerRoom() {
 
 function applyLobby(playersList) {
   gState = {
+  myPlayerIdx = playersList.indexOf(myName);
     phase: "lobby",
     players: playersList
   };
@@ -699,7 +710,7 @@ function handleRelay(action, sender) {
 // ── Bidding Board Renderer ───────────────────────────────────────────────────
 function renderBiddingScreen(state) {
   const p = state.players[state.activePlayerIdx];
-  const isMyTurn = isOnline ? (p.name === myName) : true;
+  const isMyTurn = isOnline ? (state.activePlayerIdx === myPlayerIdx) : true;
 
   let bidDisplay = el("p", { text: "No active bids. You must start the bidding!", className: "muted center" });
   if (state.currentBid) {

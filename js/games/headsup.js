@@ -10,6 +10,7 @@ let goHome = () => {};
 let socket = null;
 let roomCode = "";
 let myName = "";
+let myPlayerIdx = -1;
 let isHost = false;
 let gState = null;
 let heartbeatInt = null;
@@ -103,11 +104,20 @@ function resetAll() {
   if (socket) { try { socket.close(); } catch (_) {} socket = null; }
   if (heartbeatInt) { clearInterval(heartbeatInt); heartbeatInt = null; }
   if (roomBrowserRefresh) { clearInterval(roomBrowserRefresh); roomBrowserRefresh = null; }
-  roomCode = ""; myName = ""; isHost = false; gState = null; isOnline = false;
+  roomCode = ""; myName = ""; myPlayerIdx = -1; isHost = false; gState = null; isOnline = false;
 }
 
 function renderSetup() {
-  const savedName = localStorage.getItem("headsup.name") || localStorage.getItem("lakehouse.playerName") || "";
+  // ── Direct join from main-menu lobby browser ──────────────────────
+  try {
+    const _pj = JSON.parse(sessionStorage.getItem("lakehouse.pendingJoin") || "null");
+    if (_pj && _pj.game === "headsup" && _pj.code && (Date.now() - _pj.ts) < 20000) {
+      sessionStorage.removeItem("lakehouse.pendingJoin");
+      myName = localStorage.getItem("lakehouse.playerName") || "";
+      if (myName) { connectRoom("join", _pj.code); return; }
+    }
+  } catch (_) {}
+  const savedName = localStorage.getItem("lakehouse.playerName") || localStorage.getItem("headsup.name") || "";
   const nameInput = el("input", {
     type: "text",
     placeholder: "Your name…",
@@ -472,6 +482,7 @@ async function registerRoom() {
 
 function applyLobby(playersList) {
   gState = {
+  myPlayerIdx = playersList.indexOf(myName);
     phase: "lobby",
     players: playersList
   };
@@ -650,7 +661,7 @@ function run321Countdown() {
   globalWordCardRef = textEl;
 
   const guesserName = typeof gState.players[gState.guesserIdx] === "string" ? gState.players[gState.guesserIdx] : gState.players[gState.guesserIdx].name;
-  const isGuesser = !isOnline || (myName === guesserName);
+  const isGuesser = !isOnline || (gState.guesserIdx === myPlayerIdx);
 
   const container = el("div", { className: "panel center", style: "max-width: 400px; margin: 0 auto; text-align: center; padding: 24px;" }, [
     el("p", { className: "muted", text: isGuesser ? "Place the device on your forehead, facing outward!" : `${guesserName} is placing the phone on their forehead!` }),

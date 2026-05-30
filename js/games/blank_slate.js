@@ -11,6 +11,7 @@ let goHome = () => {};
 let socket = null;
 let roomCode = "";
 let myName = "";
+let myPlayerIdx = -1;
 let isHost = false;
 let gState = null;
 let heartbeatInt = null;
@@ -134,11 +135,20 @@ function resetAll() {
   if (socket) { try { socket.close(); } catch (_) {} socket = null; }
   if (heartbeatInt) { clearInterval(heartbeatInt); heartbeatInt = null; }
   if (roomBrowserRefresh) { clearInterval(roomBrowserRefresh); roomBrowserRefresh = null; }
-  roomCode = ""; myName = ""; isHost = false; gState = null; isOnline = false;
+  roomCode = ""; myName = ""; myPlayerIdx = -1; isHost = false; gState = null; isOnline = false;
 }
 
 function renderSetup() {
-  const savedName = localStorage.getItem("blank_slate.name") || localStorage.getItem("lakehouse.playerName") || "";
+  // ── Direct join from main-menu lobby browser ──────────────────────
+  try {
+    const _pj = JSON.parse(sessionStorage.getItem("lakehouse.pendingJoin") || "null");
+    if (_pj && _pj.game === "blank_slate" && _pj.code && (Date.now() - _pj.ts) < 20000) {
+      sessionStorage.removeItem("lakehouse.pendingJoin");
+      myName = localStorage.getItem("lakehouse.playerName") || "";
+      if (myName) { connectRoom("join", _pj.code); return; }
+    }
+  } catch (_) {}
+  const savedName = localStorage.getItem("lakehouse.playerName") || localStorage.getItem("blank_slate.name") || "";
   const nameInput = el("input", {
     type: "text",
     placeholder: "Your name…",
@@ -418,6 +428,7 @@ async function registerRoom() {
 
 function applyLobby(players) {
   gState = { phase: "lobby", players };
+  myPlayerIdx = players.indexOf(myName);
   if (isHost && roomCode) {
     registerRoom();
     startHeartbeat(players.length);
@@ -602,7 +613,7 @@ function renderPromptScreen() {
 /* ── ONLINE PROMPT SELECTION VIEW ───────────────────────────────────────────── */
 function renderOnlinePromptSelection() {
   const selectorName = gState.players[gState.selectorIdx].name;
-  const isSelector = (myName === selectorName);
+  const isSelector = (gState.selectorIdx === myPlayerIdx);
 
   const choiceA = gState.prompts[gState.promptIndex];
   const choiceB = gState.prompts[(gState.promptIndex + 1) % gState.prompts.length];
