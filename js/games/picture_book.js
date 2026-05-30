@@ -1044,9 +1044,9 @@ function renderIllustratePhase() {
         dataUrl: dataUrl
       };
 
-      // Relay drawing submission
-      relay(action);
-
+      // Show waiting screen BEFORE relaying — same reason as CHRONICLES_SUBMIT_WORD:
+      // if this completes all drawings, the relay echo fires CHRONICLES_REVIEW which
+      // mounts the slideshow; that overrides this waiting screen correctly.
       mount(
         gameTopbar("Cozy Chronicles — Illustrating", () => confirmQuitOnline()),
         el("div", { className: "panel center", style: "max-width: 440px; margin: 30px auto;" }, [
@@ -1056,6 +1056,8 @@ function renderIllustratePhase() {
           el("div", { id: "illustrate-waiting", style: "font-size:0.9rem; font-weight:bold; color:var(--sunset-soft); margin-top:8px;", text: `Submitted: ${gState.submittedDrawingsCount} / ${gState.players.length} players` })
         ])
       );
+
+      relay(action);
     }
   });
 
@@ -1227,7 +1229,39 @@ function renderReviewPhase() {
   );
 }
 
+async function saveChroniclesGallery() {
+  if (!gState?.finalDrawings?.length) return;
+  try {
+    const chains = gState.finalDrawings.map((drawing, i) => [
+      { type: "text", content: gState.compiledSentences[i % gState.compiledSentences.length] },
+      { type: "draw", content: drawing }
+    ]);
+    const game = {
+      id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+      date: new Date().toISOString(),
+      players: gState.players,
+      storyTitle: gState.storyTitle,
+      isChronicles: true,
+      isMonkey: false,
+      settings: { rounds: 1 },
+      chains,
+    };
+    await fetch(`${HTTP_BASE}/gartic/save`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(game),
+      signal: AbortSignal.timeout(20000),
+    });
+    console.log("[Chronicles] ✓ Saved to gallery.");
+  } catch (e) {
+    console.warn("[Chronicles] Gallery save failed:", e.message);
+  }
+}
+
 function renderFinalScorecard() {
+  // Save to gallery when host reaches the end (only once)
+  if (isHost || !isOnline) saveChroniclesGallery();
+
   mount(
     gameTopbar("Chronicles — Story Complete", () => { resetAll(); renderSetup(); }),
     el("div", { className: "panel center", style: "max-width: 480px; margin: 0 auto;" }, [
@@ -1240,11 +1274,14 @@ function renderFinalScorecard() {
       el("div", { className: "spacer" }),
       el("button", {
         className: "btn",
+        text: "View in Gallery 🖼️",
+        style: "margin-bottom:8px;",
+        onClick: () => { resetAll(); renderSetup(); }
+      }),
+      el("button", {
+        className: "btn ghost small",
         text: "Back to Lobby",
-        onClick: () => {
-          resetAll();
-          renderSetup();
-        }
+        onClick: () => { resetAll(); renderSetup(); }
       })
     ])
   );
