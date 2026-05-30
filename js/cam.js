@@ -291,13 +291,15 @@ function renderSetup() {
   setMode(physical);
 
   const localTab = el("button", {
-    className: "btn" + (!onlineMode ? " secondary" : " ghost"),
-    text: "📱 Pass & Play",
+    className: "btn" + (!onlineMode ? " small" : " ghost small"),
+    style: "flex:1; margin:0; font-size:0.85rem; padding: 8px 0; border:none; box-shadow:none;",
+    text: "🔄 Pass & Play",
     onClick: () => { onlineMode = false; renderSetup(); }
   });
   const onlineTab = el("button", {
-    className: "btn" + (onlineMode ? " secondary" : " ghost"),
-    text: "🌐 Play Online",
+    className: "btn" + (onlineMode ? " small" : " ghost small"),
+    style: "flex:1; margin:0; font-size:0.85rem; padding: 8px 0; border:none; box-shadow:none;",
+    text: "📱 Online Room",
     onClick: () => { onlineMode = true; renderSetup(); }
   });
 
@@ -413,7 +415,7 @@ function renderSetup() {
     topbar(cfg.title),
     el("div", { className: "panel center" }, [
       el("p", { className: "muted", html: cfg.blurb }),
-      el("div", { className: "btn-row", style: "margin-top:10px" }, [localTab, onlineTab])
+      el("div", { style: "display:flex; background:rgba(255,255,255,0.04); border-radius:14px; padding:4px; margin-top:10px; width:100%;" }, [localTab, onlineTab])
     ]),
     setupCard,
     el("div", { className: "footer-note", text: cfg.footer })

@@ -324,7 +324,7 @@ function renderSetup() {  resetOnline();
 
   const tabOnline = el("button", {
     className: "btn ghost small",
-    text: "🛰️ Online Room",
+    text: "📱 Online Room",
     style: "flex:1; margin:0; font-size:0.85rem; padding: 8px 0; border:none; box-shadow:none;",
     onClick: () => {
       setupMode = "online";

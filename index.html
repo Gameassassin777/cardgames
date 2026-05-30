@@ -27,7 +27,7 @@
        can't block its own update. Bumped alongside APP_VERSION each release. -->
   <script>
   (function(){
-    var V="120";
+    var V="121";
     if(localStorage.getItem("lh_cleared")!==V&&"serviceWorker"in navigator){
       navigator.serviceWorker.getRegistrations().then(function(r){
         return Promise.all(r.map(function(s){return s.unregister();}));

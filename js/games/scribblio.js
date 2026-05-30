@@ -170,6 +170,7 @@ function resetAll() {
   if (socket) { try { socket.close(); } catch (_) {} socket = null; }
   if (heartbeatInt) { clearInterval(heartbeatInt); heartbeatInt = null; }
   if (roomBrowserRefresh) { clearInterval(roomBrowserRefresh); roomBrowserRefresh = null; }
+  document.body.style.overflow = '';
   roomCode = ""; myName = ""; myPlayerIdx = -1; isHost = false; gState = null; isOnline = false;
   if (cleanupViewport) {
     try { cleanupViewport(); } catch (_) {}
@@ -741,6 +742,7 @@ function startNextLocalDrawerTurn() {
     })
   ]);
 
+  document.body.style.overflow = '';
   mount(gameTopbar(`Scribbl.io — Round ${gState.round}`, () => confirmQuit()), container);
 }
 
@@ -775,7 +777,8 @@ function startNextOnlineDrawerTurn() {
       el("h2", { text: `${drawerName} is choosing...`, style: "margin-bottom:8px;" }),
       el("p", { className: "muted", text: "Waiting for the artist to pick a masterpiece word!" })
     ]);
-    mount(gameTopbar(`Scribbl.io — Round ${gState.round}`, () => confirmQuit()), container);
+    document.body.style.overflow = '';
+  mount(gameTopbar(`Scribbl.io — Round ${gState.round}`, () => confirmQuit()), container);
   }
 }
 
@@ -838,78 +841,115 @@ function renderWordSelect(choices, drawerName) {
   );
 }
 
+
+// ── Shared Drawing Tool Builder ──────────────────────────────────────────────
+function buildDrawingTools() {
+  const PALETTE = [
+    "#1a1a1a","#e74c3c","#e67e22","#f1c40f","#2ecc71","#1abc9c","#38bdf8","#2980b9",
+    "#8e44ad","#e91e8c","#ff9164","#795548","#7f8c8d","#bdc3c7","#f0f0f0","#ffffff"
+  ];
+  const LIGHT = new Set(["#bdc3c7","#f0f0f0","#ffffff"]);
+
+  let activeColor = PALETTE[0];
+  let activeBrushSize = 5;
+  const swatchEls = [];
+
+  const colorGrid = el("div", {
+    style: "display:grid;grid-template-columns:repeat(8,1fr);gap:4px;margin-bottom:6px;"
+  });
+
+  function selectColor(c) {
+    activeColor = c;
+    swatchEls.forEach((s, i) => {
+      s.style.borderColor = PALETTE[i] === c ? "var(--sunset-soft)" : LIGHT.has(PALETTE[i]) ? "rgba(0,0,0,0.18)" : "transparent";
+      s.style.transform = PALETTE[i] === c ? "scale(1.18)" : "scale(1)";
+    });
+  }
+
+  PALETTE.forEach((c, i) => {
+    const isEraser = i === PALETTE.length - 1;
+    const swatch = el("button", {
+      style: `background:${c};border:2px solid ${LIGHT.has(c)?"rgba(0,0,0,0.18)":"transparent"};border-radius:6px;cursor:pointer;padding:0;width:100%;aspect-ratio:1/1;transition:transform 0.1s,border-color 0.1s;position:relative;overflow:hidden;`,
+      onClick: () => selectColor(c)
+    });
+    if (isEraser) {
+      swatch.appendChild(el("span", {
+        text: "✕",
+        style: "position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:13px;color:#777;pointer-events:none;font-weight:bold;"
+      }));
+    }
+    swatchEls.push(swatch);
+    colorGrid.appendChild(swatch);
+  });
+
+  const SIZES = [3, 6, 12];
+  const brushBtns = [];
+  const brushRow = el("div", { style: "display:flex;gap:6px;align-items:center;" });
+  SIZES.forEach((size, i) => {
+    const dot = el("div", {
+      style: `width:${Math.round(size*1.5)}px;height:${Math.round(size*1.5)}px;border-radius:50%;background:#fff;`
+    });
+    const btn = el("button", {
+      style: `width:32px;height:32px;border-radius:50%;background:rgba(255,255,255,${i===1?"0.15":"0.06"});border:2px solid ${i===1?"var(--sunset-soft)":"rgba(255,255,255,0.2)"};cursor:pointer;padding:0;display:flex;align-items:center;justify-content:center;`,
+      onClick: () => {
+        activeBrushSize = size;
+        brushBtns.forEach((b, j) => {
+          b.style.borderColor = j === i ? "var(--sunset-soft)" : "rgba(255,255,255,0.2)";
+          b.style.background = `rgba(255,255,255,${j===i?"0.15":"0.06"})`;
+        });
+      }
+    }, [dot]);
+    brushBtns.push(btn);
+    brushRow.appendChild(btn);
+  });
+
+  selectColor(PALETTE[0]);
+  return { colorGrid, brushRow, getColor: () => activeColor, getBrushSize: () => activeBrushSize };
+}
+
 // ── Game Playing Main Loops ──────────────────────────────────────────────────
 function launchLocalMainLoop() {
   const drawerName = gState.players[gState.drawerIdx];
   gState.timeLeft = gState.timerDuration;
 
+  const canvasH = Math.max(180, window.innerHeight - 415);
   const canvas = el("canvas", {
-    style: "background: #112228; border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; cursor: crosshair; touch-action: none; width: 100%; display: block; box-shadow: inset 0 2px 8px rgba(0,0,0,0.5);"
+    style: `background:#ffffff;border-radius:10px;cursor:crosshair;touch-action:none;width:100%;display:block;`
   });
 
   const timerDisplay = el("div", {
     text: `${gState.timeLeft}s`,
-    style: "font-size: 1.8rem; font-weight: bold; color: var(--sunset-soft); text-align: center; margin-bottom: 8px;"
+    style: "font-size:1.6rem;font-weight:bold;color:var(--sunset-soft);"
   });
 
-  const wordLengthHint = gState.activeWord.split("").map(c => c === " " ? "  " : "_").join(" ");
-  const wordHintEl = el("div", {
-    text: `Word length: ${wordLengthHint}`,
-    style: "font-size: 0.95rem; font-weight: bold; margin-bottom: 12px; text-align: center; font-family: monospace; letter-spacing: 2px;"
-  });
+  const wordHint = gState.activeWord.split("").map(c => c === " " ? "  " : "_").join(" ");
 
-  const undoBtn = el("button", { className: "btn ghost small", text: "Undo", style: "margin: 0;" });
-  const clearBtn = el("button", { className: "btn ghost small error", text: "Clear", style: "margin: 0;" });
+  const { colorGrid, brushRow, getColor, getBrushSize } = buildDrawingTools();
 
-  const colors = ["#ff9164", "#00ffaa", "#38bdf8", "#facc15", "#f3f4f6", "#0b1619"];
-  const colorLabels = ["Sunset", "Aqua", "Sky", "Lemon", "White", "Eraser"];
-  let activeColor = colors[0];
+  const undoBtn = el("button", { className: "btn ghost small", text: "↩ Undo", style: "margin:0;padding:6px 10px;" });
+  const clearBtn = el("button", { className: "btn ghost small error", text: "✕ Clear", style: "margin:0;padding:6px 10px;" });
 
-  const colorRow = el("div", { style: "display: flex; gap: 6px; justify-content: center; flex-wrap: wrap; margin-bottom: 8px;" });
-  colors.forEach((c, idx) => {
-    const isEraser = c === "#0b1619";
-    const btn = el("button", {
-      className: idx === 0 ? "btn small" : "btn ghost small",
-      text: colorLabels[idx],
-      style: `padding: 4px 10px; margin:0; border: 1px solid ${c}; background: ${isEraser ? '#0b1619' : 'transparent'}; color: ${isEraser ? '#fff' : c};`,
-      onClick: () => {
-        activeColor = c;
-        Array.from(colorRow.children).forEach(b => b.classList.add("ghost"));
-        btn.classList.remove("ghost");
-      }
-    });
-    colorRow.appendChild(btn);
-  });
-
-  let activeBrushSize = 5;
-  const brushRow = el("div", { style: "display: flex; gap: 8px; justify-content: center; margin-bottom: 16px;" });
-  [3, 6, 12].forEach((size, sIdx) => {
-    const btn = el("button", {
-      className: sIdx === 1 ? "btn small" : "btn ghost small",
-      text: size === 3 ? "Thin" : (size === 6 ? "Medium" : "Thick"),
-      style: "padding: 4px 12px; margin:0;",
-      onClick: () => {
-        activeBrushSize = size;
-        Array.from(brushRow.children).forEach(b => b.classList.add("ghost"));
-        btn.classList.remove("ghost");
-      }
-    });
-    brushRow.appendChild(btn);
-  });
+  const toolbar = el("div", {
+    style: "padding:8px 0 env(safe-area-inset-bottom,8px) 0; background:rgba(0,0,0,0.3); border-top:1px solid rgba(255,255,255,0.06);"
+  }, [
+    el("div", { style: "padding:0 8px;" }, [colorGrid]),
+    el("div", { style: "display:flex;align-items:center;justify-content:space-between;padding:0 8px 4px;" }, [
+      el("div", { style: "display:flex;gap:6px;" }, [undoBtn, clearBtn]),
+      brushRow
+    ])
+  ]);
 
   const guessedBtn = el("button", {
     className: "btn",
-    text: "🎉 Guessed Correctly! 🎉",
-    style: "background: linear-gradient(135deg, #00ffaa, #00b377); color: #071410; font-weight: bold;",
-    onClick: () => {
-      clearInterval(gState.timerInterval);
-      openWinnerModal(drawerName);
-    }
+    text: "Guessed Correctly",
+    style: "width:100%;background:linear-gradient(135deg,#00ffaa,#00b377);color:#071410;font-weight:bold;",
+    onClick: () => { clearInterval(gState.timerInterval); openWinnerModal(drawerName); }
   });
 
   const revealBtn = el("button", {
     className: "btn error ghost",
     text: "Forfeit / Reveal Word",
+    style: "width:100%;",
     onClick: () => {
       clearInterval(gState.timerInterval);
       toast(`Word was: "${gState.activeWord}"`);
@@ -918,23 +958,21 @@ function launchLocalMainLoop() {
     }
   });
 
-  const layout = el("div", { className: "panel center", style: "max-width: 500px; margin: 0 auto;" }, [
-    el("div", { style: "display:flex; justify-content:space-between; align-items:center; width:100%; border-bottom:1px solid rgba(255,255,255,0.06); padding-bottom:8px; margin-bottom:8px;" }, [
-      el("div", { text: `Drawing: "${gState.activeWord}"`, style: "font-weight: bold; color: var(--sunset-soft);" }),
+  const layout = el("div", { style: "display:flex;flex-direction:column;width:100%;padding:0;" }, [
+    el("div", { style: "display:flex;justify-content:space-between;align-items:center;padding:8px 12px 4px;" }, [
+      el("div", { text: `Drawing: "${gState.activeWord}"`, style: "font-weight:bold;color:var(--sunset-soft);font-size:0.9rem;" }),
       timerDisplay
     ]),
-    wordHintEl,
-    canvas,
-    el("div", { style: "display:flex; gap:8px; justify-content:center; margin: 8px 0;" }, [undoBtn, clearBtn]),
-    colorRow,
-    brushRow,
-    guessedBtn,
-    revealBtn
+    el("div", { style: "text-align:center;font-family:monospace;letter-spacing:2px;font-size:0.9rem;padding:2px 12px 6px;", text: wordHint }),
+    el("div", { style: "padding:0 8px;" }, [canvas]),
+    el("div", { style: "padding:8px 12px 0;display:flex;flex-direction:column;gap:6px;" }, [guessedBtn, revealBtn]),
+    toolbar
   ]);
 
   mount(gameTopbar(`Scribbl.io — ${drawerName} is Drawing`, () => confirmQuit()), layout);
+  document.body.style.overflow = 'hidden';
 
-  setupDrawingCanvas(canvas, undoBtn, clearBtn, () => activeColor, () => activeBrushSize);
+  setupDrawingCanvas(canvas, undoBtn, clearBtn, getColor, getBrushSize, true, canvasH);
 
   gState.timerInterval = setInterval(() => {
     gState.timeLeft--;
@@ -959,73 +997,33 @@ function launchOnlineMainLoop() {
   globalCorrectGuessers = [];
   if (gState) gState.roundComplete = false;
 
+  const canvasH = isDrawer
+    ? Math.max(200, window.innerHeight - 310)
+    : Math.max(150, window.innerHeight - 380);
+
   const canvas = el("canvas", {
-    style: "background: #112228; border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; cursor: crosshair; touch-action: none; width: 100%; display: block; box-shadow: inset 0 2px 8px rgba(0,0,0,0.5);"
+    style: "background:#ffffff;border-radius:10px;cursor:crosshair;touch-action:none;width:100%;display:block;"
   });
   globalCanvasRef = canvas;
 
   const timerDisplay = el("div", {
     text: `${gState.timeLeft}s`,
-    style: "font-size: 1.8rem; font-weight: bold; color: var(--sunset-soft); text-align: center; margin-bottom: 8px;"
+    style: "font-size:1.6rem;font-weight:bold;color:var(--sunset-soft);"
   });
 
   const hiddenWord = gState.activeWord.split("").map(c => c === " " ? "  " : "_").join(" ");
-  const wordHintEl = el("div", {
-    text: isDrawer ? `SECRET WORD: ${gState.activeWord}` : `Word: ${hiddenWord}`,
-    style: "font-size: 0.95rem; font-weight: bold; margin-bottom: 12px; text-align: center; font-family: monospace; letter-spacing: 2px; color:var(--water-foam);"
-  });
-
-  const undoBtn = el("button", { className: "btn ghost small", text: "Undo", style: "margin: 0;" });
-  const clearBtn = el("button", { className: "btn ghost small error", text: "Clear", style: "margin: 0;" });
-
-  const colors = ["#ff9164", "#00ffaa", "#38bdf8", "#facc15", "#f3f4f6", "#0b1619"];
-  const colorLabels = ["Sunset", "Aqua", "Sky", "Lemon", "White", "Eraser"];
-  let activeColor = colors[0];
-
-  const colorRow = el("div", { style: "display: flex; gap: 6px; justify-content: center; flex-wrap: wrap; margin-bottom: 8px;" });
-  colors.forEach((c, idx) => {
-    const isEraser = c === "#0b1619";
-    const btn = el("button", {
-      className: idx === 0 ? "btn small" : "btn ghost small",
-      text: colorLabels[idx],
-      style: `padding: 4px 10px; margin:0; border: 1px solid ${c}; background: ${isEraser ? '#0b1619' : 'transparent'}; color: ${isEraser ? '#fff' : c};`,
-      onClick: () => {
-        activeColor = c;
-        Array.from(colorRow.children).forEach(b => b.classList.add("ghost"));
-        btn.classList.remove("ghost");
-      }
-    });
-    colorRow.appendChild(btn);
-  });
-
-  let activeBrushSize = 5;
-  const brushRow = el("div", { style: "display: flex; gap: 8px; justify-content: center; margin-bottom: 16px;" });
-  [3, 6, 12].forEach((size, sIdx) => {
-    const btn = el("button", {
-      className: sIdx === 1 ? "btn small" : "btn ghost small",
-      text: size === 3 ? "Thin" : (size === 6 ? "Medium" : "Thick"),
-      style: "padding: 4px 12px; margin:0;",
-      onClick: () => {
-        activeBrushSize = size;
-        Array.from(brushRow.children).forEach(b => b.classList.add("ghost"));
-        btn.classList.remove("ghost");
-      }
-    });
-    brushRow.appendChild(btn);
-  });
 
   const chatContainer = el("div", {
     className: "scribblio-chat",
-    style: "background:rgba(255,255,255,0.02); border:1px solid rgba(255,255,255,0.06); border-radius:12px; padding:8px; height:120px; overflow-y:auto; margin-bottom:8px; text-align:left;"
+    style: "background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.06);border-radius:10px;padding:6px 8px;height:80px;overflow-y:auto;text-align:left;margin-bottom:4px;"
   });
   globalChatRef = chatContainer;
 
   const guessInput = el("input", {
     type: "text",
-    placeholder: "Type your guess here...",
-    style: "font-size: 1.1rem; border-radius: 12px; text-align: center; width: 100%; margin-bottom: 8px;"
+    placeholder: "Type your guess…",
+    style: "font-size:1.05rem;border-radius:10px;text-align:center;width:100%;margin-bottom:4px;"
   });
-
   guessInput.addEventListener("keydown", (e) => {
     if (e.key === "Enter") {
       const g = guessInput.value.trim();
@@ -1035,73 +1033,63 @@ function launchOnlineMainLoop() {
     }
   });
 
-  const contentLayout = el("div", { className: "panel center scribblio-layout", style: "max-width: 500px; margin: 0 auto; display: flex; flex-direction: column;" }, [
-    el("div", { style: "display:flex; justify-content:space-between; align-items:center; width:100%; border-bottom:1px solid rgba(255,255,255,0.06); padding-bottom:8px; margin-bottom:8px;" }, [
-      el("div", { text: isDrawer ? `You are Drawing!` : `Artist: ${drawerName}`, style: "font-weight: bold; color: var(--sunset-soft);" }),
-      timerDisplay
-    ]),
-    wordHintEl,
-    canvas,
-    isDrawer 
-      ? el("div", { style: "display:flex; gap:8px; justify-content:center; margin: 8px 0;" }, [undoBtn, clearBtn]) 
-      : null,
-    isDrawer ? colorRow : null,
-    isDrawer ? brushRow : null,
-    el("div", { className: "spacer", style: "height:12px" }),
-    !isDrawer ? guessInput : el("p", { className: "muted center anim-pulse", text: "Cast strokes dynamically to everyone's screen!" }),
-    chatContainer
+  // Drawer tools
+  const { colorGrid, brushRow, getColor, getBrushSize } = buildDrawingTools();
+  const undoBtn = el("button", { className: "btn ghost small", text: "↩ Undo", style: "margin:0;padding:6px 10px;" });
+  const clearBtn = el("button", { className: "btn ghost small error", text: "✕ Clear", style: "margin:0;padding:6px 10px;" });
+
+  const drawerToolbar = el("div", {
+    style: "padding:8px 0 env(safe-area-inset-bottom,8px);background:rgba(0,0,0,0.3);border-top:1px solid rgba(255,255,255,0.06);"
+  }, [
+    el("div", { style: "padding:0 8px;" }, [colorGrid]),
+    el("div", { style: "display:flex;align-items:center;justify-content:space-between;padding:0 8px 4px;" }, [
+      el("div", { style: "display:flex;gap:6px;" }, [undoBtn, clearBtn]),
+      brushRow
+    ])
   ]);
 
-  // Inject iOS visual centering styles if they don't exist yet
-  if (!document.getElementById("scribblio-ios-styles")) {
-    const style = el("style", {
-      id: "scribblio-ios-styles",
-      text: `
-        .scribblio-layout.keyboard-active {
-          padding: 8px 12px !important;
-          margin: 0 auto !important;
-        }
-        .scribblio-layout.keyboard-active canvas {
-          height: 140px !important;
-        }
-        .scribblio-layout.keyboard-active .scribblio-chat {
-          height: 48px !important;
-          margin-bottom: 4px !important;
-        }
-        .scribblio-layout.keyboard-active .spacer {
-          height: 4px !important;
-        }
-      `
-    });
-    document.head.appendChild(style);
-  }
+  // Full layout
+  const contentLayout = el("div", { style: "display:flex;flex-direction:column;width:100%;padding:0;" }, [
+    el("div", { style: "display:flex;justify-content:space-between;align-items:center;padding:8px 12px 4px;" }, [
+      el("div", {
+        text: isDrawer ? `Drawing: ${gState.activeWord}` : `Artist: ${drawerName}`,
+        style: "font-weight:bold;color:var(--sunset-soft);font-size:0.9rem;"
+      }),
+      timerDisplay
+    ]),
+    el("div", {
+      style: "text-align:center;font-family:monospace;letter-spacing:2px;font-size:0.9rem;padding:2px 12px 6px;color:var(--water-foam);",
+      text: isDrawer ? `Secret: ${gState.activeWord}` : hiddenWord
+    }),
+    el("div", { style: "padding:0 8px;" }, [canvas]),
+    isDrawer
+      ? el("p", { className: "muted center anim-pulse", style: "margin:6px 0;font-size:0.8rem;", text: "Draw! Others are guessing in real time." })
+      : el("div", { style: "padding:4px 8px 0;" }, [guessInput, chatContainer]),
+    isDrawer ? drawerToolbar : null
+  ]);
 
-  // Set up Visual Viewport dynamic resize listener to maintain vertical height centering
-  if (cleanupViewport) {
-    try { cleanupViewport(); } catch (_) {}
-    cleanupViewport = null;
-  }
-  if (window.visualViewport) {
-    const applyKeyboardLayout = () => {
+  // Keyboard viewport for guesser
+  if (cleanupViewport) { try { cleanupViewport(); } catch (_) {} cleanupViewport = null; }
+  if (!isDrawer && window.visualViewport) {
+    const applyKb = () => {
       if (window.visualViewport.height < window.screen.height * 0.6) {
-        contentLayout.classList.add("keyboard-active");
+        canvas.style.height = "160px";
       } else {
-        contentLayout.classList.remove("keyboard-active");
+        canvas.style.height = `${canvasH}px`;
       }
     };
-    guessInput.addEventListener("focus", () => setTimeout(applyKeyboardLayout, 150));
-    guessInput.addEventListener("blur", () => {
-      contentLayout.classList.remove("keyboard-active");
-    });
+    guessInput.addEventListener("focus", () => setTimeout(applyKb, 150));
+    guessInput.addEventListener("blur", () => { canvas.style.height = `${canvasH}px`; });
     cleanupViewport = () => {};
   }
 
-  mount(gameTopbar(`Scribbl.io — Synchronized`, () => confirmQuit()), contentLayout);
+  mount(gameTopbar(`Scribbl.io — Round ${gState.round}`, () => confirmQuit()), contentLayout);
+  document.body.style.overflow = 'hidden';
 
   if (isDrawer) {
-    setupDrawingCanvas(canvas, undoBtn, clearBtn, () => activeColor, () => activeBrushSize, true);
+    setupDrawingCanvas(canvas, undoBtn, clearBtn, getColor, getBrushSize, true, canvasH);
   } else {
-    setupDrawingCanvas(canvas, undoBtn, clearBtn, () => activeColor, () => activeBrushSize, false);
+    setupDrawingCanvas(canvas, undoBtn, clearBtn, getColor, getBrushSize, false, canvasH);
     guessInput.focus();
   }
 
@@ -1182,15 +1170,22 @@ function openWinnerModal(drawerName) {
 }
 
 // ── Drawing Core Engines ─────────────────────────────────────────────────────
-function setupDrawingCanvas(canvas, undoBtn, clearBtn, getColor, getBrushSize, isAllowedToDraw) {
+let _canvasH = 280; // updated each time a canvas is created for coord normalization
+
+function setupDrawingCanvas(canvas, undoBtn, clearBtn, getColor, getBrushSize, isAllowedToDraw, canvasH = 280) {
   const ctx = canvas.getContext("2d");
   const rect = canvas.getBoundingClientRect();
-  const W = rect.width || 400;
-  const H = 240;
+  const W = rect.width || 360;
+  const H = canvasH;
+  _canvasH = H;
   canvas.width = W * window.devicePixelRatio;
   canvas.height = H * window.devicePixelRatio;
   canvas.style.height = `${H}px`;
   ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+
+  // White canvas background
+  ctx.fillStyle = "#ffffff";
+  ctx.fillRect(0, 0, W, H);
 
   ctx.lineCap = "round";
   ctx.lineJoin = "round";
@@ -1284,7 +1279,8 @@ function setupDrawingCanvas(canvas, undoBtn, clearBtn, getColor, getBrushSize, i
     canvas.addEventListener("pointercancel", endStroke);
 
     clearBtn.addEventListener("click", () => {
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.fillStyle = "#ffffff";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
       strokeHistory = [];
       if (isOnline) relay({ type: "canvas_draw", drawType: "clear" });
     });
@@ -1320,8 +1316,8 @@ function applyOnlineStroke(action) {
   if (!canvas) return;
   const ctx = canvas.getContext("2d");
   const rect = canvas.getBoundingClientRect();
-  const W = rect.width || 400;
-  const H = 240;
+  const W = rect.width || 360;
+  const H = _canvasH;
 
   if (action.drawType === "start") {
     receiverDrawing = true;
@@ -1353,7 +1349,8 @@ function applyOnlineStroke(action) {
       size: receiverSize
     });
   } else if (action.drawType === "clear") {
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = "#ffffff";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
     receiverHistory = [];
     receiverDrawing = false;
   } else if (action.drawType === "undo") {
