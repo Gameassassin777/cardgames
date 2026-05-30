@@ -630,6 +630,11 @@ function connectRoom(type, code = "") {
       const d = JSON.parse(ev.data);
       if (d.type === "created" || d.type === "player_joined") {
         roomCode = d.code;
+        // If server stored a different name (e.g. "Guest" for empty-name join), sync myName
+        if (!isHost && d.type === "player_joined" && d.name && !d.players.includes(myName)) {
+          myName = d.name;
+          localStorage.setItem("lakehouse.playerName", myName);
+        }
         applyLobby(d.players);
       } else if (d.type === "player_left") {
         applyLobby(d.players);
