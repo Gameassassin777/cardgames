@@ -750,7 +750,7 @@ function setupSocketListeners() {
         renderSetup();
       } else if (data.type === "player_joined") {
         onlinePlayers = data.players;
-        isHost = (onlinePlayers[0] === myName);
+        // isHost already correctly set when room was created or joined
         // Distribute player team
         onlinePlayers.forEach(p => {
           if (!playerTeams[p]) {
@@ -880,7 +880,7 @@ function handleRelayAction(action) {
     game = action.game;
     describerName = action.describerName;
     playerTeams = action.playerTeams;
-    isHost = (onlinePlayers[0] === myName);
+    // isHost already set at creation/join time; don't recompute via string comparison
 
     if (activePhase === "play") {
       renderPlay();

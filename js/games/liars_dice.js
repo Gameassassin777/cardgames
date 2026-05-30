@@ -653,9 +653,9 @@ function handleRelay(action, sender) {
   } else if (action.type === "start_round") {
     gState = action.state;
     // Unmask only my secret dice
-    const me = gState.players.find(p => p.name === myName);
+    const me = myPlayerIdx !== -1 ? gState.players[myPlayerIdx] : gState.players.find(p => p.name === myName);
     if (me) {
-      me.dice = action.diceMap[myName] || [];
+      me.dice = action.diceMap[me.name] || [];
     }
     renderBiddingScreen(gState);
   } else if (action.type === "place_bid") {

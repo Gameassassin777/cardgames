@@ -10,6 +10,7 @@ let goHome = () => {};
 let socket = null;
 let roomCode = "";
 let myName = "";
+let myPlayerIdx = -1;
 let isHost = false;
 let gState = null;
 let heartbeatInt = null;
@@ -449,7 +450,7 @@ function resetAll() {
   if (socket) { try { socket.close(); } catch (_) {} socket = null; }
   if (heartbeatInt) { clearInterval(heartbeatInt); heartbeatInt = null; }
   if (roomBrowserRefresh) { clearInterval(roomBrowserRefresh); roomBrowserRefresh = null; }
-  roomCode = ""; myName = ""; isHost = false; gState = null; isOnline = false;
+  roomCode = ""; myName = ""; myPlayerIdx = -1; isHost = false; gState = null; isOnline = false;
 }
 
 function renderSetup() {  const savedName = localStorage.getItem("lakehouse.playerName") || localStorage.getItem("quiplash.name") || "";
@@ -795,6 +796,7 @@ async function registerRoom() {
 
 function applyLobby(players) {
   gState = { phase: "lobby", players };
+  myPlayerIdx = players.indexOf(myName);
   if (isHost && roomCode) {
     registerRoom();
     startHeartbeat(players.length);
@@ -924,7 +926,7 @@ function handleRelay(action, sender) {
       round: action.round,
       writingQueue: action.writingQueue,
       submittedAnswersCount: 0,
-      myTasks: action.writingQueue.filter(t => t.player === myName),
+      myTasks: action.writingQueue.filter(t => t.player === (gState.players[myPlayerIdx] ?? myName)),
       localWritingIdx: 0
     };
     renderWritingPhase();

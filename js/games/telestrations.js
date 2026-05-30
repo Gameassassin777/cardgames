@@ -10,6 +10,7 @@ let goHome = () => {};
 let socket = null;
 let roomCode = "";
 let myName = "";
+let myPlayerIdx = -1;
 let isHost = false;
 let gState = null;
 let heartbeatInt = null;
@@ -380,7 +381,7 @@ function resetAll() {
   if (socket) { try { socket.close(); } catch (_) {} socket = null; }
   if (heartbeatInt) { clearInterval(heartbeatInt); heartbeatInt = null; }
   if (roomBrowserRefresh) { clearInterval(roomBrowserRefresh); roomBrowserRefresh = null; }
-  roomCode = ""; myName = ""; isHost = false; gState = null; isOnline = false;
+  roomCode = ""; myName = ""; myPlayerIdx = -1; isHost = false; gState = null; isOnline = false;
 }
 
 function renderSetup() {  const savedName = localStorage.getItem("lakehouse.playerName") || localStorage.getItem("telestrations.name") || "";
@@ -734,6 +735,7 @@ function applyLobby(playersList) {
     players: playersList,
     books: []
   };
+  myPlayerIdx = playersList.indexOf(myName);
 
   if (isHost) {
     registerRoom();
@@ -919,7 +921,7 @@ function runLocalTurn() {
 function runOnlineTurn() {
   const N = gState.players.length;
   const step = gState.currentStepIdx;
-  const myIdx = gState.players.indexOf(myName);
+  const myIdx = myPlayerIdx !== -1 ? myPlayerIdx : gState.players.indexOf(myName);
 
   // Find book this player works on at stepIdx
   // (bIdx + step) % N = myIdx  ==>  bIdx = (myIdx - step + N) % N

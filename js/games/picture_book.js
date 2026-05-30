@@ -786,7 +786,7 @@ function handleRelay(action, sender) {
       storyTitle: action.storyTitle,
       rawSentences: action.rawSentences,
       blanks: action.blanks,
-      myBlanks: action.assignments[myName] || [],
+      myBlanks: action.assignments[gState.players[myIdx] ?? myName] || [],
       madlibsAnswers: {}, // key -> word
       drawings: {}, // player -> dataUrl
       submittedAnswersCount: 0,
@@ -836,7 +836,7 @@ function handleRelay(action, sender) {
   else if (action.type === "CHRONICLES_COMPILED") {
     gState.phase = "illustrate";
     gState.compiledSentences = action.compiledSentences;
-    gState.mySentence = action.drawingAssignments[myName];
+    gState.mySentence = action.drawingAssignments[gState.players[myIdx] ?? myName];
     renderIllustratePhase();
   }
 

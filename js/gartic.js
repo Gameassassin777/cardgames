@@ -541,7 +541,8 @@ function handleRelay(action, sender) {
 // ── State machine ─────────────────────────────────────────────────────────────
 function applyState(state) {
   gState       = state;
-  myIdx        = gState.players.indexOf(myName);
+  // Use lobby-set myIdx; re-derive only if not yet set (e.g. late-join replay)
+  if (myIdx === -1) myIdx = gState.players.indexOf(myName);
   isHost       = (myIdx === 0); // host is always the first player in the list
   hasSubmitted = gState.submissions[myIdx] !== undefined;
 
