@@ -15,6 +15,7 @@ let isHost = false;
 let myIdx = -1;
 let gState = null;
 let heartbeatInt = null;
+let wsKeepaliveInt = null;
 let roomBrowserRefresh = null;
 
 let isOnline = false;
@@ -624,6 +625,13 @@ function connectRoom(type, code = "") {
 
   isHost = (type === "create");
   socket = new WebSocket(url);
+
+  socket.addEventListener("open", () => {
+    if (wsKeepaliveInt) clearInterval(wsKeepaliveInt);
+    wsKeepaliveInt = setInterval(() => {
+      if (socket && socket.readyState === 1) socket.send(JSON.stringify({ type: "ping" }));
+    }, 25000);
+  });
 
   socket.onmessage = (ev) => {
     try {

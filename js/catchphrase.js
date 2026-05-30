@@ -221,6 +221,7 @@ let activePhase = "lobby"; // "lobby" | "play" | "buzzer" | "next_round" | "game
 
 // Online coordination
 let heartbeatInt = null;
+let wsKeepaliveInt = null;
 let roomBrowserRefresh = null;
 
 

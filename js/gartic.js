@@ -245,6 +245,13 @@ function connectRoom(type, code = "") {
 
   isHost = (type === "create");
   socket = new WebSocket(url);
+
+  socket.addEventListener("open", () => {
+    if (wsKeepaliveInt) clearInterval(wsKeepaliveInt);
+    wsKeepaliveInt = setInterval(() => {
+      if (socket && socket.readyState === 1) socket.send(JSON.stringify({ type: "ping" }));
+    }, 25000);
+  });
   socket.onopen = () => console.log("[Doodles] Socket open");
 
   socket.onmessage = (ev) => {

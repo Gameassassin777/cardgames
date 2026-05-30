@@ -80,6 +80,7 @@ function compilePlayableDecks() {
 
 // Online coordination
 let heartbeatInt = null;
+let wsKeepaliveInt = null;
 let roomBrowserRefresh = null;
 
 
@@ -468,6 +469,7 @@ function beginGame(rawNames, target, physical) {
 
 /* ---------------- ONLINE NETWORKING LAYER ---------------- */
 function createRoom() {
+  if (!myName) myName = localStorage.getItem("lakehouse.playerName") || "Player";
   connectionStatus = "connecting";
   renderLobbySpinner("Creating online room...");
   const gameId = (cfg.saveKey || "cam").split(".")[0];
@@ -476,6 +478,7 @@ function createRoom() {
 }
 
 function joinRoom(code) {
+  if (!myName) myName = localStorage.getItem("lakehouse.playerName") || "Player";
   connectionStatus = "connecting";
   renderLobbySpinner(`Connecting to room ${code}...`);
   const gameId = (cfg.saveKey || "cam").split(".")[0];
@@ -486,6 +489,10 @@ function joinRoom(code) {
 function setupSocketListeners() {
   socket.onopen = () => {
     console.log("WebSocket connected.");
+    if (wsKeepaliveInt) clearInterval(wsKeepaliveInt);
+    wsKeepaliveInt = setInterval(() => {
+      if (socket && socket.readyState === 1) socket.send(JSON.stringify({ type: "ping" }));
+    }, 25000);
   };
 
   socket.onmessage = (event) => {
@@ -505,7 +512,13 @@ function setupSocketListeners() {
         roomCode = data.code;
         onlinePlayers = data.players;
         onlineCustomCards = data.customCards || [];
-        isHost = (onlinePlayers[0] === myName);
+        // Correct myName if server stored something different (empty → "Guest")
+        if (!isHost && data.name && !onlinePlayers.includes(myName)) {
+          myName = data.name;
+          localStorage.setItem("lakehouse.playerName", myName);
+        }
+        // Preserve isHost=true if we created the room; only compute for joiners
+        if (!isHost) isHost = onlinePlayers.length > 0 && onlinePlayers[0] === myName;
         connectionStatus = "lobby";
 
         if (state && state.phase && state.phase !== "lobby" && state.phase !== "over") {

@@ -478,6 +478,7 @@ wss.on("connection", (ws, req) => {
           break;
         }
 
+        case "ping": break; // keep-alive, ignore
         default:
           console.warn("Unknown socket message type:", data.type);
       }

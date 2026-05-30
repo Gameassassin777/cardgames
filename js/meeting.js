@@ -13,6 +13,7 @@ let myName = "";
 let isHost = false;
 let onlinePlayers = [];
 let heartbeatInt = null;
+let wsKeepaliveInt = null;
 
 export function makeGame(config) {
   return function start(home) {
@@ -99,6 +100,13 @@ function connectRoom(type, code = "") {
     : `${WS_BASE}/ws/join?code=${code}&name=${encodeURIComponent(myName)}&game=meeting`;
 
   socket = new WebSocket(url);
+
+  socket.addEventListener("open", () => {
+    if (wsKeepaliveInt) clearInterval(wsKeepaliveInt);
+    wsKeepaliveInt = setInterval(() => {
+      if (socket && socket.readyState === 1) socket.send(JSON.stringify({ type: "ping" }));
+    }, 25000);
+  });
 
   socket.onmessage = (ev) => {
     try {
