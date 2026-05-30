@@ -65,6 +65,28 @@ export default {
         }
       }
 
+      // ── Shared Decks ───────────────────────────────────────────────────────
+      if (path === "/decks/list" && request.method === "GET") {
+        try {
+          const res  = await store.fetch("http://global/decks-list");
+          return new Response(await res.text(), { headers: { ...CORS, "Content-Type": "application/json" } });
+        } catch (e) {
+          return new Response("[]", { headers: { ...CORS, "Content-Type": "application/json" } });
+        }
+      }
+
+      if (path === "/decks/upload" && request.method === "POST") {
+        try {
+          const body = await request.json();
+          const res  = await store.fetch("http://global/decks-upload", {
+            method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body),
+          });
+          return new Response(await res.text(), { headers: { ...CORS, "Content-Type": "application/json" } });
+        } catch (e) {
+          return json({ error: String(e) }, 500);
+        }
+      }
+
       // ── Open room browser ──────────────────────────────────────────────────
       if (path === "/rooms/list" && request.method === "GET") {
         const game = url.searchParams.get("game") || "";
@@ -221,15 +243,35 @@ export class GlobalStore {
       return new Response(JSON.stringify({ success: true, total: games.length }), { headers: { "Content-Type": "application/json" } });
     }
 
+    // ── Shared Decks ──────────────────────────────────────────────────────────
+    if (url.pathname === "/decks-list") {
+      const decks = await this.state.storage.get("shared_decks") || [];
+      return new Response(JSON.stringify(decks), { headers: { "Content-Type": "application/json" } });
+    }
+
+    if (url.pathname === "/decks-upload" && request.method === "POST") {
+      try {
+        const deck = await request.json();
+        if (deck && deck.gameId && deck.name) {
+          const decks = await this.state.storage.get("shared_decks") || [];
+          const clean = decks.filter(d => d.id !== deck.id && !(d.name === deck.name && d.gameId === deck.gameId));
+          clean.push(deck);
+          await this.state.storage.put("shared_decks", clean);
+          return new Response(JSON.stringify({ success: true }), { headers: { "Content-Type": "application/json" } });
+        }
+      } catch (e) {}
+      return new Response(JSON.stringify({ error: "Failed to save shared deck" }), { status: 500, headers: { "Content-Type": "application/json" } });
+    }
+
     // ── Open room browser ─────────────────────────────────────────────────────
     // Rooms stored as: { code, host, playerCount, game, private, lastPing }
-    // Stale = lastPing older than 60 seconds
+    // Stale = lastPing older than 12 seconds
 
     if (url.pathname === "/rooms-list") {
       const gameFilter = url.searchParams.get("game") || "";
       const now   = Date.now();
       const rooms = await this.state.storage.get("open_rooms") || [];
-      const live  = rooms.filter(r => (now - r.lastPing) < 60000 && (!gameFilter || r.game === gameFilter));
+      const live  = rooms.filter(r => (now - r.lastPing) < 12000 && (!gameFilter || r.game === gameFilter));
       return new Response(JSON.stringify(live), { headers: { "Content-Type": "application/json" } });
     }
 
@@ -238,7 +280,7 @@ export class GlobalStore {
       const rooms = await this.state.storage.get("open_rooms") || [];
       // Remove stale + any existing with same code
       const now    = Date.now();
-      const clean  = rooms.filter(r => r.code !== room.code && (now - r.lastPing) < 60000);
+      const clean  = rooms.filter(r => r.code !== room.code && (now - r.lastPing) < 12000);
       clean.push({ ...room, lastPing: now });
       await this.state.storage.put("open_rooms", clean);
       return new Response(JSON.stringify({ success: true }), { headers: { "Content-Type": "application/json" } });

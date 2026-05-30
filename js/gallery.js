@@ -1,11 +1,9 @@
 // Art Gallery — Browse and replay past Lake House Doodles games.
 // Games marked isMonkey=true are hidden unless monkey mode is currently unlocked.
-import { el, mount, toast } from "./ui.js";
+import { el, mount, toast, HTTP_BASE, WS_BASE } from "./ui.js";
 import { icons } from "./icons.js";
 
-const HTTP_BASE = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1"
-  ? "http://localhost:3000"
-  : "https://lakehouse-cardgames-sync.gameassassin777.workers.dev";
+
 
 let goHome = () => {};
 let allGames  = [];    // full list fetched from server

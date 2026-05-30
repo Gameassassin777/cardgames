@@ -1,5 +1,5 @@
 // Emergency Meeting — pass-and-play "who's most likely / who's the most sus" voting game.
-import { el, mount, shuffle, toast, store } from "./ui.js";
+import { el, mount, shuffle, toast, store, HTTP_BASE, WS_BASE } from "./ui.js";
 import { icons } from "./icons.js";
 
 let goHome = () => {};

@@ -1,5 +1,5 @@
 // Premium Custom Decks Manager — visual deck list, creator, JSON/TXT importer, sharing and downloader.
-import { el, mount, toast, store } from "./ui.js";
+import { el, mount, toast, store, HTTP_BASE, WS_BASE } from "./ui.js";
 import { icons } from "./icons.js";
 
 const MANAGED_GAMES = [
@@ -13,9 +13,7 @@ const MANAGED_GAMES = [
   { id: "catchphrase", name: "Lake House Catchphrase", iconFn: icons.catchphrase, saveKey: "catchphrase.game.v1", hasPrompts: false, placeholder: "e.g. water skiing behind a rowboat" }
 ];
 
-const HTTP_BASE = location.hostname === "localhost" || location.hostname === "127.0.0.1"
-  ? "http://localhost:3000"
-  : "https://lakehouse-cardgames-sync.gameassassin777.workers.dev";
+
 
 let activeGameId = "cabin";
 let activeSubTab = "mydecks"; // "mydecks" | "import" | "community"

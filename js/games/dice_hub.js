@@ -1,5 +1,5 @@
 // Dedicated Dice Games Hub and Standalone Virtual Dice Roller.
-import { el, mount, toast } from "../ui.js";
+import { el, mount, toast, HTTP_BASE, WS_BASE } from "../ui.js";
 import { icons } from "../icons.js";
 import { start as startFarkle } from "./farkle.js";
 import { start as startYahtzee } from "./yahtzee.js";

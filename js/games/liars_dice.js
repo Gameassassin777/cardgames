@@ -1,15 +1,11 @@
 // Modular Liar's Dice online and offline party game engine.
-import { el, mount, toast, store, shuffle } from "../ui.js";
+import { el, mount, toast, store, shuffle, HTTP_BASE, WS_BASE } from "../ui.js";
 import { icons } from "../icons.js";
 import { renderDiceFaceSVG, playClickTone } from "./dice_hub.js";
 
-const WS_BASE = location.hostname === "localhost" || location.hostname === "127.0.0.1"
-  ? "ws://localhost:3000"
-  : "wss://lakehouse-cardgames-sync.gameassassin777.workers.dev";
 
-const HTTP_BASE = location.hostname === "localhost" || location.hostname === "127.0.0.1"
-  ? "http://localhost:3000"
-  : "https://lakehouse-cardgames-sync.gameassassin777.workers.dev";
+
+
 
 let goHome = () => {};
 let socket = null;
@@ -317,7 +313,7 @@ function renderRoomBrowser() {
   };
 
   loadRooms();
-  roomBrowserRefresh = setInterval(loadRooms, 8000);
+  roomBrowserRefresh = setInterval(loadRooms, 3000);
 
   mount(
     gameTopbar("Open Liar's Dice Rooms", () => { clearInterval(roomBrowserRefresh); renderSetup(); }),
@@ -390,7 +386,7 @@ function startHeartbeat(playerCount = 1) {
     body: JSON.stringify({ code: roomCode, playerCount: gState?.players?.length || playerCount })
   }).catch(() => {});
   ping();
-  heartbeatInt = setInterval(ping, 25000);
+  heartbeatInt = setInterval(ping, 5000);
 }
 
 function stopHeartbeat() {

@@ -1,15 +1,11 @@
 // Lake House Doodles — Gartic Phone-style game.
 // Features: open room browser, chaos game modes, blur/rotate, TTS, background art slideshow.
-import { el, mount, toast } from "./ui.js";
+import { el, mount, toast, HTTP_BASE, WS_BASE } from "./ui.js";
 import { icons } from "./icons.js";
 
-const WS_BASE = location.hostname === "localhost" || location.hostname === "127.0.0.1"
-  ? "ws://localhost:3000"
-  : "wss://lakehouse-cardgames-sync.gameassassin777.workers.dev";
 
-const HTTP_BASE = location.hostname === "localhost" || location.hostname === "127.0.0.1"
-  ? "http://localhost:3000"
-  : "https://lakehouse-cardgames-sync.gameassassin777.workers.dev";
+
+
 
 const MIN_PLAYERS = 3;
 
@@ -212,7 +208,7 @@ function renderRoomBrowser() {
   };
 
   loadRooms();
-  roomBrowserRefresh = setInterval(loadRooms, 8000);
+  roomBrowserRefresh = setInterval(loadRooms, 3000);
 
   mount(
     el("div", { className: "topbar" }, [
@@ -224,7 +220,7 @@ function renderRoomBrowser() {
       el("span",   { style: "width:64px" })
     ]),
     el("div", { className: "panel center", style: "padding:10px 14px;" }, [
-      el("p", { className: "muted", style: "margin:0; font-size:0.82rem;", text: "Refreshes every 8s. Tap Join to enter." })
+      el("p", { className: "muted", style: "margin:0; font-size:0.82rem;", text: "Refreshes every 3s. Tap Join to enter." })
     ]),
     el("div", { className: "panel", style: "padding:10px;" }, [listEl]),
     el("button", { className: "btn ghost", style: "margin-top:4px;", onClick: () => loadRooms() }, [
@@ -280,7 +276,7 @@ function startHeartbeat(playerCount = 1) {
     body: JSON.stringify({ code: roomCode, playerCount: gState?.players?.length || playerCount })
   }).catch(() => {});
   ping();
-  heartbeatInt = setInterval(ping, 25000);
+  heartbeatInt = setInterval(ping, 5000);
 }
 
 function stopHeartbeat() {
