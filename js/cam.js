@@ -347,7 +347,8 @@ function renderSetup() {
       type: "text",
       id: "onlineName",
       maxlength: "14",
-      placeholder: "Your Username",
+      placeholder: "Your name…",
+      style: "font-size:1.1rem; border-radius:14px; text-align:center; margin-bottom:14px; width:100%;",
       value: myName || localStorage.getItem("lakehouse.playerName") || ""
     });
 
@@ -355,68 +356,54 @@ function renderSetup() {
       type: "text",
       id: "roomCodeInput",
       maxlength: "4",
-      placeholder: "LOBBY CODE (e.g. ABCD)",
-      style: "text-transform: uppercase;"
+      placeholder: "4-LETTER CODE",
+      style: "font-size:1.3rem; border-radius:14px; text-align:center; text-transform:uppercase; letter-spacing:6px; margin-bottom:10px; width:100%;"
     });
+    codeInput.addEventListener("input", () => { codeInput.value = codeInput.value.toUpperCase(); });
 
-    const disPrompts = store.get(cfg.saveKey + ".disabled_prompts", []);
-    const disResponses = store.get(cfg.saveKey + ".disabled_responses", []);
-    const totalDisabled = disPrompts.length + disResponses.length;
-
-    const customizeBtn = el("button", {
-      className: "btn ghost small",
-      style: "width:100%; display:flex; align-items:center; justify-content:center; gap:6px; font-weight:700; border: 1.5px dashed var(--water-foam); border-radius:12px; padding:10px; margin-bottom:12px; margin-top:4px;",
-      onClick: () => openDeckCustomizer()
-    }, [
-      el("span", { text: "🎴" }),
-      el("span", { text: "Customize Playable Deck" }),
-      totalDisabled > 0 
-        ? el("span", { className: "badge", style: "background:#c62828; color:#fff; margin-left:4px; font-size:0.65rem; padding:1px 6px;", text: `${totalDisabled} filtered` })
-        : el("span", { className: "badge", style: "background:#2e7d32; color:#fff; margin-left:4px; font-size:0.65rem; padding:1px 6px;", text: "Full Deck Active" })
-    ]);
-
-    setupCard.appendChild(el("label", { text: "1. Enter Your Name" }));
     setupCard.appendChild(nameInput);
-    setupCard.appendChild(el("hr", { className: "divider" }));
-    setupCard.appendChild(customizeBtn);
-    setupCard.appendChild(el("hr", { className: "divider" }));
-    setupCard.appendChild(el("label", { text: "2. Host a New Online Room" }));
     setupCard.appendChild(el("button", {
       className: "btn",
-      text: "🎮 Create Lobby",
+      style: "width:100%; margin-bottom:10px;",
+      text: "Create Room",
       onClick: () => {
         const val = nameInput.value.trim();
-        if (!val) { toast("Please enter a name first."); return; }
+        if (!val) { toast("Enter your name first!"); return; }
         myName = val;
+        localStorage.setItem("lakehouse.playerName", val);
         createRoom();
       }
     }));
-    setupCard.appendChild(el("label", { style: "margin-top:14px;", text: "👀 Or Browse Open Rooms" }));
-    setupCard.appendChild(el("button", {
-      className: "btn ghost",
-      style: "width:100%; margin-top:6px;",
-      text: "📋 Browse Rooms",
-      onClick: () => {
-        const val = nameInput.value.trim();
-        if (!val) { toast("Please enter a name first."); return; }
-        myName = val;
-        renderRoomBrowser();
-      }
-    }));
-    setupCard.appendChild(el("hr", { className: "divider" }));
-    setupCard.appendChild(el("label", { text: "3. Or Join by Code" }));
+    setupCard.appendChild(el("div", { style: "display:flex; gap:8px; align-items:center; width:100%; margin: 8px 0;" }, [
+      el("hr", { style: "flex:1; border:none; border-top:1px solid rgba(255,255,255,0.06);" }),
+      el("span", { text: "OR JOIN EXISTING", className: "muted", style: "font-size:0.75rem; letter-spacing:1px;" }),
+      el("hr", { style: "flex:1; border:none; border-top:1px solid rgba(255,255,255,0.06);" })
+    ]));
     setupCard.appendChild(codeInput);
     setupCard.appendChild(el("button", {
       className: "btn ghost",
-      style: "margin-top: 8px;",
-      text: "🔗 Join Lobby",
+      style: "width:100%; margin-bottom:10px;",
+      text: "Join Room",
       onClick: () => {
         const nameVal = nameInput.value.trim();
         const codeVal = codeInput.value.trim().toUpperCase();
-        if (!nameVal) { toast("Please enter a name first."); return; }
+        if (!nameVal) { toast("Enter your name first!"); return; }
         if (codeVal.length !== 4) { toast("Room code must be exactly 4 letters."); return; }
         myName = nameVal;
+        localStorage.setItem("lakehouse.playerName", nameVal);
         joinRoom(codeVal);
+      }
+    }));
+    setupCard.appendChild(el("button", {
+      className: "btn ghost small",
+      text: "🌐 Browse Open Rooms",
+      style: "width:100%; margin-top: 8px;",
+      onClick: () => {
+        const val = nameInput.value.trim();
+        if (!val) { toast("Enter your name first!"); return; }
+        myName = val;
+        localStorage.setItem("lakehouse.playerName", val);
+        renderRoomBrowser();
       }
     }));
   }

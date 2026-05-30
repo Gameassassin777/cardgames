@@ -756,6 +756,7 @@ function connectRoom(type, code = "") {
 function relay(action) {
   if (!socket || socket.readyState !== 1) return;
   socket.send(JSON.stringify({ type: "relay", code: roomCode, sender: myName, action }));
+  if (typeof handleRelay === "function") handleRelay(action, myName);
 }
 
 function startHeartbeat(playerCount = 1) {
@@ -906,7 +907,6 @@ function triggerOnlineGameStart() {
   };
 
   relay(startPayload);
-  handleRelay(startPayload, myName);
 }
 
 function handleRelay(action, sender) {
@@ -963,7 +963,6 @@ function handleRelay(action, sender) {
           votingQueue: shuffle(votingQueue)
         };
         relay(votePayload);
-        handleRelay(votePayload, myName);
       }
     }
   }
@@ -1009,7 +1008,6 @@ function handleRelay(action, sender) {
           count1, count2, pts1, pts2, q1, q2
         };
         relay(revealPayload);
-        handleRelay(revealPayload, myName);
       }
     }
   }
@@ -1072,7 +1070,6 @@ function handleRelay(action, sender) {
           answers: voteItem.answers
         };
         relay(lastReveal);
-        handleRelay(lastReveal, myName);
       }
     }
   }
@@ -1195,7 +1192,6 @@ function renderWritingInput(task) {
           answer: ans
         };
         relay(action);
-        handleRelay(action, myName); // update locally
       } else {
         task.answer = ans;
         triggerLocalPassPlayWriting();
@@ -1350,7 +1346,6 @@ function renderStandardVoteScreen(item) {
       option: opt
     };
     relay(action);
-    handleRelay(action, myName);
 
     mount(
       gameTopbar("Quiplash — Voting", () => confirmQuitOnline()),
@@ -1438,13 +1433,11 @@ function renderSynchedRevealScreen(action) {
               nextIdx
             };
             relay(nextPayload);
-            handleRelay(nextPayload, myName);
           } else {
             const endPayload = {
               type: "QUIPLASH_LEADERBOARD"
             };
             relay(endPayload);
-            handleRelay(endPayload, myName);
           }
         }
       })
@@ -1548,7 +1541,6 @@ function renderLastLashVoteScreen(item) {
         ansIdx
       };
       relay(action);
-      handleRelay(action, myName);
 
       mount(
         gameTopbar("Quiplash — Final Lash", () => confirmQuitOnline()),
@@ -1679,7 +1671,6 @@ function renderSynchedRevealScreenLastLash(answers) {
           if (isOnline) {
             const endPayload = { type: "QUIPLASH_LEADERBOARD" };
             relay(endPayload);
-            handleRelay(endPayload, myName);
           } else {
             renderGameResults();
           }
@@ -1780,7 +1771,6 @@ function renderLeaderboardScreen() {
                 round: nextRound
               };
               relay(nextPayload);
-              handleRelay(nextPayload, myName);
             } else {
               gState.round++;
               startRoundWriting();

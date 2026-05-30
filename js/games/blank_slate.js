@@ -69,7 +69,6 @@ function gameTopbar(title, onBack) {
                   selectorIdx: gState.selectorIdx
                 };
                 relay(action);
-                handleRelay(action, myName);
               } else {
                 renderPromptScreen();
               }
@@ -102,7 +101,6 @@ function gameTopbar(title, onBack) {
                   selectorIdx: gState.selectorIdx
                 };
                 relay(action);
-                handleRelay(action, myName);
               } else {
                 renderPromptScreen();
               }
@@ -386,6 +384,7 @@ function connectRoom(type, code = "") {
 function relay(action) {
   if (!socket || socket.readyState !== 1) return;
   socket.send(JSON.stringify({ type: "relay", code: roomCode, sender: myName, action }));
+  if (typeof handleRelay === "function") handleRelay(action, myName);
 }
 
 function startHeartbeat(playerCount = 1) {
@@ -456,7 +455,6 @@ function renderLobby() {
         promptIndex: pDeck.pos
       };
       relay(action);
-      handleRelay(action, myName);
     }
   });
 
@@ -522,7 +520,6 @@ function handleRelay(action, sender) {
           players: updatedPlayers
         };
         relay(revealAction);
-        handleRelay(revealAction, myName);
       }
     }
   }
@@ -616,7 +613,6 @@ function renderOnlinePromptSelection() {
       prompt: chosen
     };
     relay(choiceAction);
-    handleRelay(choiceAction, myName);
   };
 
   if (isSelector) {
@@ -919,7 +915,6 @@ function renderRevealScreen() {
             selectorIdx: (gState.selectorIdx + 1) % gState.players.length
           };
           relay(action);
-          handleRelay(action, myName);
         }
       } else {
         const pDeck = advancePersistentBlankSlateDeck();
@@ -990,7 +985,6 @@ function renderGameOverScreen(ranked) {
             promptIndex: pDeck.pos
           };
           relay(action);
-          handleRelay(action, myName);
         }
       } else {
         initGame(gState.players.map(p => p.name));

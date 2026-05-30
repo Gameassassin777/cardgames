@@ -654,6 +654,7 @@ function connectRoom(type, code = "") {
 function relay(action) {
   if (!socket || socket.readyState !== 1) return;
   socket.send(JSON.stringify({ type: "relay", code: roomCode, sender: myName, action }));
+  if (typeof handleRelay === "function") handleRelay(action, myName);
 }
 
 function startHeartbeat(playerCount = 1) {
@@ -769,7 +770,6 @@ function triggerGameStart() {
   };
 
   relay(gameInitData);
-  handleRelay(gameInitData, myName);
 }
 
 // ── Relay Action Coordination Router ─────────────────────────────────────────
@@ -824,7 +824,6 @@ function handleRelay(action, sender) {
         };
         
         relay(compiledPayload);
-        handleRelay(compiledPayload, myName);
       }
     }
   }
@@ -855,7 +854,6 @@ function handleRelay(action, sender) {
           finalDrawings: gState.players.map(pName => gState.drawings[pName]) // aligned to compiledSentences
         };
         relay(reviewPayload);
-        handleRelay(reviewPayload, myName);
       }
     }
   }
@@ -936,7 +934,6 @@ function renderMadLibPhase() {
           val: ans.val
         };
         relay(action);
-        handleRelay(action, myName); // Update local state immediately!
       });
 
       mount(
@@ -1036,7 +1033,6 @@ function renderIllustratePhase() {
 
       // Relay drawing submission
       relay(action);
-      handleRelay(action, myName); // Update local state immediately!
 
       mount(
         gameTopbar("Cozy Chronicles — Illustrating", () => confirmQuitOnline()),

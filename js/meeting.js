@@ -192,6 +192,63 @@ function getFullSource() {
   return promptPool;
 }
 
+
+/* ---------------- Room Browser ---------------- */
+function renderRoomBrowser() {
+  let refreshTimer = null;
+  const listEl = el("div", { style: "display:flex; flex-direction:column; gap:8px; margin: 12px 0;" });
+
+  const loadRooms = async () => {
+    try {
+      listEl.innerHTML = '<p class="muted center" style="margin:16px 0;">Loading rooms…</p>';
+      const res = await fetch(`${HTTP_BASE}/rooms/list?game=meeting`).then(r => r.json());
+      listEl.innerHTML = "";
+      if (res.length === 0) {
+        listEl.innerHTML = '<p class="muted center" style="margin:16px 0;">No active rooms. Create one!</p>';
+        return;
+      }
+      res.forEach(r => {
+        const row = el("div", { className: "room-row" }, [
+          el("div", { style: "text-align:left;" }, [
+            el("div", { html: `Room <strong style="color:var(--sunset-soft);">${r.code}</strong> · Host: ${r.host}` }),
+            el("div", { className: "muted", style: "font-size:0.75rem;", text: `${r.playerCount} players active` })
+          ]),
+          el("button", {
+            className: "btn small", style: "margin:0; padding:6px 14px;",
+            text: "Join",
+            onClick: () => {
+              clearInterval(refreshTimer);
+              const n = myName || localStorage.getItem("lakehouse.playerName") || "";
+              if (!n) { toast("Set your name first!"); renderSetup(); return; }
+              connectRoom("join", r.code);
+            }
+          })
+        ]);
+        listEl.appendChild(row);
+      });
+    } catch (_) {
+      listEl.innerHTML = '<p class="muted center" style="margin:16px 0;">Failed to reach server.</p>';
+    }
+  };
+
+  loadRooms();
+  refreshTimer = setInterval(loadRooms, 4000);
+
+  mount(
+    topbar(cfg.title),
+    el("div", { className: "sci-fi-panel center" }, [
+      el("p", { className: "muted", style: "font-size:0.82rem; margin:0;", text: "Tap Join to enter any open Most Likely To room." })
+    ]),
+    el("div", { className: "sci-fi-panel" }, [listEl]),
+    el("button", {
+      className: "btn ghost small",
+      style: "margin:16px auto; display:block;",
+      text: "← Back",
+      onClick: () => { clearInterval(refreshTimer); renderSetup(); }
+    })
+  );
+}
+
 /* ---------------- Setup ---------------- */
 function renderSetup() {
   resetOnline();
@@ -234,49 +291,113 @@ function renderSetup() {
   }
   draw();
 
+  let setupMode = "passplay";
+
+  const modeSelector = el("div", {
+    style: "display:flex; background:rgba(255,255,255,0.04); border-radius:14px; padding:4px; margin-bottom:20px; width:100%;"
+  });
+
+  const tabLocal = el("button", {
+    className: "btn small",
+    text: "🔄 Pass & Play",
+    style: "flex:1; margin:0; font-size:0.85rem; padding: 8px 0; border:none; box-shadow:none;",
+    onClick: () => {
+      setupMode = "passplay";
+      tabLocal.className = "btn small";
+      tabOnline.className = "btn ghost small";
+      renderSetupForm();
+    }
+  });
+
+  const tabOnline = el("button", {
+    className: "btn ghost small",
+    text: "🛰️ Online Room",
+    style: "flex:1; margin:0; font-size:0.85rem; padding: 8px 0; border:none; box-shadow:none;",
+    onClick: () => {
+      setupMode = "online";
+      tabLocal.className = "btn ghost small";
+      tabOnline.className = "btn small";
+      renderSetupForm();
+    }
+  });
+
+  modeSelector.appendChild(tabLocal);
+  modeSelector.appendChild(tabOnline);
+
+  const dynamicFormWrap = el("div", { style: "width:100%;" });
+
+  function renderSetupForm() {
+    dynamicFormWrap.innerHTML = "";
+    if (setupMode === "passplay") {
+      const localSection = el("div", {}, [
+        el("label", { text: "CREW PLAYERS (3+)" }),
+        listWrap,
+        el("button", { className: "btn ghost small", style: "margin-top:10px; width:100%; margin-bottom:14px;", text: "+ Add Crewmate", onClick: () => { if (names.length < 15) { names.push(""); draw(); } else toast("15 max."); } }),
+        el("button", { className: "btn danger-btn pulsing", style: "width:100%;", text: "START LOCAL GAME", onClick: () => begin(names) })
+      ]);
+      dynamicFormWrap.appendChild(localSection);
+    } else {
+      const onlineSection = el("div", {}, [
+        nameInput,
+        el("button", {
+          className: "btn",
+          style: "width:100%; margin-bottom:10px;",
+          text: "Create Room",
+          onClick: () => {
+            const n = nameInput.value.trim();
+            if (!n) { toast("Enter your name first!"); return; }
+            myName = n;
+            localStorage.setItem("lakehouse.playerName", n);
+            connectRoom("create");
+          }
+        }),
+        el("div", { style: "display:flex; gap:8px; align-items:center; width:100%; margin: 8px 0;" }, [
+          el("hr", { style: "flex:1; border:none; border-top:1px solid rgba(255,255,255,0.06);" }),
+          el("span", { text: "OR JOIN EXISTING", className: "muted", style: "font-size:0.75rem; letter-spacing:1px;" }),
+          el("hr", { style: "flex:1; border:none; border-top:1px solid rgba(255,255,255,0.06);" })
+        ]),
+        codeInput,
+        el("button", {
+          className: "btn ghost",
+          style: "width:100%; margin-bottom:10px;",
+          text: "Join Room",
+          onClick: () => {
+            const n = nameInput.value.trim();
+            const code = codeInput.value.trim().toUpperCase();
+            if (!n) { toast("Enter your name first!"); return; }
+            if (!code || code.length !== 4) { toast("Enter room code!"); return; }
+            myName = n;
+            localStorage.setItem("lakehouse.playerName", n);
+            connectRoom("join", code);
+          }
+        }),
+        el("button", {
+          className: "btn ghost small",
+          text: "🌐 Browse Open Rooms",
+          style: "width:100%; margin-top: 8px;",
+          onClick: () => {
+            const n = nameInput.value.trim();
+            if (!n) { toast("Enter your name first!"); return; }
+            myName = n;
+            localStorage.setItem("lakehouse.playerName", n);
+            renderRoomBrowser();
+          }
+        })
+      ]);
+      dynamicFormWrap.appendChild(onlineSection);
+    }
+  }
+
+  renderSetupForm();
+
   mount(
     topbar(cfg.title),
     el("div", { className: "sci-fi-panel center" }, [
       el("p", { className: "muted", html: "Each round, read a prompt and vote on which player it describes the most. Play local pass-and-play, or connect online to sync and stream gameplay screens!" })
     ]),
     el("div", { className: "sci-fi-panel" }, [
-      el("label", { text: "🔄 OPTION A: LOCAL PASS & PLAY" }),
-      el("div", { style: "margin:10px 0;" }, [
-        el("label", { text: "CREW PLAYERS (3+)" }),
-        listWrap,
-        el("button", { className: "btn ghost small", style: "margin-top:10px; width:100%;", text: "+ Add Crewmate", onClick: () => { if (names.length < 15) { names.push(""); draw(); } else toast("15 max."); } })
-      ]),
-      el("button", { className: "btn danger-btn pulsing", style: "width:100%;", text: "START LOCAL GAME", onClick: () => begin(names) }),
-      el("hr", { style: "border:none; border-top:1px solid rgba(255,255,255,0.06); margin:20px 0;" }),
-      el("label", { text: "🛰️ OPTION B: ONLINE TERMINAL" }),
-      nameInput,
-      el("button", {
-        className: "btn ghost",
-        style: "width:100%; margin-bottom:12px;",
-        text: "Create Online Room",
-        onClick: () => {
-          const n = nameInput.value.trim();
-          if (!n) { toast("Enter your name first!"); return; }
-          myName = n;
-          localStorage.setItem("lakehouse.playerName", n);
-          connectRoom("create");
-        }
-      }),
-      codeInput,
-      el("button", {
-        className: "btn ghost",
-        style: "width:100%;",
-        text: "Join Online Room",
-        onClick: () => {
-          const n = nameInput.value.trim();
-          const code = codeInput.value.trim().toUpperCase();
-          if (!n) { toast("Enter your name first!"); return; }
-          if (!code || code.length !== 4) { toast("Enter room code!"); return; }
-          myName = n;
-          localStorage.setItem("lakehouse.playerName", n);
-          connectRoom("join", code);
-        }
-      })
+      modeSelector,
+      dynamicFormWrap
     ])
   );
 }

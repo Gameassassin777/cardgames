@@ -411,6 +411,7 @@ function connectRoom(type, code = "") {
 function relay(action) {
   if (!socket || socket.readyState !== 1) return;
   socket.send(JSON.stringify({ type: "relay", code: roomCode, sender: myName, action }));
+  if (typeof handleRelay === "function") handleRelay(action, myName);
 }
 
 function startHeartbeat(playerCount = 1) {
