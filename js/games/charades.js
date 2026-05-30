@@ -477,10 +477,10 @@ async function registerRoom() {
 
 function applyLobby(playersList) {
   gState = {
-  myPlayerIdx = playersList.indexOf(myName);
     phase: "lobby",
     players: playersList
   };
+  myPlayerIdx = playersList.indexOf(myName);
 
   if (isHost) {
     registerRoom();
