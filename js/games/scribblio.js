@@ -10,6 +10,7 @@ let goHome = () => {};
 let socket = null;
 let roomCode = "";
 let myName = "";
+let myPlayerIdx = -1;
 let isHost = false;
 let gState = null;
 let heartbeatInt = null;
@@ -162,7 +163,7 @@ function resetAll() {
   if (socket) { try { socket.close(); } catch (_) {} socket = null; }
   if (heartbeatInt) { clearInterval(heartbeatInt); heartbeatInt = null; }
   if (roomBrowserRefresh) { clearInterval(roomBrowserRefresh); roomBrowserRefresh = null; }
-  roomCode = ""; myName = ""; isHost = false; gState = null; isOnline = false;
+  roomCode = ""; myName = ""; myPlayerIdx = -1; isHost = false; gState = null; isOnline = false;
   if (cleanupViewport) {
     try { cleanupViewport(); } catch (_) {}
     cleanupViewport = null;
@@ -521,6 +522,7 @@ function applyLobby(playersList) {
     phase: "lobby",
     players: playersList
   };
+  myPlayerIdx = playersList.indexOf(myName);
 
   if (isHost) {
     registerRoom();
@@ -739,7 +741,11 @@ function startNextOnlineDrawerTurn() {
   }
 
   const drawerName = gState.players[gState.drawerIdx];
-  if (myName === drawerName) {
+  // Re-derive myPlayerIdx if stale (e.g. name set after applyLobby ran)
+  if (myPlayerIdx === -1 && myName) myPlayerIdx = gState.players.indexOf(myName);
+  const isMyTurn = (myPlayerIdx !== -1 && myPlayerIdx === gState.drawerIdx);
+  console.log("[Scribblio] turn", gState.drawerIdx, "drawerName:", drawerName, "myName:", myName, "myPlayerIdx:", myPlayerIdx, "isMyTurn:", isMyTurn);
+  if (isMyTurn) {
     if (gState.wordPool.length < 30) gState.wordPool = shuffle(WORD_POOL);
     const choices = [popChoice(gState.wordPool), popChoice(gState.wordPool), popChoice(gState.wordPool)];
     renderWordSelect(choices, drawerName);
