@@ -23,6 +23,23 @@
 <body>
   <div id="app" aria-live="polite"></div>
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
+  <!-- Cache-bust recovery: runs before ES modules so a broken cached version
+       can't block its own update. Bumped alongside APP_VERSION each release. -->
+  <script>
+  (function(){
+    var V="116";
+    if(localStorage.getItem("lh_cleared")!==V&&"serviceWorker"in navigator){
+      navigator.serviceWorker.getRegistrations().then(function(r){
+        return Promise.all(r.map(function(s){return s.unregister();}));
+      }).then(function(){return caches.keys();}).then(function(k){
+        return Promise.all(k.map(function(c){return caches.delete(c);}));
+      }).then(function(){
+        localStorage.setItem("lh_cleared",V);
+        location.reload(true);
+      }).catch(function(){});
+    }
+  })();
+  </script>
   <script type="module" src="js/app.js"></script>
 </body>
 </html>
