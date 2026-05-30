@@ -477,6 +477,94 @@ const CATEGORIES = [
   document.body.insertBefore(layer, document.body.firstChild);
 }());
 
+// ─── Online Lobby Browser ────────────────────────────────────────────────────
+const GAME_LABELS = {
+  scribblio: "Scribbl.io", gartic: "Telephone Doodles", chronicles: "Cozy Chronicles",
+  quiplash: "Quiplash", telestrations: "Telestrations", blank_slate: "Blank Slate",
+  farkle: "Farkle", headsup: "Heads Up", charades: "Charades",
+  liars_dice: "Liar's Dice", yahtzee: "Yahtzee", catchphrase: "Catchphrase",
+  meeting: "Most Likely To", cam: "Cards Against Monkeys", cabin: "Cabin Fever",
+};
+
+function renderLobbyBrowser() {
+  let refreshTimer = null;
+  const listEl = el("div", { style: "display:flex; flex-direction:column; gap:8px;" });
+
+  const loadRooms = async () => {
+    try {
+      listEl.innerHTML = '<p class="muted center" style="margin:12px 0;">Loading rooms…</p>';
+      const rooms = await fetch(`${HTTP_BASE}/rooms/list`).then(r => r.json());
+      listEl.innerHTML = "";
+      const live = rooms.filter(r => !r.private);
+      if (live.length === 0) {
+        listEl.innerHTML = '<p class="muted center" style="margin:16px 0;">No open rooms right now. Start a game and invite friends!</p>';
+        return;
+      }
+      live.forEach(r => {
+        const gameLabel = GAME_LABELS[r.game] || r.game;
+        const startFn = {
+          scribblio: startScribblio, gartic: h => gartic.start(h),
+          chronicles: startChronicles, quiplash: startQuiplash,
+          telestrations: startTelestrations, blank_slate: startBlankSlate,
+          farkle: startFarkle, headsup: startHeadsup, charades: startCharades,
+          liars_dice: startLiarsDice, yahtzee: startYahtzee,
+          catchphrase: catchphrase.start, meeting: h => zestyMeeting(h),
+        }[r.game];
+        const row = el("div", { className: "room-row" }, [
+          el("div", { style: "text-align:left; flex:1; min-width:0;" }, [
+            el("div", { html: `<strong style="color:var(--sunset-soft);">${gameLabel}</strong> &nbsp;·&nbsp; Room <strong>${r.code}</strong>` }),
+            el("div", { className: "muted", style: "font-size:0.75rem;", text: `Host: ${r.host} · ${r.playerCount} player${r.playerCount !== 1 ? "s" : ""}` })
+          ]),
+          el("button", {
+            className: "btn small",
+            style: "margin:0; padding:6px 14px; flex-shrink:0;",
+            text: "Join",
+            onClick: () => {
+              if (refreshTimer) clearInterval(refreshTimer);
+              if (!startFn) { toast(`Can't auto-join ${gameLabel} yet.`); return; }
+              const name = localStorage.getItem("lakehouse.playerName") || "";
+              if (!name) { toast("Set your online name on the home screen first!"); return; }
+              startFn(home);
+              setTimeout(() => {
+                const codeInput = document.querySelector('input[maxlength="4"]');
+                if (codeInput) {
+                  codeInput.value = r.code.toUpperCase();
+                  codeInput.dispatchEvent(new Event("input"));
+                }
+                const joinBtn = [...document.querySelectorAll("button")].find(b =>
+                  /join.*(room|online|game)/i.test(b.textContent)
+                );
+                if (joinBtn) joinBtn.click();
+              }, 350);
+            }
+          })
+        ]);
+        listEl.appendChild(row);
+      });
+    } catch (_) {
+      listEl.innerHTML = '<p class="muted center" style="margin:16px 0;">Couldn’t reach server.</p>';
+    }
+  };
+
+  loadRooms();
+  refreshTimer = setInterval(loadRooms, 6000);
+
+  mount(
+    el("div", { className: "topbar" }, [
+      el("button", { className: "back", onClick: () => { clearInterval(refreshTimer); home(); } }, [
+        el("span", { style: "width:16px; height:16px; display:inline-block;" }, [icons.back()]),
+        el("span", { text: "Home" })
+      ]),
+      el("div", { className: "title", text: "Open Online Rooms" }),
+      el("span", { style: "width:64px" })
+    ]),
+    el("div", { className: "panel center" }, [
+      el("p", { className: "muted", style: "margin:0; font-size:0.82rem;", text: "Live public lobbies across all games. Set your online name on the home screen first!" })
+    ]),
+    el("div", { className: "panel" }, [listEl])
+  );
+}
+
 function openSubLobby(cat) {
   const weirdUnlocked = localStorage.getItem("lakehouse.weird_unlocked") === "true";
   const catGames = GAMES.filter(g => cat.gameIds.includes(g.id) && (weirdUnlocked || g.familyFriendly));
@@ -567,6 +655,27 @@ function home() {
     className: "panel",
     style: "margin-top: 14px; padding: 14px 16px;"
   }, [
+    el("div", { style: "display:flex; align-items:center; gap:6px; margin-bottom:4px;" }, [
+      el("span", { text: "\u{1F464}", style: "font-size:0.9rem; opacity:0.8;" }),
+      el("span", { text: "Online Name", style: "font-size:0.75rem; font-weight:600; color:var(--text-mid); letter-spacing:0.5px; text-transform:uppercase;" })
+    ]),
+    el("input", {
+      type: "text",
+      placeholder: "Your name for online games…",
+      value: localStorage.getItem("lakehouse.playerName") || "",
+      maxlength: "14",
+      style: "width:100%; font-size:0.95rem; border-radius:10px; text-align:center; margin-bottom:8px; box-sizing:border-box;",
+      onInput: (e) => { localStorage.setItem("lakehouse.playerName", e.target.value.trim()); }
+    }),
+    el("button", {
+      className: "btn ghost small",
+      style: "width:100%; margin-bottom:10px; display:flex; align-items:center; justify-content:center; gap:6px;",
+      onClick: () => renderLobbyBrowser()
+    }, [
+      el("span", { text: "\uD83C\uDF10" }),
+      el("span", { text: "Browse Open Rooms" })
+    ]),
+    el("hr", { style: "border:none; border-top:1px solid rgba(255,255,255,0.06); margin: 4px 0 10px;" }),
     el("div", { style: "display:flex; gap:10px; flex-wrap:wrap; margin-bottom:10px;" }, [
       el("button", {
         className: "btn ghost small",

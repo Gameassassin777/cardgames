@@ -200,6 +200,7 @@ function renderSetup() {
     type: "text",
     placeholder: "Your name…",
     id: "m-name",
+    value: localStorage.getItem("lakehouse.playerName") || "",
     style: "font-size:1.1rem; border-radius:14px; text-align:center; margin-bottom:14px; width:100%; background:rgba(0,0,0,0.3); border:1px solid rgba(255,255,255,0.1); color:#fff;"
   });
 
@@ -257,6 +258,7 @@ function renderSetup() {
           const n = nameInput.value.trim();
           if (!n) { toast("Enter your name first!"); return; }
           myName = n;
+          localStorage.setItem("lakehouse.playerName", n);
           connectRoom("create");
         }
       }),
@@ -271,6 +273,7 @@ function renderSetup() {
           if (!n) { toast("Enter your name first!"); return; }
           if (!code || code.length !== 4) { toast("Enter room code!"); return; }
           myName = n;
+          localStorage.setItem("lakehouse.playerName", n);
           connectRoom("join", code);
         }
       })

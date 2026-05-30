@@ -447,7 +447,7 @@ function resetAll() {
 }
 
 function renderSetup() {
-  const savedName = localStorage.getItem("quiplash.name") || "";
+  const savedName = localStorage.getItem("quiplash.name") || localStorage.getItem("lakehouse.playerName") || "";
   const nameInput = el("input", {
     type: "text",
     placeholder: "Your name…",

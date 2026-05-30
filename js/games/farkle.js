@@ -45,7 +45,7 @@ function resetAll() {
 }
 
 function renderSetup() {
-  const savedName = localStorage.getItem("farkle.name") || "";
+  const savedName = localStorage.getItem("farkle.name") || localStorage.getItem("lakehouse.playerName") || "";
   const nameInput = el("input", {
     type: "text",
     placeholder: "Your name…",

@@ -65,7 +65,7 @@ function resetAll() {
 
 // ── Setup screen ──────────────────────────────────────────────────────────────
 function renderSetup() {
-  const savedName = localStorage.getItem("gartic.name") || "";
+  const savedName = localStorage.getItem("gartic.name") || localStorage.getItem("lakehouse.playerName") || "";
 
   const nameInput = el("input", {
     type: "text", placeholder: "Your name…", value: savedName, id: "g-name",

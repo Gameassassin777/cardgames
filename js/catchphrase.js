@@ -469,7 +469,7 @@ function renderOfflineSetup(modeTab) {
 
 /* --- B. Online Play Join/Host Setup --- */
 function renderOnlineJoinHost(modeTab) {
-  const savedName = localStorage.getItem("catchphrase.myname") || "";
+  const savedName = localStorage.getItem("catchphrase.myname") || localStorage.getItem("lakehouse.playerName") || "";
   const nameInput = el("input", {
     type: "text",
     value: savedName,
@@ -478,6 +478,7 @@ function renderOnlineJoinHost(modeTab) {
     onInput: (e) => {
       myName = e.target.value.trim().substring(0, 14);
       localStorage.setItem("catchphrase.myname", myName);
+      localStorage.setItem("lakehouse.playerName", myName);
     }
   });
   myName = savedName;

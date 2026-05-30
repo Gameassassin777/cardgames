@@ -170,7 +170,7 @@ function resetAll() {
 }
 
 function renderSetup() {
-  const savedName = localStorage.getItem("scribblio.name") || "";
+  const savedName = localStorage.getItem("scribblio.name") || localStorage.getItem("lakehouse.playerName") || "";
   const nameInput = el("input", {
     type: "text",
     placeholder: "Your name…",
@@ -192,6 +192,7 @@ function renderSetup() {
     const n = nameInput.value.trim();
     if (!n) { toast("Enter your name first!"); return null; }
     localStorage.setItem("scribblio.name", n);
+    localStorage.setItem("lakehouse.playerName", n);
     return n;
   };
 
@@ -657,6 +658,8 @@ function handleRelay(action, sender) {
       addChatMessage(`${sender}: ${action.guess}`, "rgba(255,255,255,0.6)");
     }
   } else if (action.type === "round_completed") {
+    if (gState.roundComplete) return;
+    gState.roundComplete = true;
     gState.scores = action.scores;
     if (gState.timerInterval) clearInterval(gState.timerInterval);
     if (action.isTimeUp) {
@@ -929,6 +932,7 @@ function launchOnlineMainLoop() {
   const isDrawer = (myName === drawerName);
   gState.timeLeft = gState.timerDuration;
   globalCorrectGuessers = [];
+  if (gState) gState.roundComplete = false;
 
   const canvas = el("canvas", {
     style: "background: #112228; border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; cursor: crosshair; touch-action: none; width: 100%; display: block; box-shadow: inset 0 2px 8px rgba(0,0,0,0.5);"
@@ -1053,26 +1057,18 @@ function launchOnlineMainLoop() {
     cleanupViewport = null;
   }
   if (window.visualViewport) {
-    const adjustViewport = () => {
-      const vv = window.visualViewport;
-      
-      if (vv.height < 500) {
+    const applyKeyboardLayout = () => {
+      if (window.visualViewport.height < window.screen.height * 0.6) {
         contentLayout.classList.add("keyboard-active");
       } else {
         contentLayout.classList.remove("keyboard-active");
       }
     };
-    window.visualViewport.addEventListener("resize", adjustViewport);
-    cleanupViewport = () => {
-      window.visualViewport.removeEventListener("resize", adjustViewport);
-    };
-    guessInput.addEventListener("focus", adjustViewport);
+    guessInput.addEventListener("focus", () => setTimeout(applyKeyboardLayout, 150));
     guessInput.addEventListener("blur", () => {
       contentLayout.classList.remove("keyboard-active");
-      window.scrollTo(0, 0);
-      document.body.scrollTop = 0;
     });
-    setTimeout(adjustViewport, 80);
+    cleanupViewport = () => {};
   }
 
   mount(gameTopbar(`Scribbl.io — Synchronized`, () => confirmQuit()), contentLayout);

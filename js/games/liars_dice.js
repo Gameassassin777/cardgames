@@ -59,7 +59,7 @@ function resetAll() {
 }
 
 function renderSetup() {
-  const savedName = localStorage.getItem("liars.name") || "";
+  const savedName = localStorage.getItem("liars.name") || localStorage.getItem("lakehouse.playerName") || "";
   const nameInput = el("input", {
     type: "text",
     placeholder: "Your name…",

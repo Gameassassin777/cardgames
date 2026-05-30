@@ -107,7 +107,7 @@ function resetAll() {
 }
 
 function renderSetup() {
-  const savedName = localStorage.getItem("headsup.name") || "";
+  const savedName = localStorage.getItem("headsup.name") || localStorage.getItem("lakehouse.playerName") || "";
   const nameInput = el("input", {
     type: "text",
     placeholder: "Your name…",

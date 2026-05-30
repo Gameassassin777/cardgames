@@ -348,7 +348,7 @@ function renderSetup() {
       id: "onlineName",
       maxlength: "14",
       placeholder: "Your Username",
-      value: myName
+      value: myName || localStorage.getItem("lakehouse.playerName") || ""
     });
 
     const codeInput = el("input", {

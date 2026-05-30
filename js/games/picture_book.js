@@ -331,7 +331,7 @@ function resetAll() {
 }
 
 function renderSetup() {
-  const savedName = localStorage.getItem("chronicles.name") || "";
+  const savedName = localStorage.getItem("chronicles.name") || localStorage.getItem("lakehouse.playerName") || "";
 
   const nameInput = el("input", {
     type: "text",
