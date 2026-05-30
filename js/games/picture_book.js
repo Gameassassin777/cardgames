@@ -926,16 +926,9 @@ function renderMadLibPhase() {
       submitBtn.disabled = true;
       inputs.forEach(item => { item.element.disabled = true; });
 
-      // Relay each word submission one by one
-      answers.forEach(ans => {
-        const action = {
-          type: "CHRONICLES_SUBMIT_WORD",
-          key: ans.key,
-          val: ans.val
-        };
-        relay(action);
-      });
-
+      // Show waiting screen BEFORE relaying — prevents the waiting mount()
+      // from overwriting an illustrate screen that the relay echo may have
+      // already rendered (e.g. when the host completes the last blank).
       mount(
         gameTopbar("Mad Libs", () => confirmQuitOnline()),
         el("div", { className: "panel center", style: "max-width: 400px; margin: 30px auto;" }, [
@@ -945,6 +938,16 @@ function renderMadLibPhase() {
           el("div", { id: "madlibs-waiting", style: "font-size:0.9rem; font-weight:bold; color:var(--sunset-soft); margin-top:8px;", text: `Submitted: ${gState.submittedAnswersCount} / ${gState.blanks.length} words` })
         ])
       );
+
+      // Relay each word — if this completes all blanks, the echo will call
+      // renderIllustratePhase() and replace the waiting screen correctly.
+      answers.forEach(ans => {
+        relay({
+          type: "CHRONICLES_SUBMIT_WORD",
+          key: ans.key,
+          val: ans.val
+        });
+      });
     }
   });
 
@@ -957,7 +960,7 @@ function renderMadLibPhase() {
       submitBtn
     ])
   );
-  inputEl.focus();
+  if (inputs.length > 0) inputs[0].element.focus();
 }
 
 // ── Online Illustrate Phase ──────────────────────────────────────────────────
