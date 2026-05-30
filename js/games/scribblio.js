@@ -659,9 +659,15 @@ function handleRelay(action, sender) {
   } else if (action.type === "round_completed") {
     gState.scores = action.scores;
     if (gState.timerInterval) clearInterval(gState.timerInterval);
-    toast(`All guessers finished! Word was: "${action.activeWord}"`);
+    if (action.isTimeUp) {
+      toast(`⏱️ Time is up! The word was "${action.activeWord}".`);
+    } else {
+      toast(`All guessers finished! Word was: "${action.activeWord}"`);
+    }
     gState.drawerIdx++;
     setTimeout(() => startNextOnlineDrawerTurn(), 2500);
+  } else if (action.type === "start_next_round") {
+    startNextOnlineDrawerTurn();
   } else if (action.type === "next_round") {
     gState.round = action.round;
     gState.drawerIdx = 0;
@@ -1013,8 +1019,8 @@ function launchOnlineMainLoop() {
     isDrawer ? colorRow : null,
     isDrawer ? brushRow : null,
     el("div", { className: "spacer", style: "height:12px" }),
-    chatContainer,
-    !isDrawer ? guessInput : el("p", { className: "muted center anim-pulse", text: "Cast strokes dynamically to everyone's screen!" })
+    !isDrawer ? guessInput : el("p", { className: "muted center anim-pulse", text: "Cast strokes dynamically to everyone's screen!" }),
+    chatContainer
   ]);
 
   // Inject iOS visual centering styles if they don't exist yet
@@ -1049,8 +1055,6 @@ function launchOnlineMainLoop() {
   if (window.visualViewport) {
     const adjustViewport = () => {
       const vv = window.visualViewport;
-      window.scrollTo(0, 0);
-      document.body.scrollTop = 0;
       
       if (vv.height < 500) {
         contentLayout.classList.add("keyboard-active");
@@ -1059,10 +1063,8 @@ function launchOnlineMainLoop() {
       }
     };
     window.visualViewport.addEventListener("resize", adjustViewport);
-    window.visualViewport.addEventListener("scroll", adjustViewport);
     cleanupViewport = () => {
       window.visualViewport.removeEventListener("resize", adjustViewport);
-      window.visualViewport.removeEventListener("scroll", adjustViewport);
     };
     guessInput.addEventListener("focus", adjustViewport);
     guessInput.addEventListener("blur", () => {
@@ -1091,9 +1093,15 @@ function launchOnlineMainLoop() {
     if (gState.timeLeft <= 0) {
       clearInterval(gState.timerInterval);
       playBeep(250, 0.4);
-      toast(`⏱️ Time is up! The word was "${gState.activeWord}".`);
-      gState.drawerIdx++;
-      setTimeout(() => startNextOnlineDrawerTurn(), 2000);
+      if (isOnline) {
+        if (isHost) {
+          relay({ type: "round_completed", scores: gState.scores, activeWord: gState.activeWord, isTimeUp: true });
+        }
+      } else {
+        toast(`⏱️ Time is up! The word was "${gState.activeWord}".`);
+        gState.drawerIdx++;
+        setTimeout(() => startNextLocalDrawerTurn(), 2000);
+      }
     }
   }, 1000);
 }
@@ -1389,7 +1397,7 @@ function renderRoundScores() {
       if (!isOnline) {
         startNextLocalDrawerTurn();
       } else {
-        startNextOnlineDrawerTurn();
+        relay({ type: "start_next_round" });
       }
     }
   });
