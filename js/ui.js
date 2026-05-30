@@ -98,14 +98,6 @@ const isLocal = window.location.hostname === "localhost" ||
                 window.location.hostname.startsWith("172.") ||
                 window.location.hostname.endsWith(".local");
 
-const httpProtocol = window.location.protocol === "https:" ? "https:" : "http:";
-const wsProtocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-
-export const HTTP_BASE = isLocal
-  ? `${httpProtocol}//${window.location.hostname}:3000`
-  : "https://lakehouse-cardgames-sync.gameassassin777.workers.dev";
-
-export const WS_BASE = isLocal
-  ? `${wsProtocol}//${window.location.hostname}:3000`
-  : "wss://lakehouse-cardgames-sync.gameassassin777.workers.dev";
+export const HTTP_BASE = "https://lakehouse-cardgames-sync.gameassassin777.workers.dev";
+export const WS_BASE = "wss://lakehouse-cardgames-sync.gameassassin777.workers.dev";
 
