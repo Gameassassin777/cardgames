@@ -18,6 +18,7 @@ let roomBrowserRefresh = null;
 let isOnline = false;
 let setupMode = "passplay"; // "passplay" or "online"
 let localNames = ["Alice", "Bob", "Charlie"];
+let cleanupViewport = null;
 
 // ── Shared AudioContext (reused to prevent CPU spikes) ─────────────────────
 let _audioCtx = null;
@@ -162,6 +163,10 @@ function resetAll() {
   if (heartbeatInt) { clearInterval(heartbeatInt); heartbeatInt = null; }
   if (roomBrowserRefresh) { clearInterval(roomBrowserRefresh); roomBrowserRefresh = null; }
   roomCode = ""; myName = ""; isHost = false; gState = null; isOnline = false;
+  if (cleanupViewport) {
+    try { cleanupViewport(); } catch (_) {}
+    cleanupViewport = null;
+  }
 }
 
 function renderSetup() {
@@ -693,8 +698,8 @@ function startNextLocalDrawerTurn() {
   }
 
   const drawerName = gState.players[gState.drawerIdx];
-  if (gState.wordPool.length < 5) gState.wordPool = shuffle(WORD_POOL);
-  const choices = [gState.wordPool.pop(), gState.wordPool.pop(), gState.wordPool.pop()];
+  if (gState.wordPool.length < 30) gState.wordPool = shuffle(WORD_POOL);
+  const choices = [popChoice(gState.wordPool), popChoice(gState.wordPool), popChoice(gState.wordPool)];
 
   const container = el("div", { className: "panel center", style: "max-width: 480px; margin: 30px auto; padding: 24px;" }, [
     el("h2", { text: `Pass the Device!` }),
@@ -726,8 +731,8 @@ function startNextOnlineDrawerTurn() {
 
   const drawerName = gState.players[gState.drawerIdx];
   if (myName === drawerName) {
-    if (gState.wordPool.length < 5) gState.wordPool = shuffle(WORD_POOL);
-    const choices = [gState.wordPool.pop(), gState.wordPool.pop(), gState.wordPool.pop()];
+    if (gState.wordPool.length < 30) gState.wordPool = shuffle(WORD_POOL);
+    const choices = [popChoice(gState.wordPool), popChoice(gState.wordPool), popChoice(gState.wordPool)];
     renderWordSelect(choices, drawerName);
   } else {
     // Guessers wait screen
@@ -738,6 +743,16 @@ function startNextOnlineDrawerTurn() {
     ]);
     mount(gameTopbar(`Scribbl.io — Round ${gState.round}`, () => confirmQuit()), container);
   }
+}
+
+function popChoice(pool) {
+  while (pool.length > 0) {
+    const w = pool.pop();
+    if (w && w.trim().split(/\s+/).filter(Boolean).length <= 2) {
+      return w;
+    }
+  }
+  return "Pinecone";
 }
 
 function renderWordSelect(choices, drawerName) {
@@ -965,6 +980,7 @@ function launchOnlineMainLoop() {
   });
 
   const chatContainer = el("div", {
+    className: "scribblio-chat",
     style: "background:rgba(255,255,255,0.02); border:1px solid rgba(255,255,255,0.06); border-radius:12px; padding:8px; height:120px; overflow-y:auto; margin-bottom:8px; text-align:left;"
   });
   globalChatRef = chatContainer;
@@ -984,7 +1000,7 @@ function launchOnlineMainLoop() {
     }
   });
 
-  const contentLayout = el("div", { className: "panel center", style: "max-width: 500px; margin: 0 auto;" }, [
+  const contentLayout = el("div", { className: "panel center scribblio-layout", style: "max-width: 500px; margin: 0 auto; display: flex; flex-direction: column;" }, [
     el("div", { style: "display:flex; justify-content:space-between; align-items:center; width:100%; border-bottom:1px solid rgba(255,255,255,0.06); padding-bottom:8px; margin-bottom:8px;" }, [
       el("div", { text: isDrawer ? `You are Drawing!` : `Artist: ${drawerName}`, style: "font-weight: bold; color: var(--sunset-soft);" }),
       timerDisplay
@@ -1000,6 +1016,62 @@ function launchOnlineMainLoop() {
     chatContainer,
     !isDrawer ? guessInput : el("p", { className: "muted center anim-pulse", text: "Cast strokes dynamically to everyone's screen!" })
   ]);
+
+  // Inject iOS visual centering styles if they don't exist yet
+  if (!document.getElementById("scribblio-ios-styles")) {
+    const style = el("style", {
+      id: "scribblio-ios-styles",
+      text: `
+        .scribblio-layout.keyboard-active {
+          padding: 8px 12px !important;
+          margin: 0 auto !important;
+        }
+        .scribblio-layout.keyboard-active canvas {
+          height: 140px !important;
+        }
+        .scribblio-layout.keyboard-active .scribblio-chat {
+          height: 48px !important;
+          margin-bottom: 4px !important;
+        }
+        .scribblio-layout.keyboard-active .spacer {
+          height: 4px !important;
+        }
+      `
+    });
+    document.head.appendChild(style);
+  }
+
+  // Set up Visual Viewport dynamic resize listener to maintain vertical height centering
+  if (cleanupViewport) {
+    try { cleanupViewport(); } catch (_) {}
+    cleanupViewport = null;
+  }
+  if (window.visualViewport) {
+    const adjustViewport = () => {
+      const vv = window.visualViewport;
+      window.scrollTo(0, 0);
+      document.body.scrollTop = 0;
+      
+      if (vv.height < 500) {
+        contentLayout.classList.add("keyboard-active");
+      } else {
+        contentLayout.classList.remove("keyboard-active");
+      }
+    };
+    window.visualViewport.addEventListener("resize", adjustViewport);
+    window.visualViewport.addEventListener("scroll", adjustViewport);
+    cleanupViewport = () => {
+      window.visualViewport.removeEventListener("resize", adjustViewport);
+      window.visualViewport.removeEventListener("scroll", adjustViewport);
+    };
+    guessInput.addEventListener("focus", adjustViewport);
+    guessInput.addEventListener("blur", () => {
+      contentLayout.classList.remove("keyboard-active");
+      window.scrollTo(0, 0);
+      document.body.scrollTop = 0;
+    });
+    setTimeout(adjustViewport, 80);
+  }
 
   mount(gameTopbar(`Scribbl.io — Synchronized`, () => confirmQuit()), contentLayout);
 
@@ -1159,13 +1231,21 @@ function setupDrawingCanvas(canvas, undoBtn, clearBtn, getColor, getBrushSize, i
       e.preventDefault();
       canvas.setPointerCapture(e.pointerId);
       const r = canvas.getBoundingClientRect();
-      drawStart(e.clientX - r.left, e.clientY - r.top);
+      const rawX = e.clientX - r.left;
+      const rawY = e.clientY - r.top;
+      const x = rawX * (W / r.width);
+      const y = rawY * (H / r.height);
+      drawStart(x, y);
     });
     canvas.addEventListener("pointermove", (e) => {
       e.preventDefault();
       if (!drawing) return;
       const r = canvas.getBoundingClientRect();
-      drawMove(e.clientX - r.left, e.clientY - r.top);
+      const rawX = e.clientX - r.left;
+      const rawY = e.clientY - r.top;
+      const x = rawX * (W / r.width);
+      const y = rawY * (H / r.height);
+      drawMove(x, y);
     });
     const endStroke = (e) => {
       e.preventDefault();
