@@ -10,6 +10,7 @@ const MANAGED_GAMES = [
   { id: "wyr", name: "Would You Rather", iconFn: icons.wyr, saveKey: "wyr.game.v1", hasPrompts: false, placeholder: "e.g. Always step on a wet spot, OR chew on a dry sponge?" },
   { id: "flags", name: "Red Flag / Green Flag", iconFn: icons.flags, saveKey: "flags.game.v1", hasPrompts: false, placeholder: "e.g. They literally have zero internet presence." },
   { id: "truths", name: "Lake House Truths", iconFn: icons.truths, saveKey: "truths.game.v1", hasPrompts: false, placeholder: "e.g. Who in the cabin is secretly a duplicate agent?" },
+  { id: "meeting", name: "Most Likely To", iconFn: icons.meeting, saveKey: "meeting.game.v1", hasPrompts: true, placeholder: "e.g. accidentally eject themselves from the spaceship" },
   { id: "catchphrase", name: "Lake House Catchphrase", iconFn: icons.catchphrase, saveKey: "catchphrase.game.v1", hasPrompts: false, placeholder: "e.g. water skiing behind a rowboat" }
 ];
 
@@ -26,8 +27,7 @@ export function openCustomCardsManager(homeCallback) {
 }
 
 function render() {
-  const weirdUnlocked = localStorage.getItem("lakehouse.weird_unlocked") === "true";
-  const visibleGames = MANAGED_GAMES.filter(g => weirdUnlocked || g.id !== "cam" && g.id !== "rizz" && g.id !== "wyr");
+  const visibleGames = MANAGED_GAMES;
 
   if (!visibleGames.some(g => g.id === activeGameId)) {
     activeGameId = visibleGames[0].id;

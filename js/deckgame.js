@@ -47,8 +47,9 @@ export function makeGame({ title, source, saveKey }) {
     }
 
     function getFullSource() {
-      const enabled = saveKey ? store.get(saveKey + ".enabled_decks", ["core"]) : ["core"];
-      const customDecks = saveKey ? store.get(saveKey + ".custom_decks", []) : [];
+      const customKey = saveKey ? saveKey.replace("cabin_", "").replace("zesty_", "") : "";
+      const enabled = customKey ? store.get(customKey + ".enabled_decks", ["core"]) : ["core"];
+      const customDecks = customKey ? store.get(customKey + ".custom_decks", []) : [];
       
       let cardPool = [];
       

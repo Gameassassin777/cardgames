@@ -1,4 +1,4 @@
-// Emergency Meeting — pass-and-play "who's most likely / who's the most sus" voting game.
+// Emergency Meeting — pass-and-play/online "who's most likely / who's the most sus" voting game.
 import { el, mount, shuffle, toast, store, HTTP_BASE, WS_BASE } from "./ui.js";
 import { icons } from "./icons.js";
 
@@ -6,16 +6,158 @@ let goHome = () => {};
 let s = null;
 let cfg = null;
 
+let onlineMode = false;
+let socket = null;
+let roomCode = "";
+let myName = "";
+let isHost = false;
+let onlinePlayers = [];
+let heartbeatInt = null;
+
 export function makeGame(config) {
   return function start(home) {
     cfg = config;
     document.body.classList.add("spaceship-theme");
     goHome = () => {
+      resetOnline();
       document.body.classList.remove("spaceship-theme");
       home();
     };
     renderSetup();
   };
+}
+
+function resetOnline() {
+  stopHeartbeat();
+  if (socket) { try { socket.close(); } catch (_) {} socket = null; }
+  onlineMode = false;
+  roomCode = ""; myName = ""; isHost = false; onlinePlayers = [];
+}
+
+function syncGameState() {
+  if (onlineMode && isHost && socket && socket.readyState === 1) {
+    socket.send(JSON.stringify({
+      type: "relay",
+      code: roomCode,
+      sender: myName,
+      action: {
+        type: "STATE_SYNC",
+        state: s
+      }
+    }));
+  }
+}
+
+async function registerRoom() {
+  try {
+    await fetch(`${HTTP_BASE}/rooms/register`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        code: roomCode, host: myName, playerCount: onlinePlayers.length,
+        game: "meeting", private: false,
+        lastPing: Date.now()
+      }),
+    });
+  } catch (_) {}
+}
+
+function startHeartbeat(playerCount = 1) {
+  stopHeartbeat();
+  const ping = () => fetch(`${HTTP_BASE}/rooms/heartbeat`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ code: roomCode, playerCount: onlinePlayers.length || playerCount })
+  }).catch(() => {});
+  ping();
+  heartbeatInt = setInterval(ping, 25000);
+}
+
+function stopHeartbeat() {
+  if (heartbeatInt) { clearInterval(heartbeatInt); heartbeatInt = null; }
+}
+
+function connectRoom(type, code = "") {
+  onlineMode = true;
+  mount(
+    topbar(cfg.title),
+    el("div", { className: "sci-fi-panel center", style: "margin:40px auto; max-width:320px;" }, [
+      el("div", { className: "spin-indicator sci-fi-pulse", style: "font-size:2rem; margin-bottom:12px;", text: "🌀" }),
+      el("p", { text: type === "create" ? "Creating terminal lobby…" : `Joining terminal ${code}…` })
+    ])
+  );
+
+  isHost = (type === "create");
+  const url = type === "create"
+    ? `${WS_BASE}/ws/create?name=${encodeURIComponent(myName)}&game=meeting`
+    : `${WS_BASE}/ws/join?code=${code}&name=${encodeURIComponent(myName)}&game=meeting`;
+
+  socket = new WebSocket(url);
+
+  socket.onmessage = (ev) => {
+    try {
+      const d = JSON.parse(ev.data);
+      if (d.type === "created" || d.type === "player_joined") {
+        roomCode = d.code;
+        onlinePlayers = d.players;
+        applyLobby();
+      } else if (d.type === "player_left") {
+        onlinePlayers = d.players;
+        applyLobby();
+      } else if (d.type === "relay") {
+        if (d.action.type === "STATE_SYNC") {
+          s = d.action.state;
+          render();
+        } else if (d.action.type === "quit") {
+          toast("Lobby closed by host.");
+          goHome();
+        }
+      } else if (d.type === "error") {
+        toast(d.message || "Connection error");
+        renderSetup();
+      }
+    } catch (_) {}
+  };
+}
+
+function applyLobby() {
+  if (isHost && roomCode) {
+    registerRoom();
+    startHeartbeat(onlinePlayers.length);
+  }
+
+  const pRows = onlinePlayers.map((p, i) => {
+    return el("div", {
+      style: "display:flex; justify-content:space-between; padding:10px 14px; background:rgba(255,255,255,0.02); border-radius:10px; margin-bottom:6px;"
+    }, [
+      el("span", { text: p, style: "font-weight: 500;" }),
+      el("span", {
+        text: i === 0 ? "👑 HOST" : "READY",
+        style: `font-size:0.75rem; font-weight:bold; color:${i === 0 ? "var(--sunset-soft)" : "#00ffaa"};`
+      })
+    ]);
+  });
+
+  const lobbyLayout = el("div", { className: "sci-fi-panel center", style: "max-width: 440px; margin:0 auto;" }, [
+    el("h3", { text: `Room Lobby: ${roomCode}`, style: "color:var(--sunset-soft); margin-top:0;" }),
+    el("p", { className: "muted", text: "Invite crewmates using this terminal code." }),
+    el("div", { style: "margin: 16px 0; width:100%; max-height:240px; overflow-y:auto;" }, pRows),
+    isHost
+      ? el("button", {
+          className: "btn danger-btn pulsing",
+          text: "Start Mission ➔",
+          style: "width:100%;",
+          onClick: () => {
+            begin(onlinePlayers);
+          }
+        })
+      : el("p", { className: "muted center anim-pulse", text: "Waiting for host to start mission..." })
+  ]);
+
+  mount(
+    topbar(cfg.title),
+    lobbyLayout
+  );
 }
 
 function topbar(title) {
@@ -26,8 +168,50 @@ function topbar(title) {
   ]);
 }
 
+function getFullSource() {
+  const saveKey = cfg.saveKey;
+  const customKey = saveKey ? saveKey.replace("cabin_", "").replace("zesty_", "") : "";
+  const enabled = customKey ? store.get(customKey + ".enabled_decks", ["core"]) : ["core"];
+  const customDecks = customKey ? store.get(customKey + ".custom_decks", []) : [];
+
+  let promptPool = [];
+  if (enabled.includes("core")) {
+    promptPool = promptPool.concat(cfg.source);
+  }
+
+  customDecks.forEach(deck => {
+    if (enabled.includes(deck.id)) {
+      const promptsList = deck.prompts || [];
+      promptPool = promptPool.concat(promptsList);
+    }
+  });
+
+  if (promptPool.length === 0) {
+    promptPool = cfg.source;
+  }
+  return promptPool;
+}
+
 /* ---------------- Setup ---------------- */
 function renderSetup() {
+  resetOnline();
+
+  const nameInput = el("input", {
+    type: "text",
+    placeholder: "Your name…",
+    id: "m-name",
+    style: "font-size:1.1rem; border-radius:14px; text-align:center; margin-bottom:14px; width:100%; background:rgba(0,0,0,0.3); border:1px solid rgba(255,255,255,0.1); color:#fff;"
+  });
+
+  const codeInput = el("input", {
+    type: "text",
+    placeholder: "4-LETTER CODE",
+    id: "m-code",
+    maxLength: 4,
+    style: "font-size:1.3rem; border-radius:14px; text-align:center; text-transform:uppercase; letter-spacing:6px; margin-bottom:10px; width:100%; background:rgba(0,0,0,0.3); border:1px solid rgba(255,255,255,0.1); color:#fff;"
+  });
+  codeInput.addEventListener("input", () => { codeInput.value = codeInput.value.toUpperCase(); });
+
   const saved = store.get(cfg.saveKey + ".names", ["", "", ""]);
   let names = saved.length >= 3 ? saved.slice() : ["", "", ""];
   const listWrap = el("div", { id: "mlist" });
@@ -50,16 +234,47 @@ function renderSetup() {
   draw();
 
   mount(
-    topbar("Most Likely To"),
+    topbar(cfg.title),
     el("div", { className: "sci-fi-panel center" }, [
-      el("p", { className: "muted", html: "Each round, read a prompt and vote on which player it describes the most. Pass the device around to vote secretly — the most-voted player is revealed!" }),
+      el("p", { className: "muted", html: "Each round, read a prompt and vote on which player it describes the most. Play local pass-and-play, or connect online to sync and stream gameplay screens!" })
     ]),
     el("div", { className: "sci-fi-panel" }, [
-      el("label", { text: "PLAYERS (3+)" }),
-      listWrap,
-      el("button", { className: "btn ghost small", style: "margin-top:10px;", text: "+ Add Player", onClick: () => { if (names.length < 15) { names.push(""); draw(); } else toast("15 max."); } }),
-    ]),
-    el("button", { className: "btn danger-btn pulsing", text: "START GAME", onClick: () => begin(names) })
+      el("label", { text: "🔄 OPTION A: LOCAL PASS & PLAY" }),
+      el("div", { style: "margin:10px 0;" }, [
+        el("label", { text: "CREW PLAYERS (3+)" }),
+        listWrap,
+        el("button", { className: "btn ghost small", style: "margin-top:10px; width:100%;", text: "+ Add Crewmate", onClick: () => { if (names.length < 15) { names.push(""); draw(); } else toast("15 max."); } })
+      ]),
+      el("button", { className: "btn danger-btn pulsing", style: "width:100%;", text: "START LOCAL GAME", onClick: () => begin(names) }),
+      el("hr", { style: "border:none; border-top:1px solid rgba(255,255,255,0.06); margin:20px 0;" }),
+      el("label", { text: "🛰️ OPTION B: ONLINE TERMINAL" }),
+      nameInput,
+      el("button", {
+        className: "btn ghost",
+        style: "width:100%; margin-bottom:12px;",
+        text: "Create Online Room",
+        onClick: () => {
+          const n = nameInput.value.trim();
+          if (!n) { toast("Enter your name first!"); return; }
+          myName = n;
+          connectRoom("create");
+        }
+      }),
+      codeInput,
+      el("button", {
+        className: "btn ghost",
+        style: "width:100%;",
+        text: "Join Online Room",
+        onClick: () => {
+          const n = nameInput.value.trim();
+          const code = codeInput.value.trim().toUpperCase();
+          if (!n) { toast("Enter your name first!"); return; }
+          if (!code || code.length !== 4) { toast("Enter room code!"); return; }
+          myName = n;
+          connectRoom("join", code);
+        }
+      })
+    ])
   );
 }
 
@@ -70,7 +285,7 @@ function begin(raw) {
   store.set(cfg.saveKey + ".names", players);
   s = {
     players: players.map((name) => ({ name, sus: 0 })),
-    deck: shuffle(cfg.source),
+    deck: shuffle(getFullSource()),
     pos: 0,
     round: 1,
     votes: [],     // votes[voterIdx] = targetIdx
@@ -78,6 +293,9 @@ function begin(raw) {
     phase: "prompt",
     ejected: [],
   };
+  if (onlineMode && isHost) {
+    syncGameState();
+  }
   render();
 }
 
@@ -95,6 +313,10 @@ function prompt() { return s.deck[s.pos % s.deck.length]; }
 
 /* ---------------- Prompt ---------------- */
 function renderPrompt() {
+  const nextBtn = onlineMode && !isHost
+    ? el("p", { className: "muted center anim-pulse", text: "Waiting for host to initiate voting..." })
+    : el("button", { className: "btn", text: "INITIATE VOTING PROTOCOL", onClick: () => { s.votes = []; s.vi = 0; s.phase = "handoff"; if (onlineMode && isHost) syncGameState(); render(); } });
+
   mount(
     topbar(`Round ${s.round}`),
     el("div", { className: "sci-fi-panel center" }, [
@@ -105,7 +327,7 @@ function renderPrompt() {
     ]),
     el("p", { className: "muted center", text: "Identify the suspect. Read aloud, then pass around to vote secretly." }),
     el("div", { className: "spacer" }),
-    el("button", { className: "btn", text: "INITIATE VOTING PROTOCOL", onClick: () => { s.votes = []; s.vi = 0; s.phase = "handoff"; render(); } }),
+    nextBtn,
     susBoard()
   );
 }
@@ -113,6 +335,10 @@ function renderPrompt() {
 /* ---------------- Voting handoff ---------------- */
 function renderHandoff() {
   const voter = s.players[s.vi].name;
+  const accessBtn = onlineMode && !isHost
+    ? el("p", { className: "muted center anim-pulse", text: `Waiting for ${voter} to access terminal...` })
+    : el("button", { className: "btn pulsing", text: `I am ${voter} — Access Terminal`, onClick: () => { s.phase = "vote"; render(); } });
+
   mount(
     topbar(`Round ${s.round}`),
     el("div", { className: "handoff sci-fi-panel center" }, [
@@ -121,7 +347,7 @@ function renderHandoff() {
       el("div", { className: "who", style: "font-size:2rem; font-weight:700; color:var(--cream); margin: 8px 0;", text: voter }),
       el("p", { className: "muted", text: `${s.vi + 1} of ${s.players.length} transmissions logged` }),
       el("div", { className: "spacer" }),
-      el("button", { className: "btn pulsing", text: `I am ${voter} — Access Terminal`, onClick: () => { s.phase = "vote"; render(); } }),
+      accessBtn,
     ])
   );
 }
@@ -129,6 +355,19 @@ function renderHandoff() {
 /* ---------------- Vote ---------------- */
 function renderVote() {
   const voterIdx = s.vi;
+
+  if (onlineMode && !isHost) {
+    mount(
+      topbar(`Round ${s.round}`),
+      el("div", { className: "sci-fi-panel center" }, [
+        el("div", { className: "big-icon sci-fi-pulse", style: "width:64px; height:64px; margin: 0 auto 12px; color: var(--sunset-soft);" }, [icons.eyeOff()]),
+        el("h3", { text: "Secret Ballot Active" }),
+        el("p", { className: "muted", text: `${s.players[voterIdx].name} is casting their vote privately...` })
+      ])
+    );
+    return;
+  }
+
   const grid = el("div", { className: "menu" });
   s.players.forEach((p, i) => {
     if (i === voterIdx) return; // can't vote for yourself
@@ -155,6 +394,7 @@ function castVote(targetIdx) {
   s.vi++;
   if (s.vi >= s.players.length) tallyVotes();
   else s.phase = "handoff";
+  if (onlineMode && isHost) syncGameState();
   render();
 }
 
@@ -187,6 +427,13 @@ function renderReveal() {
       ]));
     });
 
+  const nextBtn = onlineMode && !isHost
+    ? el("p", { className: "muted center anim-pulse", text: "Waiting for host to continue..." })
+    : el("div", { style: "display:flex; flex-direction:column; gap:10px; width:100%;" }, [
+        el("button", { className: "btn", text: "CONTINUE MISSION →", onClick: () => { nextRound(); if (onlineMode && isHost) syncGameState(); } }),
+        el("button", { className: "btn ghost", text: "END MISSION & REVIEW SUSPECT REPORT", onClick: () => { s.phase = "over"; if (onlineMode && isHost) syncGameState(); render(); } })
+      ]);
+
   mount(
     topbar(`Round ${s.round}`),
     el("div", { className: "sci-fi-panel center" }, [
@@ -198,9 +445,7 @@ function renderReveal() {
     ]),
     el("div", { className: "sci-fi-panel" }, [el("label", { text: "ROUND VOTE TALLIES" }), tallies]),
     el("div", { className: "spacer" }),
-    el("button", { className: "btn", text: "CONTINUE MISSION →", onClick: nextRound }),
-    el("div", { className: "spacer" }),
-    el("button", { className: "btn ghost", text: "END MISSION & REVIEW SUSPECT REPORT", onClick: () => { s.phase = "over"; render(); } })
+    nextBtn
   );
 }
 
@@ -236,6 +481,14 @@ function renderOver() {
       el("span", { className: "pts", text: `${p.sus} sus` }),
     ]));
   });
+
+  const actionButtons = onlineMode && !isHost
+    ? el("p", { className: "muted center anim-pulse", text: "Mission completed. Waiting for host..." })
+    : el("div", { style: "display:flex; flex-direction:column; gap:10px; width:100%;" }, [
+        el("button", { className: "btn", text: "RE-INITIATE VOYAGE", onClick: () => { begin(s.players.map((p) => p.name)); } }),
+        el("button", { className: "btn ghost", text: "RETURN TO MAIN TERMINAL", onClick: goHome })
+      ]);
+
   mount(
     topbar("Report Logged"),
     el("div", { className: "sci-fi-panel center" }, [
@@ -245,9 +498,7 @@ function renderOver() {
     ]),
     el("div", { className: "sci-fi-panel" }, [el("label", { text: "FINAL SUS-O-METER" }), board]),
     el("div", { className: "spacer" }),
-    el("button", { className: "btn", text: "RE-INITIATE VOYAGE", onClick: () => begin(s.players.map((p) => p.name)) }),
-    el("div", { className: "spacer" }),
-    el("button", { className: "btn ghost", text: "RETURN TO MAIN TERMINAL", onClick: goHome })
+    actionButtons
   );
 }
 
