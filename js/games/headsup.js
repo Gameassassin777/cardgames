@@ -436,6 +436,9 @@ function connectRoom(type, code = "") {
 function relay(action) {
   if (!socket || socket.readyState !== 1) return;
   socket.send(JSON.stringify({ type: "relay", code: roomCode, sender: myName, action }));
+  if (typeof handleRelay === "function") {
+    handleRelay(action, myName);
+  }
 }
 
 function startHeartbeat(playerCount = 1) {
@@ -552,6 +555,12 @@ let globalAppScreenOverlay = null;
 let globalWordCardRef = null;
 
 function handleRelay(action, sender) {
+  if (sender === myName) {
+    if (action.type !== "start_game" && action.type !== "headsup_next_round" && action.type !== "headsup_game_over") {
+      return;
+    }
+  }
+
   if (action.type === "start_game") {
     gState = {
       phase: "playing",
@@ -883,7 +892,6 @@ function renderSummaryScreen() {
               words: shuffle(gState.words.slice())
             };
             relay(nextAction);
-            handleRelay(nextAction, myName);
           }
         } else {
           gState.guesserIdx++;

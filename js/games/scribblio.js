@@ -476,6 +476,9 @@ function connectRoom(type, code = "") {
 function relay(action) {
   if (!socket || socket.readyState !== 1) return;
   socket.send(JSON.stringify({ type: "relay", code: roomCode, sender: myName, action }));
+  if (typeof handleRelay === "function") {
+    handleRelay(action, myName);
+  }
 }
 
 function startHeartbeat(playerCount = 1) {
@@ -592,6 +595,10 @@ let globalChatRef = null;
 let globalCorrectGuessers = [];
 
 function handleRelay(action, sender) {
+  if (sender === myName) {
+    if (action.type === "canvas_draw") return;
+  }
+
   if (action.type === "start_game") {
     gState = {
       phase: "playing",

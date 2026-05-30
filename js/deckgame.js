@@ -281,6 +281,7 @@ export function makeGame({ title, source, saveKey }) {
               style: "width:100%;",
               onClick: () => {
                 syncDeckState();
+                render();
               }
             })
           : el("p", { className: "muted center anim-pulse", text: "Waiting for host to start..." })
