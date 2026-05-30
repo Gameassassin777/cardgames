@@ -272,6 +272,12 @@ export function start(homeCallback) {
   };
   resetOnlineState();
   resetGame();
+  const __pj = (() => { try { return JSON.parse(sessionStorage.getItem("lakehouse.pendingJoin")||"null"); } catch(_) { return null; } })();
+  if (__pj && __pj.game === "catchphrase" && __pj.code && (Date.now() - __pj.ts) < 20000) {
+    sessionStorage.removeItem("lakehouse.pendingJoin");
+    myName = localStorage.getItem("lakehouse.playerName") || "";
+    if (myName) { connectRoom("join", __pj.code); return; }
+  }
   renderSetup();
 }
 
@@ -327,17 +333,7 @@ function sendRelay(action) {
 }
 
 /* ---------------- 1. Setup / Lobby Screen ---------------- */
-function renderSetup() {
-  // ── Direct join from main-menu lobby browser ──────────────────────
-  try {
-    const _pj = JSON.parse(sessionStorage.getItem("lakehouse.pendingJoin") || "null");
-    if (_pj && _pj.game === "catchphrase" && _pj.code && (Date.now() - _pj.ts) < 20000) {
-      sessionStorage.removeItem("lakehouse.pendingJoin");
-      myName = localStorage.getItem("lakehouse.playerName") || "";
-      if (myName) { connectRoom("join", _pj.code); return; }
-    }
-  } catch (_) {}
-  resetGame();
+function renderSetup() {  resetGame();
 
   // Mode Selection tab (Pass & Play vs Online)
   const passPlayBtn = el("button", {

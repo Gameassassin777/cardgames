@@ -319,6 +319,12 @@ function gameTopbar(title, onBack) {
 export function start(home) {
   goHome = home;
   resetAll();
+  const __pj = (() => { try { return JSON.parse(sessionStorage.getItem("lakehouse.pendingJoin")||"null"); } catch(_) { return null; } })();
+  if (__pj && __pj.game === "chronicles" && __pj.code && (Date.now() - __pj.ts) < 20000) {
+    sessionStorage.removeItem("lakehouse.pendingJoin");
+    myName = localStorage.getItem("lakehouse.playerName") || "";
+    if (myName) { connectRoom("join", __pj.code); return; }
+  }
   renderSetup();
 }
 
@@ -330,17 +336,7 @@ function resetAll() {
   isOnline = false;
 }
 
-function renderSetup() {
-  // ── Direct join from main-menu lobby browser ──────────────────────
-  try {
-    const _pj = JSON.parse(sessionStorage.getItem("lakehouse.pendingJoin") || "null");
-    if (_pj && _pj.game === "chronicles" && _pj.code && (Date.now() - _pj.ts) < 20000) {
-      sessionStorage.removeItem("lakehouse.pendingJoin");
-      myName = localStorage.getItem("lakehouse.playerName") || "";
-      if (myName) { connectRoom("join", _pj.code); return; }
-    }
-  } catch (_) {}
-  const savedName = localStorage.getItem("lakehouse.playerName") || localStorage.getItem("chronicles.name") || "";
+function renderSetup() {  const savedName = localStorage.getItem("lakehouse.playerName") || localStorage.getItem("chronicles.name") || "";
 
   const nameInput = el("input", {
     type: "text",
