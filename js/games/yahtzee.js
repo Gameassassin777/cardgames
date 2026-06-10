@@ -597,7 +597,11 @@ function initLocalGame(players) {
   const scores = players.map(() => {
     const pScore = {};
     YAHTZEE_CATEGORIES.forEach(c => {
-      pScore[c.id] = isTripleMode ? [null, null, null] : null;
+      if (c.id === "bonus_yahtzee") {
+        pScore[c.id] = isTripleMode ? [0, 0, 0] : 0;
+      } else {
+        pScore[c.id] = isTripleMode ? [null, null, null] : null;
+      }
     });
     return pScore;
   });
@@ -622,7 +626,11 @@ function initOnlineGame() {
   const scores = gState.players.map(() => {
     const pScore = {};
     YAHTZEE_CATEGORIES.forEach(c => {
-      pScore[c.id] = isTripleMode ? [null, null, null] : null;
+      if (c.id === "bonus_yahtzee") {
+        pScore[c.id] = isTripleMode ? [0, 0, 0] : 0;
+      } else {
+        pScore[c.id] = isTripleMode ? [null, null, null] : null;
+      }
     });
     return pScore;
   });
@@ -899,27 +907,33 @@ function renderBoard(yState) {
         const isFilled = val !== null && val !== undefined;
         const isCellActive = (viewedPlayerIdx === activeIdx) && isMyTurn;
 
-        let previewText = "—";
-        let isPreview = false;
-        if (!isFilled && isCellActive && !yState.usePhysicalDice && yState.rollsLeft < 3) {
-          const diceVals = yState.virtualDice.map(d => d.val);
-          const pot = getSuggestedYahtzeeScore(cat.id, diceVals);
-          if (pot !== null) {
-            previewText = String(pot * (colIdx + 1));
-            isPreview = true;
+        if (cat.id === "bonus_yahtzee") {
+          cols.push(el("td", { style: "text-align: center; font-weight: bold; color: var(--sunset-soft); font-size: 0.95rem; padding: 10px 0;" }, [
+            el("span", { text: val !== null && val !== undefined ? `+${val}` : "+0" })
+          ]));
+        } else {
+          let previewText = "—";
+          let isPreview = false;
+          if (!isFilled && isCellActive && !yState.usePhysicalDice && yState.rollsLeft < 3) {
+            const diceVals = yState.virtualDice.map(d => d.val);
+            const pot = getSuggestedYahtzeeScore(cat.id, diceVals);
+            if (pot !== null) {
+              previewText = String(pot * (colIdx + 1));
+              isPreview = true;
+            }
           }
-        }
 
-        const btn = el("button", {
-          className: isFilled ? "score-cell filled" : (isPreview ? "score-cell empty preview-score" : "score-cell empty"),
-          disabled: !isCellActive && !isFilled,
-          text: isFilled ? String(val) : previewText,
-          onClick: () => {
-            if (isFilled) return;
-            openScoreSelector(yState, viewedPlayerIdx, cat, colIdx);
-          }
-        });
-        cols.push(el("td", { style: "text-align: center;" }, [btn]));
+          const btn = el("button", {
+            className: isFilled ? "score-cell filled" : (isPreview ? "score-cell empty preview-score" : "score-cell empty"),
+            disabled: !isCellActive && !isFilled,
+            text: isFilled ? String(val) : previewText,
+            onClick: () => {
+              if (isFilled) return;
+              openScoreSelector(yState, viewedPlayerIdx, cat, colIdx);
+            }
+          });
+          cols.push(el("td", { style: "text-align: center;" }, [btn]));
+        }
       }
     } else {
       players.forEach((name, pIdx) => {
@@ -927,27 +941,33 @@ function renderBoard(yState) {
         const isFilled = val !== null && val !== undefined;
         const isCellActive = (pIdx === activeIdx) && isMyTurn;
 
-        let previewText = "—";
-        let isPreview = false;
-        if (!isFilled && isCellActive && !yState.usePhysicalDice && yState.rollsLeft < 3) {
-          const diceVals = yState.virtualDice.map(d => d.val);
-          const pot = getSuggestedYahtzeeScore(cat.id, diceVals);
-          if (pot !== null) {
-            previewText = String(pot);
-            isPreview = true;
+        if (cat.id === "bonus_yahtzee") {
+          cols.push(el("td", { style: "text-align: center; font-weight: bold; color: var(--sunset-soft); font-size: 0.95rem; padding: 10px 0;" }, [
+            el("span", { text: val !== null && val !== undefined ? `+${val}` : "+0" })
+          ]));
+        } else {
+          let previewText = "—";
+          let isPreview = false;
+          if (!isFilled && isCellActive && !yState.usePhysicalDice && yState.rollsLeft < 3) {
+            const diceVals = yState.virtualDice.map(d => d.val);
+            const pot = getSuggestedYahtzeeScore(cat.id, diceVals);
+            if (pot !== null) {
+              previewText = String(pot);
+              isPreview = true;
+            }
           }
+          
+          const btn = el("button", {
+            className: isFilled ? "score-cell filled" : (isPreview ? "score-cell empty preview-score" : "score-cell empty"),
+            disabled: !isCellActive && !isFilled,
+            text: isFilled ? String(val) : previewText,
+            onClick: () => {
+              if (isFilled) return;
+              openScoreSelector(yState, pIdx, cat);
+            }
+          });
+          cols.push(el("td", { style: "text-align: center;" }, [btn]));
         }
-        
-        const btn = el("button", {
-          className: isFilled ? "score-cell filled" : (isPreview ? "score-cell empty preview-score" : "score-cell empty"),
-          disabled: !isCellActive && !isFilled,
-          text: isFilled ? String(val) : previewText,
-          onClick: () => {
-            if (isFilled) return;
-            openScoreSelector(yState, pIdx, cat);
-          }
-        });
-        cols.push(el("td", { style: "text-align: center;" }, [btn]));
       });
     }
 
@@ -1248,8 +1268,6 @@ function triggerOnlineDiceRoll() {
     type: "trigger_roll",
     diceValues
   });
-
-  triggerOnlineRollAnimation(diceValues);
 }
 
 function triggerOnlineRollAnimation(diceValues) {
@@ -1370,7 +1388,6 @@ function openScoreSelector(yState, pIdx, category, colIdx = null) {
     if (category.id === "sm_straight") [0, 30].forEach(v => quickOptions.push(v));
     if (category.id === "lg_straight") [0, 40].forEach(v => quickOptions.push(v));
     if (category.id === "yahtzee") [0, 50].forEach(v => quickOptions.push(v));
-    if (category.id === "bonus_yahtzee") [0, 100, 200, 300].forEach(v => quickOptions.push(v));
   } else {
     // Virtual Mode: Cheat-proof suggestions. The only option is the mathematically correct suggested score!
     if (suggestedScore !== null) {
@@ -1417,6 +1434,49 @@ function openScoreSelector(yState, pIdx, category, colIdx = null) {
     });
   }
 
+  // Yahtzee Bonus Logic setup
+  const canGetYahtzeeBonus = (category.id !== "yahtzee") && (colIdx !== null
+    ? yState.scores[pIdx]["yahtzee"]?.[colIdx] === 50
+    : yState.scores[pIdx]["yahtzee"] === 50);
+
+  let bonusBanner = null;
+  let bonusBtn = null;
+  let physicalBonusChecked = false;
+
+  if (canGetYahtzeeBonus) {
+    if (!isPhysical) {
+      const rolledDice = yState.virtualDice.map(d => d.val);
+      const isYahtzeeRoll = rolledDice.length === 5 && rolledDice.every(v => v === rolledDice[0]);
+      if (isYahtzeeRoll) {
+        bonusBanner = el("div", {
+          style: "background: rgba(0, 255, 170, 0.1); border: 1px solid #00ffaa; border-radius: 10px; padding: 8px; margin-bottom: 12px; font-weight: bold; color: #00ffaa; font-size: 0.8rem;"
+        }, [
+          document.createTextNode("🎉 YAHTZEE BONUS DETECTED! (+100 will be added)")
+        ]);
+      }
+    } else {
+      bonusBtn = el("button", {
+        className: "btn ghost small",
+        text: "Rolled Yahtzee? Tap for +100 Bonus",
+        style: "width: 100%; margin-bottom: 12px; border: 1px dashed var(--sunset-soft); color: var(--sunset-soft);",
+        onClick: () => {
+          physicalBonusChecked = !physicalBonusChecked;
+          if (physicalBonusChecked) {
+            bonusBtn.className = "btn small";
+            bonusBtn.textContent = "✓ Yahtzee Bonus Selected (+100)";
+            bonusBtn.style.background = "var(--sunset-soft)";
+            bonusBtn.style.color = "#fff";
+          } else {
+            bonusBtn.className = "btn ghost small";
+            bonusBtn.textContent = "Rolled Yahtzee? Tap for +100 Bonus";
+            bonusBtn.style.background = "transparent";
+            bonusBtn.style.color = "var(--sunset-soft)";
+          }
+        }
+      });
+    }
+  }
+
   const saveBtn = el("button", {
     className: "btn",
     text: "Save Score",
@@ -1427,6 +1487,27 @@ function openScoreSelector(yState, pIdx, category, colIdx = null) {
       // Cheat-proofing: if not physical, clamp to mathematically correct score
       if (!isPhysical) {
         valToSave = suggestedScore !== null ? suggestedScore : 0;
+      }
+
+      // Check for Yahtzee Bonus
+      let earnedBonus = false;
+      if (canGetYahtzeeBonus) {
+        if (!isPhysical) {
+          const rolledDice = yState.virtualDice.map(d => d.val);
+          const isYahtzeeRoll = rolledDice.length === 5 && rolledDice.every(v => v === rolledDice[0]);
+          if (isYahtzeeRoll) earnedBonus = true;
+        } else {
+          if (physicalBonusChecked) earnedBonus = true;
+        }
+      }
+
+      if (earnedBonus) {
+        if (colIdx !== null) {
+          yState.scores[pIdx]["bonus_yahtzee"][colIdx] = (yState.scores[pIdx]["bonus_yahtzee"][colIdx] || 0) + 100;
+        } else {
+          yState.scores[pIdx]["bonus_yahtzee"] = (yState.scores[pIdx]["bonus_yahtzee"] || 0) + 100;
+        }
+        toast("🎉 Yahtzee Bonus +100 recorded!");
       }
 
       if (colIdx !== null) {
@@ -1455,6 +1536,27 @@ function openScoreSelector(yState, pIdx, category, colIdx = null) {
     text: "Scratch (0)",
     style: "margin-top: 8px;",
     onClick: () => {
+      // Check for Yahtzee Bonus (even when scratching, bonuses can still apply if conditions met)
+      let earnedBonus = false;
+      if (canGetYahtzeeBonus) {
+        if (!isPhysical) {
+          const rolledDice = yState.virtualDice.map(d => d.val);
+          const isYahtzeeRoll = rolledDice.length === 5 && rolledDice.every(v => v === rolledDice[0]);
+          if (isYahtzeeRoll) earnedBonus = true;
+        } else {
+          if (physicalBonusChecked) earnedBonus = true;
+        }
+      }
+
+      if (earnedBonus) {
+        if (colIdx !== null) {
+          yState.scores[pIdx]["bonus_yahtzee"][colIdx] = (yState.scores[pIdx]["bonus_yahtzee"][colIdx] || 0) + 100;
+        } else {
+          yState.scores[pIdx]["bonus_yahtzee"] = (yState.scores[pIdx]["bonus_yahtzee"] || 0) + 100;
+        }
+        toast("🎉 Yahtzee Bonus +100 recorded!");
+      }
+
       if (colIdx !== null) {
         yState.scores[pIdx][category.id][colIdx] = 0;
       } else {
@@ -1488,6 +1590,13 @@ function openScoreSelector(yState, pIdx, category, colIdx = null) {
     subTitle,
     inputDisplay
   ];
+
+  if (bonusBanner) {
+    modalContentChildren.push(bonusBanner);
+  }
+  if (bonusBtn) {
+    modalContentChildren.push(bonusBtn);
+  }
 
   if (quickOptions.length > 0) {
     modalContentChildren.push(
