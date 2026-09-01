@@ -453,7 +453,9 @@ export class RoomLobby {
     if (name && !name.startsWith("__")) {
       try {
         const gid = this.env.GLOBAL_STORE.idFromName("global");
-        this.env.GLOBAL_STORE.get(gid).fetch("http://global/session-track", {
+        // Awaited on purpose: an un-awaited subrequest can be cancelled when the
+        // handler returns, silently losing the index this feature depends on.
+        await this.env.GLOBAL_STORE.get(gid).fetch("http://global/session-track", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ name, code, game })
@@ -536,7 +538,8 @@ export class RoomLobby {
           if (players.length) {
             try {
               const gid = this.env.GLOBAL_STORE.idFromName("global");
-              this.env.GLOBAL_STORE.get(gid).fetch("http://global/results-save", {
+              // Awaited: dropping this write would silently lose a permanent result.
+              await this.env.GLOBAL_STORE.get(gid).fetch("http://global/results-save", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ code, game, players, at: Date.now() })
