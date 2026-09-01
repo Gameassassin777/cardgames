@@ -722,13 +722,13 @@ function syncLobbySettings() {
 /* ---------------- ONLINE NETWORKING ENGINE ---------------- */
 function createRoom() {
   renderLobbySpinner("Creating online room...");
-  socket = new WebSocket(`${wsUrl}/ws/create?name=${encodeURIComponent(myName)}`);
+  socket = new WebSocket(`${wsUrl}/ws/create?name=${encodeURIComponent(myName)}&game=catchphrase`);
   setupSocketListeners();
 }
 
 function joinRoom(code) {
   renderLobbySpinner(`Connecting to room ${code}...`);
-  socket = new WebSocket(`${wsUrl}/ws/join?code=${code}&name=${encodeURIComponent(myName)}`);
+  socket = new WebSocket(`${wsUrl}/ws/join?code=${code}&name=${encodeURIComponent(myName)}&game=catchphrase`);
   setupSocketListeners();
 }
 

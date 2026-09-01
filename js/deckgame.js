@@ -47,7 +47,9 @@ export function makeGame({ title, source, saveKey }) {
     }
 
     function getFullSource() {
-      const customKey = saveKey ? saveKey.replace("cabin_", "").replace("zesty_", "") : "";
+      // Family ("cabin_") decks get their own custom-card namespace so adult cards
+      // added to a zesty deck can never surface inside a familyFriendly one.
+      const customKey = saveKey ? (saveKey.startsWith("cabin_") ? saveKey : saveKey.replace("zesty_", "")) : "";
       const enabled = customKey ? store.get(customKey + ".enabled_decks", ["core"]) : ["core"];
       const customDecks = customKey ? store.get(customKey + ".custom_decks", []) : [];
       

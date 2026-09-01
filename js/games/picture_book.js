@@ -3,6 +3,15 @@
 import { el, mount, toast, shuffle, HTTP_BASE, WS_BASE } from "../ui.js";
 import { icons } from "../icons.js";
 
+// Escape user-supplied text before it goes anywhere near innerHTML.
+// Mad Lib answers, player names and room hosts are all player-typed and are
+// relayed to every device in the room (and persisted to the shared gallery).
+function escHtml(v) {
+  return String(v == null ? "" : v).replace(/[&<>"']/g, (c) => (
+    { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]
+  ));
+}
+
 
 
 
@@ -575,7 +584,7 @@ function renderRoomBrowser() {
       }
       res.forEach(r => {
         const info = el("div", { style: "text-align: left;" }, [
-          el("div", { html: `Room <strong style="color:var(--sunset-soft);">${r.code}</strong> • Host: ${r.host}` }),
+          el("div", { html: `Room <strong style="color:var(--sunset-soft);">${escHtml(r.code)}</strong> • Host: ${escHtml(r.host)}` }),
           el("div", { className: "muted", style: "font-size: 0.75rem;", text: `${r.playerCount} players active` })
         ]);
         const row = el("div", { className: "room-row" }, [
@@ -825,7 +834,7 @@ function handleRelay(action, sender) {
         const compiled = gState.rawSentences.map(sentence => {
           let temp = sentence;
           Object.entries(gState.madlibsAnswers).forEach(([k, v]) => {
-            temp = temp.replaceAll(`{${k}}`, `<span style="color:#00ffaa; text-shadow:0 0 4px rgba(0,255,170,0.25);">${v}</span>`);
+            temp = temp.replaceAll(`{${k}}`, `<span style="color:#00ffaa; text-shadow:0 0 4px rgba(0,255,170,0.25);">${escHtml(v)}</span>`);
           });
           return temp;
         });
@@ -1071,7 +1080,7 @@ function renderIllustratePhase() {
 
   const drawingLayout = el("div", { className: "panel center", style: "max-width: 500px; margin: 0 auto;" }, [
     el("blockquote", {
-      html: `Your assigned sentence to draw:<br><strong style="font-size:1.15rem; color:#fff;">"${sentence}"</strong>`,
+      html: `Your assigned sentence to draw:<br><strong style="font-size:1.15rem; color:#fff;">"${escHtml(sentence)}"</strong>`,
       style: "margin: 8px 0 16px; line-height: 1.4; border-left: none; padding: 0;"
     }),
     canvas,
@@ -1275,7 +1284,7 @@ function renderFinalScorecard() {
     el("div", { className: "panel center", style: "max-width: 480px; margin: 0 auto;" }, [
       el("h1", { text: "The End!", style: "color: var(--sunset-soft); font-size: 2.5rem; font-weight: 900; margin-top:0;" }),
       el("blockquote", {
-        html: `You have successfully completed and self-illustrated:<br><strong style="color:#00ffaa; font-size:1.25rem;">"${gState.storyTitle}"</strong>`,
+        html: `You have successfully completed and self-illustrated:<br><strong style="color:#00ffaa; font-size:1.25rem;">"${escHtml(gState.storyTitle)}"</strong>`,
         style: "border-left: none; padding: 0; text-align: center; margin: 16px 0;"
       }),
       el("p", { className: "muted", text: "A legendary collaborative illustrated chronicles is born!" }),
@@ -1318,7 +1327,7 @@ function renderPassDeviceScreen(pName, actionText, onConfirm) {
       el("p", { 
         className: "muted", 
         style: "font-size: 1.15rem; margin: 20px 0; line-height: 1.5;", 
-        html: `Hand the device secretly to <strong style="color:var(--sunset-soft); font-size: 1.35rem;">${pName}</strong> to <strong style="color:var(--sunset-soft);">${actionText}</strong>.` 
+        html: `Hand the device secretly to <strong style="color:var(--sunset-soft); font-size: 1.35rem;">${escHtml(pName)}</strong> to <strong style="color:var(--sunset-soft);">${actionText}</strong>.` 
       }),
       el("p", { className: "muted", style: "font-size: 0.85rem; display:block; margin-bottom: 20px;", text: "Ensure no other players can see your screen during your turn!" }),
       el("button", {
@@ -1406,7 +1415,7 @@ function compileLocalStory() {
   const compiled = gState.rawSentences.map(sentence => {
     let temp = sentence;
     Object.entries(gState.madlibsAnswers).forEach(([k, v]) => {
-      temp = temp.replaceAll(`{${k}}`, `<span style="color:#00ffaa; text-shadow:0 0 4px rgba(0,255,170,0.25);">${v}</span>`);
+      temp = temp.replaceAll(`{${k}}`, `<span style="color:#00ffaa; text-shadow:0 0 4px rgba(0,255,170,0.25);">${escHtml(v)}</span>`);
     });
     return temp;
   });
