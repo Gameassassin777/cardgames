@@ -35,6 +35,7 @@ export function makeGame(config) {
 }
 
 function resetOnline() {
+  if (wsKeepaliveInt) { clearInterval(wsKeepaliveInt); wsKeepaliveInt = null; }
   stopHeartbeat();
   if (socket) { try { socket.close(); } catch (_) {} socket = null; }
   onlineMode = false;
@@ -77,7 +78,10 @@ function startHeartbeat(playerCount = 1) {
     body: JSON.stringify({ code: roomCode, playerCount: onlinePlayers.length || playerCount })
   }).catch(() => {});
   ping();
-  heartbeatInt = setInterval(ping, 25000);
+  // Server prunes rooms after 12s without a ping (worker.js), so 25s
+  // made Most Likely To rooms vanish from every browser. Match the 5s
+  // used by every other game.
+  heartbeatInt = setInterval(ping, 5000);
 }
 
 function stopHeartbeat() {

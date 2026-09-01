@@ -139,6 +139,7 @@ export function start(home) {
 }
 
 function resetAll() {
+  if (wsKeepaliveInt) { clearInterval(wsKeepaliveInt); wsKeepaliveInt = null; }
   if (socket) { try { socket.close(); } catch (_) {} socket = null; }
   if (heartbeatInt) { clearInterval(heartbeatInt); heartbeatInt = null; }
   if (roomBrowserRefresh) { clearInterval(roomBrowserRefresh); roomBrowserRefresh = null; }
@@ -436,6 +437,12 @@ async function registerRoom() {
 }
 
 function applyLobby(players) {
+  // A join or leave must never destroy a game already in progress. This used
+  // to overwrite gState with a lobby object, so one player's brief disconnect
+  // wiped the match for everyone still playing.
+  if (gState && gState.phase && gState.phase !== "lobby") {
+    return;
+  }
   gState = { phase: "lobby", players };
   myPlayerIdx = players.indexOf(myName);
   if (isHost && roomCode) {
