@@ -88,6 +88,8 @@ function renderSetup() {  const savedName = localStorage.getItem("lakehouse.play
     const n = nameInput.value.trim();
     if (!n) { toast("Enter your name first!"); return null; }
     localStorage.setItem("gartic.name", n);
+    // Keep the shared key in sync — the global room browser reads only this one.
+    localStorage.setItem("lakehouse.playerName", n);
     return n;
   };
 

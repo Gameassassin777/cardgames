@@ -131,6 +131,20 @@ export function makeGame(config) {
     cfg = config;
     resetOnlineState();
 
+    // Honour a pending auto-join handed over by the global room browser.
+    // Every other online game already did this; without it Cards Against
+    // Monkeys / Cabin Fever rooms were listed but could never be joined.
+    const __pj = (() => {
+      try { return JSON.parse(sessionStorage.getItem("lakehouse.pendingJoin") || "null"); }
+      catch (_) { return null; }
+    })();
+    const myGameId = (cfg.saveKey || "cam").split(".")[0];
+    if (__pj && __pj.game === myGameId && __pj.code && (Date.now() - __pj.ts) < 20000) {
+      sessionStorage.removeItem("lakehouse.pendingJoin");
+      myName = localStorage.getItem("lakehouse.playerName") || "";
+      if (myName) { joinRoom(__pj.code); return; }
+    }
+
     const saved = store.get(cfg.saveKey, null);
     if (saved && saved.phase && saved.phase !== "over" && !saved.isOnline) {
       renderResume(saved);

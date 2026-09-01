@@ -25,6 +25,12 @@ export function makeGame({ title, source, saveKey }) {
     
     if (isCampfire) document.body.classList.add("campfire-theme");
 
+    const __deckId = (saveKey || "deck").split(".")[0];
+    const __pj = (() => {
+      try { return JSON.parse(sessionStorage.getItem("lakehouse.pendingJoin") || "null"); }
+      catch (_) { return null; }
+    })();
+
     const cleanHome = () => {
       resetOnline();
       if (isCampfire) document.body.classList.remove("campfire-theme");
@@ -38,10 +44,48 @@ export function makeGame({ title, source, saveKey }) {
     let isHost = false;
     let onlinePlayers = [];
     let chosenCard = null;
+    let heartbeatInt = null;
+    let started = false; // true once cards are being shown, so a join can't overlay the lobby
+
+    // Each deck gets its own room namespace (e.g. cabin_wyr vs wyr) so a cozy
+    // room and its adult counterpart can never be confused for each other.
+    const deckId = (saveKey || "deck").split(".")[0];
+
+    // These rooms were never registered with the directory, so deck games were
+    // invisible in every room browser and reachable only by typing a code.
+    async function registerRoom() {
+      try {
+        await fetch(`${HTTP_BASE}/rooms/register`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            code: roomCode, host: myName, playerCount: onlinePlayers.length,
+            game: deckId, private: false, lastPing: Date.now()
+          })
+        });
+      } catch (_) {}
+    }
+
+    function startHeartbeat() {
+      stopHeartbeat();
+      const ping = () => fetch(`${HTTP_BASE}/rooms/heartbeat`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code: roomCode, playerCount: onlinePlayers.length || 1 })
+      }).catch(() => {});
+      ping();
+      heartbeatInt = setInterval(ping, 5000);
+    }
+
+    function stopHeartbeat() {
+      if (heartbeatInt) { clearInterval(heartbeatInt); heartbeatInt = null; }
+    }
 
     function resetOnline() {
+      stopHeartbeat();
       if (socket) { try { socket.close(); } catch (_) {} socket = null; }
       onlineMode = false;
+      started = false;
       roomCode = ""; myName = ""; isHost = false; onlinePlayers = [];
       chosenCard = null;
     }
@@ -228,8 +272,8 @@ export function makeGame({ title, source, saveKey }) {
       );
 
       const url = type === "create"
-        ? `${WS_BASE}/ws/create?name=${encodeURIComponent(myName)}&game=deckgame`
-        : `${WS_BASE}/ws/join?code=${code}&name=${encodeURIComponent(myName)}&game=deckgame`;
+        ? `${WS_BASE}/ws/create?name=${encodeURIComponent(myName)}&game=${deckId}`
+        : `${WS_BASE}/ws/join?code=${code}&name=${encodeURIComponent(myName)}&game=${deckId}`;
 
       isHost = (type === "create");
       socket = new WebSocket(url);
@@ -246,6 +290,9 @@ export function makeGame({ title, source, saveKey }) {
             applyLobby();
           } else if (d.type === "relay") {
             if (d.action.type === "STATE_SYNC") {
+              // Receiving a card means play is under way — remember it so a
+              // later join/leave can't paint the lobby over this screen.
+              started = true;
               renderOnlineMirror(d.action.state);
             } else if (d.action.type === "quit") {
               toast("Lobby closed by host.");
@@ -260,6 +307,14 @@ export function makeGame({ title, source, saveKey }) {
     }
 
     function applyLobby() {
+      if (isHost && roomCode) { registerRoom(); startHeartbeat(); }
+
+      // Once play has started, a join or leave must not paint the lobby over
+      // the card everyone is looking at.
+      if (started) {
+        if (isHost) syncDeckState();
+        return;
+      }
       const pRows = onlinePlayers.map((p, i) => {
         return el("div", {
           style: "display:flex; justify-content:space-between; padding:10px 14px; background:rgba(255,255,255,0.02); border-radius:10px; margin-bottom:6px;"
@@ -282,6 +337,7 @@ export function makeGame({ title, source, saveKey }) {
               text: "Start Game ➔",
               style: "width:100%;",
               onClick: () => {
+                started = true;
                 syncDeckState();
                 render();
               }
@@ -367,6 +423,7 @@ export function makeGame({ title, source, saveKey }) {
       const nameInput = el("input", {
         type: "text",
         placeholder: "Your name…",
+        value: localStorage.getItem("lakehouse.playerName") || "",
         id: "d-name",
         style: "font-size:1.1rem; border-radius:14px; text-align:center; margin-bottom:14px; width:100%;"
       });
@@ -405,6 +462,7 @@ export function makeGame({ title, source, saveKey }) {
                 const n = nameInput.value.trim();
                 if (!n) { toast("Enter your name first!"); return; }
                 myName = n;
+                localStorage.setItem("lakehouse.playerName", n);
                 connectRoom("create");
               }
             }),
@@ -418,6 +476,7 @@ export function makeGame({ title, source, saveKey }) {
                 if (!n) { toast("Enter your name first!"); return; }
                 if (!code || code.length !== 4) { toast("Enter room code!"); return; }
                 myName = n;
+                localStorage.setItem("lakehouse.playerName", n);
                 connectRoom("join", code);
               }
             })
@@ -531,6 +590,15 @@ export function makeGame({ title, source, saveKey }) {
     }
 
     loadPersistentDeck();
+
+    // Auto-join a room handed over by the room browser, matching how every
+    // other online game handles the pendingJoin token.
+    if (__pj && __pj.game === __deckId && __pj.code && (Date.now() - __pj.ts) < 20000) {
+      sessionStorage.removeItem("lakehouse.pendingJoin");
+      myName = localStorage.getItem("lakehouse.playerName") || "";
+      if (myName) { connectRoom("join", __pj.code); return; }
+    }
+
     renderSetup();
   };
 }

@@ -135,8 +135,10 @@ function startAutoconnectMode() {
         }
       }
 
-      if (res.length > 2) {
-        // Just general heads-up toast
+      // This sits inside a 2s poll, so only say it once per session instead of
+      // toasting every two seconds forever.
+      if (res.length > 2 && !excessRoomsWarned) {
+        excessRoomsWarned = true;
         toast(`Active lobbies exceed 2. Monitoring the first two rooms.`);
       }
     } catch (_) {}
@@ -145,6 +147,8 @@ function startAutoconnectMode() {
   pollRooms();
   autoconnectInt = setInterval(pollRooms, 2000);
 }
+
+let excessRoomsWarned = false;
 
 function connectRoom(code, gameId = "") {
   // Create state holder

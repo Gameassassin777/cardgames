@@ -483,7 +483,15 @@ const GAME_LABELS = {
   quiplash: "Quiplash", telestrations: "Telestrations", blank_slate: "Blank Slate",
   farkle: "Farkle", headsup: "Heads Up", charades: "Charades",
   liars_dice: "Liar's Dice", yahtzee: "Yahtzee", catchphrase: "Catchphrase",
-  meeting: "Most Likely To", cam: "Cards Against Monkeys", cabin: "Cabin Fever",
+  meeting: "Zesty Most Likely To", cabin_meeting: "Cabin Most Likely To",
+  cam: "Cards Against Monkeys", cabin: "Cabin Fever",
+  // Draw decks — these register rooms now, so label them properly instead of
+  // falling through to a raw id.
+  rizz: "Rizz Roulette",
+  cabin_wyr: "Cabin Would You Rather", wyr: "Zesty Would You Rather",
+  cabin_flags: "Cabin Red / Green Flag", flags: "Zesty Red / Green Flag",
+  truths: "Cabin Truth or Dare", zesty_truths: "Zesty Truth or Dare",
+  cabin_roasts: "Cabin Roasts", roasts: "Zesty Roasts",
 };
 
 function renderLobbyBrowser() {
@@ -508,11 +516,27 @@ function renderLobbyBrowser() {
           telestrations: startTelestrations, blank_slate: startBlankSlate,
           farkle: startFarkle, headsup: startHeadsup, charades: startCharades,
           liars_dice: startLiarsDice, yahtzee: startYahtzee,
-          catchphrase: catchphrase.start, meeting: h => zestyMeeting(h),
+          catchphrase: catchphrase.start,
+          // Cozy and Zesty Most Likely To are separate decks — routing every
+          // "meeting" room to the Zesty one silently swapped the deck.
+          meeting: h => zestyMeeting(h), cabin_meeting: h => cozyMeeting(h),
+          // Listed in GAME_LABELS but previously had no handler, so joining a
+          // Cards Against Monkeys / Cabin Fever room was always refused.
+          cam: monkeys, cabin: cabin,
+          // Deck games are reachable from the browser now too.
+          rizz: rizzRoulette,
+          cabin_wyr: cozyWouldYouRather, wyr: zestyWouldYouRather,
+          cabin_flags: cozyRedGreen, flags: zestyRedGreen,
+          truths: cozyTruths, zesty_truths: zestyTruths,
+          cabin_roasts: cozyRoasts, roasts: zestyRoasts,
         }[r.game];
         const row = el("div", { className: "room-row" }, [
           el("div", { style: "text-align:left; flex:1; min-width:0;" }, [
-            el("div", { html: `<strong style="color:var(--sunset-soft);">${gameLabel}</strong> &nbsp;·&nbsp; Room <strong>${r.code}</strong>` }),
+            el("div", {}, [
+              el("strong", { style: "color:var(--sunset-soft);", text: gameLabel }),
+              document.createTextNode(" · Room "),
+              el("strong", { text: String(r.code || "") })
+            ]),
             el("div", { className: "muted", style: "font-size:0.75rem;", text: `Host: ${r.host} · ${r.playerCount} player${r.playerCount !== 1 ? "s" : ""}` })
           ]),
           el("button", {
@@ -520,10 +544,12 @@ function renderLobbyBrowser() {
             style: "margin:0; padding:6px 14px; flex-shrink:0;",
             text: "Join",
             onClick: () => {
-              if (refreshTimer) clearInterval(refreshTimer);
+              // Bail BEFORE stopping the refresh timer, otherwise a refused
+              // join left the room list frozen and never refreshing again.
               if (!startFn) { toast(`Can't auto-join ${gameLabel} yet.`); return; }
               const name = localStorage.getItem("lakehouse.playerName") || "";
-              if (!name) { toast("Set your online name on the home screen first!"); return; }
+              if (!name) { toast("Enter your name first!"); return; }
+              if (refreshTimer) clearInterval(refreshTimer);
               sessionStorage.setItem("lakehouse.pendingJoin",
                 JSON.stringify({ code: r.code, game: r.game, ts: Date.now() }));
               startFn(home);
@@ -632,7 +658,9 @@ function home() {
     ]);
 
     const tile = el("button", {
-      className: "tile",
+      // `category-tile` gives the stacked layout an explicit hook, so it does
+      // not depend on :has() (unsupported before Safari 15.4).
+      className: "tile category-tile",
       onClick: () => openSubLobby(cat)
     }, [header, body]);
 
