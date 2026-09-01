@@ -25,6 +25,7 @@ let myIdx = -1;
 let gState = null;
 let heartbeatInt = null;
 let wsKeepaliveInt = null;
+let rejoinTried = false;
 let roomBrowserRefresh = null;
 
 let isOnline = false;
@@ -340,6 +341,7 @@ export function start(home) {
 
 function resetAll() {
   if (wsKeepaliveInt) { clearInterval(wsKeepaliveInt); wsKeepaliveInt = null; }
+  rejoinTried = false;
   if (socket) { try { socket.close(); } catch (_) {} socket = null; }
   if (heartbeatInt) { clearInterval(heartbeatInt); heartbeatInt = null; }
   if (roomBrowserRefresh) { clearInterval(roomBrowserRefresh); roomBrowserRefresh = null; }
@@ -637,6 +639,7 @@ function connectRoom(type, code = "") {
   socket = new WebSocket(url);
 
   socket.addEventListener("open", () => {
+    rejoinTried = false; // a healthy connection re-arms the one-shot rejoin
     if (wsKeepaliveInt) clearInterval(wsKeepaliveInt);
     wsKeepaliveInt = setInterval(() => {
       if (socket && socket.readyState === 1) socket.send(JSON.stringify({ type: "ping" }));
@@ -671,7 +674,23 @@ function connectRoom(type, code = "") {
 
   socket.onclose = () => {
     stopHeartbeat();
-    if (gState && gState.phase !== "done") {
+    if (wsKeepaliveInt) { clearInterval(wsKeepaliveInt); wsKeepaliveInt = null; }
+    const wasPlaying = gState && gState.phase !== "done";
+    // A brief drop shouldn't end the game. Rejoin the same room once, keeping
+    // host status, instead of dumping straight to setup (which discarded the
+    // room code and left no way back in).
+    if (wasPlaying && roomCode && myName && !rejoinTried) {
+      rejoinTried = true;
+      const code = roomCode;
+      const wasHost = isHost;
+      toast("Connection lost — reconnecting…");
+      // Clear state first: applyLobby's in-progress guard would otherwise
+      // swallow the rejoin and leave this client on a blank screen.
+      gState = null;
+      setTimeout(() => { connectRoom("join", code); isHost = wasHost; }, 1200);
+      return;
+    }
+    if (wasPlaying || rejoinTried) {
       toast("Disconnected from room.");
       resetAll();
       renderSetup();
@@ -720,6 +739,10 @@ function applyLobby(players) {
   // to overwrite gState with a lobby object, so one player's brief disconnect
   // wiped the match for everyone still playing.
   if (gState && gState.phase && gState.phase !== "lobby") {
+    // Host re-broadcasts the live state so a (re)joining player catches up.
+    // The action carries `state`, so the relay also caches it and replays it to
+    // the next socket that connects.
+    if (isHost) relay({ type: "CHRONICLES_FULL_SYNC", state: gState });
     return;
   }
   gState = { phase: "lobby", players };
@@ -815,6 +838,9 @@ function handleRelay(action, sender) {
       storyTitle: action.storyTitle,
       rawSentences: action.rawSentences,
       blanks: action.blanks,
+      // Everyone keeps the full assignment map so a resynced client can rebuild
+      // its own blanks instead of inheriting the host's.
+      assignments: action.assignments,
       myBlanks: action.assignments[gState.players[myIdx] ?? myName] || [],
       madlibsAnswers: {}, // key -> word
       drawings: {}, // player -> dataUrl
@@ -865,6 +891,9 @@ function handleRelay(action, sender) {
   else if (action.type === "CHRONICLES_COMPILED") {
     gState.phase = "illustrate";
     gState.compiledSentences = action.compiledSentences;
+    // Kept for the same reason as `assignments` above: a resynced client needs
+    // to look up its own sentence, not whichever one the host was drawing.
+    gState.drawingAssignments = action.drawingAssignments;
     gState.mySentence = action.drawingAssignments[gState.players[myIdx] ?? myName];
     renderIllustratePhase();
   }
@@ -903,6 +932,39 @@ function handleRelay(action, sender) {
     gState.activeSlideIdx = action.slideIdx;
     renderReviewPhase();
   }
+
+  else if (action.type === "CHRONICLES_FULL_SYNC") {
+    // Full-state resync so a (re)joining player lands back in the live game.
+    // A client already sitting on this phase keeps what it has — otherwise the
+    // host's own echo (relay() calls handleRelay locally) and every join/leave
+    // would wipe a half-filled Mad Lib form or an in-progress drawing.
+    if (gState && gState.phase === action.state.phase) return;
+    gState = action.state;
+    myIdx = gState.players.indexOf(myName);
+    // The snapshot is the host's, so its per-player fields are the host's too.
+    // Rebuild this client's blanks/sentence from the shared assignment maps and
+    // drop anything already submitted, so nothing is asked for twice.
+    const meName = gState.players[myIdx] ?? myName;
+    if (gState.assignments) {
+      gState.myBlanks = (gState.assignments[meName] || [])
+        .filter(b => !(b.key in (gState.madlibsAnswers || {})));
+    }
+    if (gState.drawingAssignments) {
+      gState.mySentence = (gState.drawings && gState.drawings[meName])
+        ? null
+        : gState.drawingAssignments[meName];
+    }
+    renderCurrentPhase();
+  }
+}
+
+// Re-mounts whatever screen the current phase owns. Used by the resync path.
+function renderCurrentPhase() {
+  const phase = gState && gState.phase;
+  if (phase === "madlibs") renderMadLibPhase();
+  else if (phase === "illustrate") renderIllustratePhase();
+  else if (phase === "review") renderReviewPhase();
+  else if (gState && gState.players) renderLobby();
 }
 
 // ── Online Mad Libs Input ────────────────────────────────────────────────────

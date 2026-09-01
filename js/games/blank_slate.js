@@ -16,6 +16,7 @@ let isHost = false;
 let gState = null;
 let heartbeatInt = null;
 let wsKeepaliveInt = null;
+let rejoinTried = false;
 let roomBrowserRefresh = null;
 
 let isOnline = false;
@@ -140,6 +141,7 @@ export function start(home) {
 
 function resetAll() {
   if (wsKeepaliveInt) { clearInterval(wsKeepaliveInt); wsKeepaliveInt = null; }
+  rejoinTried = false;
   if (socket) { try { socket.close(); } catch (_) {} socket = null; }
   if (heartbeatInt) { clearInterval(heartbeatInt); heartbeatInt = null; }
   if (roomBrowserRefresh) { clearInterval(roomBrowserRefresh); roomBrowserRefresh = null; }
@@ -359,6 +361,7 @@ function connectRoom(type, code = "") {
   socket = new WebSocket(url);
 
   socket.addEventListener("open", () => {
+    rejoinTried = false; // a healthy connection re-arms the one-shot rejoin
     if (wsKeepaliveInt) clearInterval(wsKeepaliveInt);
     wsKeepaliveInt = setInterval(() => {
       if (socket && socket.readyState === 1) socket.send(JSON.stringify({ type: "ping" }));
@@ -393,7 +396,23 @@ function connectRoom(type, code = "") {
 
   socket.onclose = () => {
     stopHeartbeat();
-    if (gState && gState.phase !== "done") {
+    if (wsKeepaliveInt) { clearInterval(wsKeepaliveInt); wsKeepaliveInt = null; }
+    const wasPlaying = gState && gState.phase !== "done";
+    // A brief drop shouldn't end the game. Rejoin the same room once, keeping
+    // host status, instead of dumping straight to setup (which discarded the
+    // room code and left no way back in).
+    if (wasPlaying && roomCode && myName && !rejoinTried) {
+      rejoinTried = true;
+      const code = roomCode;
+      const wasHost = isHost;
+      toast("Connection lost — reconnecting…");
+      // Clear state first: applyLobby's in-progress guard would otherwise
+      // swallow the rejoin and leave this client on a blank screen.
+      gState = null;
+      setTimeout(() => { connectRoom("join", code); isHost = wasHost; }, 1200);
+      return;
+    }
+    if (wasPlaying || rejoinTried) {
       toast("Disconnected from room.");
       resetAll();
       renderSetup();
@@ -441,6 +460,9 @@ function applyLobby(players) {
   // to overwrite gState with a lobby object, so one player's brief disconnect
   // wiped the match for everyone still playing.
   if (gState && gState.phase && gState.phase !== "lobby") {
+    // Host re-broadcasts the whole live state so a (re)joining player catches
+    // up instead of being stranded on a blank screen for the rest of the game.
+    if (isHost) relay({ type: "BLANK_SLATE_FULL_SYNC", state: gState });
     return;
   }
   gState = { phase: "lobby", players };
@@ -572,6 +594,33 @@ function handleRelay(action, sender) {
     gState.activePrompt = "";
     gState.answers = {};
     gState.submittedCount = 0;
+    renderPromptScreen();
+  }
+
+  else if (action.type === "BLANK_SLATE_FULL_SYNC") {
+    isOnline = true;
+    gState = action.state;
+    // In-game players are { name, score } objects, so match on the name.
+    myPlayerIdx = gState.players.findIndex(p => p.name === myName);
+    renderCurrentPhase();
+  }
+}
+
+/* ── Full-State Resync ──────────────────────────────────────────────────────── */
+// Redraws whatever screen gState.phase says we belong on, using the same
+// renderer that phase's own relay handler uses.
+function renderCurrentPhase() {
+  if (!gState || !gState.phase) return;
+
+  if (gState.phase === "lobby") {
+    renderLobby();
+  } else if (gState.phase === "reveal") {
+    renderRevealScreen();
+  } else if (gState.phase === "gameover") {
+    // The game over relay carries its own ranking; rebuild the same order here.
+    renderGameOverScreen(gState.players.slice().sort((a, b) => b.score - a.score));
+  } else {
+    // "select" and "cue" both live behind renderPromptScreen().
     renderPromptScreen();
   }
 }

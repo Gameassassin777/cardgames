@@ -15,6 +15,13 @@ let onlinePlayers = [];
 let heartbeatInt = null;
 let wsKeepaliveInt = null;
 
+// Cozy and Zesty Most Likely To are different decks. They both registered as
+// game "meeting", so the room browser could not tell them apart and joining a
+// Cabin room launched the Zesty deck. Give each its own room namespace.
+function gameId() {
+  return (cfg && cfg.saveKey && cfg.saveKey.startsWith("cabin_")) ? "cabin_meeting" : "meeting";
+}
+
 export function makeGame(config) {
   return function start(home) {
     cfg = config;
@@ -25,7 +32,7 @@ export function makeGame(config) {
       home();
     };
     const __pj = (() => { try { return JSON.parse(sessionStorage.getItem("lakehouse.pendingJoin")||"null"); } catch(_) { return null; } })();
-    if (__pj && __pj.game === "meeting" && __pj.code && (Date.now() - __pj.ts) < 20000) {
+    if (__pj && __pj.game === gameId() && __pj.code && (Date.now() - __pj.ts) < 20000) {
       sessionStorage.removeItem("lakehouse.pendingJoin");
       myName = localStorage.getItem("lakehouse.playerName") || "";
       if (myName) { connectRoom("join", __pj.code); return; }
@@ -63,7 +70,7 @@ async function registerRoom() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         code: roomCode, host: myName, playerCount: onlinePlayers.length,
-        game: "meeting", private: false,
+        game: gameId(), private: false,
         lastPing: Date.now()
       }),
     });
@@ -100,8 +107,8 @@ function connectRoom(type, code = "") {
 
   isHost = (type === "create");
   const url = type === "create"
-    ? `${WS_BASE}/ws/create?name=${encodeURIComponent(myName)}&game=meeting`
-    : `${WS_BASE}/ws/join?code=${code}&name=${encodeURIComponent(myName)}&game=meeting`;
+    ? `${WS_BASE}/ws/create?name=${encodeURIComponent(myName)}&game=${gameId()}`
+    : `${WS_BASE}/ws/join?code=${code}&name=${encodeURIComponent(myName)}&game=${gameId()}`;
 
   socket = new WebSocket(url);
 
@@ -142,6 +149,13 @@ function applyLobby() {
   if (isHost && roomCode) {
     registerRoom();
     startHeartbeat(onlinePlayers.length);
+  }
+
+  // A join or leave must not paint the lobby over a running meeting. Keep
+  // playing and let the host re-sync so a (re)joining crewmate catches up.
+  if (s && s.phase && s.phase !== "over") {
+    if (isHost) syncGameState();
+    return;
   }
 
   const pRows = onlinePlayers.map((p, i) => {
@@ -221,7 +235,7 @@ function renderRoomBrowser() {
   const loadRooms = async () => {
     try {
       listEl.innerHTML = '<p class="muted center" style="margin:16px 0;">Loading rooms…</p>';
-      const res = await fetch(`${HTTP_BASE}/rooms/list?game=meeting`).then(r => r.json());
+      const res = await fetch(`${HTTP_BASE}/rooms/list?game=${gameId()}`).then(r => r.json());
       listEl.innerHTML = "";
       if (res.length === 0) {
         listEl.innerHTML = '<p class="muted center" style="margin:16px 0;">No active rooms. Create one!</p>';

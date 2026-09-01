@@ -15,6 +15,7 @@ let isHost = false;
 let gState = null;
 let heartbeatInt = null;
 let wsKeepaliveInt = null;
+let rejoinTried = false;
 let roomBrowserRefresh = null;
 
 let isOnline = false;
@@ -109,6 +110,7 @@ export function start(home) {
 
 function resetAll() {
   if (wsKeepaliveInt) { clearInterval(wsKeepaliveInt); wsKeepaliveInt = null; }
+  rejoinTried = false;
   if (socket) { try { socket.close(); } catch (_) {} socket = null; }
   if (heartbeatInt) { clearInterval(heartbeatInt); heartbeatInt = null; }
   if (roomBrowserRefresh) { clearInterval(roomBrowserRefresh); roomBrowserRefresh = null; }
@@ -412,6 +414,7 @@ function connectRoom(type, code = "") {
   socket = new WebSocket(url);
 
   socket.addEventListener("open", () => {
+    rejoinTried = false; // a healthy connection re-arms the one-shot rejoin
     if (wsKeepaliveInt) clearInterval(wsKeepaliveInt);
     wsKeepaliveInt = setInterval(() => {
       if (socket && socket.readyState === 1) socket.send(JSON.stringify({ type: "ping" }));
@@ -446,7 +449,23 @@ function connectRoom(type, code = "") {
 
   socket.onclose = () => {
     stopHeartbeat();
-    if (gState && gState.phase !== "done") {
+    if (wsKeepaliveInt) { clearInterval(wsKeepaliveInt); wsKeepaliveInt = null; }
+    const wasPlaying = gState && gState.phase !== "done";
+    // A brief drop shouldn't end the game. Rejoin the same room once, keeping
+    // host status, instead of dumping straight to setup (which discarded the
+    // room code and left no way back in).
+    if (wasPlaying && roomCode && myName && !rejoinTried) {
+      rejoinTried = true;
+      const code = roomCode;
+      const wasHost = isHost;
+      toast("Connection lost — reconnecting…");
+      // Clear state first: applyLobby's in-progress guard would otherwise
+      // swallow the rejoin and leave this client on a blank screen.
+      gState = null;
+      setTimeout(() => { connectRoom("join", code); isHost = wasHost; }, 1200);
+      return;
+    }
+    if (wasPlaying || rejoinTried) {
       toast("Disconnected from room.");
       resetAll();
       renderSetup();
@@ -496,6 +515,9 @@ function applyLobby(playersList) {
   // to overwrite gState with a lobby object, so one player's brief disconnect
   // wiped the match for everyone still playing.
   if (gState && gState.phase && gState.phase !== "lobby") {
+    // Host re-broadcasts the whole live state so a (re)joining player catches
+    // up instead of being stranded on a blank screen for the rest of the game.
+    if (isHost) relay({ type: "HEADSUP_FULL_SYNC", state: gState });
     return;
   }
   gState = {
@@ -650,6 +672,38 @@ function handleRelay(action, sender) {
     const correctCount = gState.history.filter(h => h.correct).length;
     gState.players[gState.guesserIdx].score += correctCount;
     renderSummaryScreen();
+  } else if (action.type === "HEADSUP_FULL_SYNC") {
+    gState = action.state;
+    // In-game players are { name, score } objects, so match on the name.
+    myPlayerIdx = gState.players.findIndex(p => (typeof p === "string" ? p : p.name) === myName);
+    // The synced copy carries the sender's interval handle; keeping it would
+    // let a later clearInterval() kill an unrelated timer on this device.
+    gState.timerInterval = null;
+    renderCurrentPhase();
+  }
+}
+
+// ── Full-State Resync ────────────────────────────────────────────────────────
+// Redraws whatever screen gState says we belong on. A round already in flight
+// is joined as a watcher: re-entering the guesser loop would stack a second
+// orientation listener and a second 60s timer on top of the live ones.
+function renderCurrentPhase() {
+  if (!gState || !gState.phase) return;
+
+  const isGuesser = (gState.guesserIdx === myPlayerIdx);
+
+  if (gState.phase === "gameover") {
+    renderGameOverScreen();
+  } else if (gState.active) {
+    launchOnlineClueLoop();
+  } else if (gState.timeLeft <= 0) {
+    renderSummaryScreen();
+  } else if (isGuesser) {
+    // Rejoining mid-countdown: the handoff screen is the stable way back in,
+    // since run321Countdown() would start a second ticking loop for us.
+    renderHandoffScreen();
+  } else {
+    run321Countdown();
   }
 }
 

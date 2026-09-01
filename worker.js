@@ -308,8 +308,37 @@ export class GlobalStore {
 }
 
 // ── RoomLobby Durable Object ──────────────────────────────────────────────────
+// How long a room's last known state is kept after everyone has gone.
+// Previously state lived only in Durable Object memory, so once the last
+// socket closed the DO was evicted and the game was unrecoverable.
+const ROOM_STATE_TTL_MS = 2 * 60 * 60 * 1000; // 2 hours
+
 export class RoomLobby {
-  constructor(state, env) { this.state = state; this.env = env; this.sessions = new Map(); }
+  constructor(state, env) {
+    this.state = state;
+    this.env = env;
+    this.sessions = new Map();
+    this.lastState = null;
+    this.lastStateSender = null;
+    // Rehydrate from durable storage before serving anything, so a room that
+    // emptied out (or a DO that was evicted) can still replay its game.
+    this.state.blockConcurrencyWhile(async () => {
+      try {
+        const saved = await this.state.storage.get("lastState");
+        if (saved && saved.action && (Date.now() - (saved.at || 0)) < ROOM_STATE_TTL_MS) {
+          this.lastState = saved.action;
+          this.lastStateSender = saved.sender || null;
+        }
+      } catch (e) { console.error("DO: state rehydrate failed:", e); }
+    });
+  }
+
+  // Fires ROOM_STATE_TTL_MS after the last state write; clears the stale room.
+  async alarm() {
+    try { await this.state.storage.deleteAll(); } catch (e) { console.error("DO: alarm cleanup failed:", e); }
+    this.lastState = null;
+    this.lastStateSender = null;
+  }
 
   async fetch(request) {
     const url  = new URL(request.url);
@@ -377,6 +406,16 @@ export class RoomLobby {
         if (data.action && (data.action.state || data.action.type?.startsWith("QUIPLASH") || data.action.type === "start_game" || data.action.type === "start_round" || data.action.type === "state_update" || data.action.type === "STATE_SYNC")) {
           this.lastState = data.action;
           this.lastStateSender = data.sender || name;
+          // Persist so the game survives everyone disconnecting, and push the
+          // expiry out on every update.
+          try {
+            await this.state.storage.put("lastState", {
+              action: this.lastState,
+              sender: this.lastStateSender,
+              at: Date.now()
+            });
+            await this.state.storage.setAlarm(Date.now() + ROOM_STATE_TTL_MS);
+          } catch (e) { console.error("DO: state persist failed:", e); }
         }
 
         const payload = JSON.stringify({ type: "relay", sender: data.sender || name, action: data.action });

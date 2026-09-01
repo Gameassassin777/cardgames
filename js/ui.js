@@ -22,18 +22,46 @@ export function el(tag, attrs = {}, children = []) {
   return node;
 }
 
-// Replace the app contents with the given node(s), with a subtle fade.
+// Replace the app contents with the given node(s).
+//
+// Every interaction in this app re-mounts the whole screen, so this function
+// decides whether that feels like navigation or like a glitch. Two fixes here:
+//
+//  1. The scroll reset used to run in a setTimeout(…, 20), so the new content
+//     painted at your old offset and then yanked to the top a frame later.
+//     It is synchronous now, so there is no visible jump.
+//  2. Re-rendering the SAME screen (selecting a card, casting a vote, toggling
+//     an option) no longer replays the entrance animation or scrolls to the
+//     top — it keeps you exactly where you were. Only real navigation animates.
+let lastScreenSig = "";
+
 export function mount(...nodes) {
   const root = app();
-  root.innerHTML = "";
-  const wrap = el("div", { className: "fade-in" }, nodes);
-  root.appendChild(wrap);
-  setTimeout(() => {
-    window.scrollTo(0, 0);
-    document.documentElement.scrollTop = 0;
-    document.body.scrollTop = 0;
-  }, 20);
+  if (!root) return;
+  const prevY = window.scrollY || document.documentElement.scrollTop || 0;
+
+  const wrap = el("div", {}, nodes);
+  root.replaceChildren(wrap);
+
+  // Cheap screen identity: the topbar title plus the node count. Games all
+  // render a `.topbar .title`, so a repaint of the same screen matches.
+  const titleEl = root.querySelector(".topbar .title");
+  const sig = (titleEl ? titleEl.textContent : "") + "|" + nodes.length;
+  const sameScreen = lastScreenSig !== "" && sig === lastScreenSig;
+  lastScreenSig = sig;
+
+  if (sameScreen) {
+    window.scrollTo(0, prevY);
+    return;
+  }
+  wrap.className = "fade-in";
+  window.scrollTo(0, 0);
+  document.documentElement.scrollTop = 0;
+  document.body.scrollTop = 0;
 }
+
+// Forget the remembered screen so the next mount animates as fresh navigation.
+export function resetScreenSig() { lastScreenSig = ""; }
 
 export function shuffle(arr) {
   const a = arr.slice();

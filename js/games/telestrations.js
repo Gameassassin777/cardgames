@@ -15,6 +15,7 @@ let isHost = false;
 let gState = null;
 let heartbeatInt = null;
 let wsKeepaliveInt = null;
+let rejoinTried = false;
 let roomBrowserRefresh = null;
 
 let isOnline = false;
@@ -380,6 +381,7 @@ export function start(home) {
 
 function resetAll() {
   if (wsKeepaliveInt) { clearInterval(wsKeepaliveInt); wsKeepaliveInt = null; }
+  rejoinTried = false;
   if (socket) { try { socket.close(); } catch (_) {} socket = null; }
   if (heartbeatInt) { clearInterval(heartbeatInt); heartbeatInt = null; }
   if (roomBrowserRefresh) { clearInterval(roomBrowserRefresh); roomBrowserRefresh = null; }
@@ -665,6 +667,7 @@ function connectRoom(type, code = "") {
   socket = new WebSocket(url);
 
   socket.addEventListener("open", () => {
+    rejoinTried = false; // a healthy connection re-arms the one-shot rejoin
     if (wsKeepaliveInt) clearInterval(wsKeepaliveInt);
     wsKeepaliveInt = setInterval(() => {
       if (socket && socket.readyState === 1) socket.send(JSON.stringify({ type: "ping" }));
@@ -699,7 +702,23 @@ function connectRoom(type, code = "") {
 
   socket.onclose = () => {
     stopHeartbeat();
-    if (gState && gState.phase !== "done") {
+    if (wsKeepaliveInt) { clearInterval(wsKeepaliveInt); wsKeepaliveInt = null; }
+    const wasPlaying = gState && gState.phase !== "done";
+    // A brief drop shouldn't end the game. Rejoin the same room once, keeping
+    // host status, instead of dumping straight to setup (which discarded the
+    // room code and left no way back in).
+    if (wasPlaying && roomCode && myName && !rejoinTried) {
+      rejoinTried = true;
+      const code = roomCode;
+      const wasHost = isHost;
+      toast("Connection lost — reconnecting…");
+      // Clear state first: applyLobby's in-progress guard would otherwise
+      // swallow the rejoin and leave this client on a blank screen.
+      gState = null;
+      setTimeout(() => { connectRoom("join", code); isHost = wasHost; }, 1200);
+      return;
+    }
+    if (wasPlaying || rejoinTried) {
       toast("Disconnected from room.");
       resetAll();
       renderSetup();
@@ -749,6 +768,10 @@ function applyLobby(playersList) {
   // to overwrite gState with a lobby object, so one player's brief disconnect
   // wiped the match for everyone still playing.
   if (gState && gState.phase && gState.phase !== "lobby") {
+    // Host re-broadcasts the live state so a (re)joining player catches up.
+    // The action carries `state`, so the relay also caches it and replays it to
+    // the next socket that connects.
+    if (isHost) relay({ type: "TELESTRATIONS_FULL_SYNC", state: gState });
     return;
   }
   gState = {
@@ -886,9 +909,45 @@ function handleRelay(action, sender) {
   } else if (action.type === "start_review") {
     gState.books = action.books;
     gState.phase = "review";
+    // Remembered on gState so a resynced client opens the slide everyone else
+    // is looking at instead of restarting the book from the beginning.
+    gState.reviewBookIdx = 0;
+    gState.reviewStepIdx = 0;
     renderReviewBook(0, 0);
   } else if (action.type === "review_next") {
+    gState.reviewBookIdx = action.bookIdx;
+    gState.reviewStepIdx = action.stepIdx;
     renderReviewBook(action.bookIdx, action.stepIdx);
+  } else if (action.type === "TELESTRATIONS_FULL_SYNC") {
+    // Full-state resync so a (re)joining player lands back in the live game.
+    // Only taken when it actually moves this client forward: a player already
+    // at this point in the game keeps its own screen (and its half-finished
+    // drawing), and so does the host, whose relay() echo delivers this action
+    // straight back to itself.
+    if (gState && gState.phase === action.state.phase
+        && gState.currentStepIdx === action.state.currentStepIdx) return;
+    gState = action.state;
+    myPlayerIdx = gState.players.indexOf(myName);
+    renderCurrentPhase();
+  }
+}
+
+// Re-mounts whatever screen the current phase owns. Used by the resync path.
+function renderCurrentPhase() {
+  const phase = gState && gState.phase;
+  if (phase === "review") {
+    // renderReviewBook() already guards an out-of-range bookIdx.
+    renderReviewBook(gState.reviewBookIdx || 0, gState.reviewStepIdx || 0);
+  } else if (phase === "playing") {
+    const N = gState.players.length;
+    const step = gState.currentStepIdx;
+    const idx = myPlayerIdx !== -1 ? myPlayerIdx : gState.players.indexOf(myName);
+    const book = idx === -1 ? null : gState.books[(idx - step + N) % N];
+    // If this player's step is already in the host's books there is nothing
+    // left to do this round — runOnlineTurn() would hand them the same task a
+    // second time and let them overwrite their own submission.
+    if (!book || book.steps[step] !== undefined) renderWaitingScreen();
+    else runOnlineTurn();
   }
 }
 

@@ -15,6 +15,7 @@ let isHost = false;
 let gState = null;
 let heartbeatInt = null;
 let wsKeepaliveInt = null;
+let rejoinTried = false;
 let roomBrowserRefresh = null;
 
 let isOnline = false;
@@ -449,6 +450,7 @@ export function start(home) {
 
 function resetAll() {
   if (wsKeepaliveInt) { clearInterval(wsKeepaliveInt); wsKeepaliveInt = null; }
+  rejoinTried = false;
   if (socket) { try { socket.close(); } catch (_) {} socket = null; }
   if (heartbeatInt) { clearInterval(heartbeatInt); heartbeatInt = null; }
   if (roomBrowserRefresh) { clearInterval(roomBrowserRefresh); roomBrowserRefresh = null; }
@@ -732,6 +734,7 @@ function connectRoom(type, code = "") {
   socket = new WebSocket(url);
 
   socket.addEventListener("open", () => {
+    rejoinTried = false; // a healthy connection re-arms the one-shot rejoin
     if (wsKeepaliveInt) clearInterval(wsKeepaliveInt);
     wsKeepaliveInt = setInterval(() => {
       if (socket && socket.readyState === 1) socket.send(JSON.stringify({ type: "ping" }));
@@ -766,7 +769,23 @@ function connectRoom(type, code = "") {
 
   socket.onclose = () => {
     stopHeartbeat();
-    if (gState && gState.phase !== "done") {
+    if (wsKeepaliveInt) { clearInterval(wsKeepaliveInt); wsKeepaliveInt = null; }
+    const wasPlaying = gState && gState.phase !== "done";
+    // A brief drop shouldn't end the game. Rejoin the same room once, keeping
+    // host status, instead of dumping straight to setup (which discarded the
+    // room code and left no way back in).
+    if (wasPlaying && roomCode && myName && !rejoinTried) {
+      rejoinTried = true;
+      const code = roomCode;
+      const wasHost = isHost;
+      toast("Connection lost — reconnecting…");
+      // Clear state first: applyLobby's in-progress guard would otherwise
+      // swallow the rejoin and leave this client on a blank screen.
+      gState = null;
+      setTimeout(() => { connectRoom("join", code); isHost = wasHost; }, 1200);
+      return;
+    }
+    if (wasPlaying || rejoinTried) {
       toast("Disconnected from room.");
       resetAll();
       renderSetup();
@@ -814,6 +833,9 @@ function applyLobby(players) {
   // to overwrite gState with a lobby object, so one player's brief disconnect
   // wiped the match for everyone still playing.
   if (gState && gState.phase && gState.phase !== "lobby") {
+    // Host re-broadcasts the whole live state so a (re)joining player catches
+    // up instead of being stranded on a blank screen for the rest of the game.
+    if (isHost) relay({ type: "QUIPLASH_FULL_SYNC", state: gState });
     return;
   }
   gState = { phase: "lobby", players };
@@ -1109,6 +1131,69 @@ function handleRelay(action, sender) {
     gState.votingQueue[0].answers = action.answers;
     renderLastRevealScreen();
   }
+
+  else if (action.type === "QUIPLASH_FULL_SYNC") {
+    gState = action.state;
+    myPlayerIdx = gState.players.indexOf(myName);
+    // The synced copy carries the host's personal writing assignments, so
+    // rebuild ours from the shared queue before drawing anything.
+    if (gState.writingQueue) {
+      gState.myTasks = gState.writingQueue.filter(t => t.player === (gState.players[myPlayerIdx] ?? myName));
+      const pending = gState.myTasks.findIndex(t => !t.answer);
+      gState.localWritingIdx = pending === -1 ? gState.myTasks.length : pending;
+    }
+    renderCurrentPhase();
+  }
+}
+
+// ── Full-State Resync ────────────────────────────────────────────────────────
+// Redraws whatever screen gState.phase says we belong on, using the same
+// renderer that phase's own relay handler uses.
+function renderCurrentPhase() {
+  if (!gState || !gState.phase) return;
+
+  if (gState.phase === "lobby") {
+    renderLobby();
+  } else if (gState.phase === "voting") {
+    renderVotingRound();
+  } else if (gState.phase === "reveal") {
+    const item = gState.votingQueue && gState.votingQueue[gState.currentVoteIdx];
+    if (item && item.votes) {
+      renderSynchedRevealScreen(rebuildRevealTally(item));
+    } else {
+      renderLeaderboardScreen();
+    }
+  } else if (gState.phase === "leaderboard") {
+    renderLeaderboardScreen();
+  } else if (gState.phase === "lastlash") {
+    renderLastLashVoteScreen();
+  } else if (gState.phase === "lastreveal") {
+    renderLastRevealScreen();
+  } else {
+    renderWritingPhase();
+  }
+}
+
+// The reveal screen normally reads the host's tally payload. A resyncing
+// client rebuilds the identical numbers from the votes already in gState —
+// display only, so nobody's score gets awarded a second time.
+function rebuildRevealTally(item) {
+  const voters = gState.players.filter(p => p !== item.p1 && p !== item.p2);
+  let count1 = 0, count2 = 0;
+  voters.forEach(v => {
+    if (item.votes[v] === 1) count1++;
+    if (item.votes[v] === 2) count2++;
+  });
+
+  const multiplier = Math.max(1, gState.round) * 100;
+  return {
+    count1,
+    count2,
+    pts1: count1 * multiplier,
+    pts2: count2 * multiplier,
+    q1: (count1 > 0 && count2 === 0),
+    q2: (count2 > 0 && count1 === 0)
+  };
 }
 
 // ── Synced Writing Phase ──────────────────────────────────────────────────────
