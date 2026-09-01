@@ -737,7 +737,12 @@ function joinRoom(code) {
 
 function setupSocketListeners() {
   socket.onopen = () => {
-    console.log("WebSocket connected.");
+    // Without a keepalive the relay drops this socket at its idle timeout —
+    // every other game pings every 25s.
+    if (wsKeepaliveInt) clearInterval(wsKeepaliveInt);
+    wsKeepaliveInt = setInterval(() => {
+      if (socket && socket.readyState === 1) socket.send(JSON.stringify({ type: "ping" }));
+    }, 25000);
   };
 
   socket.onmessage = (event) => {

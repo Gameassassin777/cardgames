@@ -56,6 +56,7 @@ export function start(home) {
 }
 
 function resetAll() {
+  if (wsKeepaliveInt) { clearInterval(wsKeepaliveInt); wsKeepaliveInt = null; }
   if (socket)        { try { socket.close(); } catch (_) {} socket = null; }
   if (timerHandle)   { clearInterval(timerHandle);   timerHandle = null; }
   if (autoAdvHandle) { clearTimeout(autoAdvHandle);  autoAdvHandle = null; }
