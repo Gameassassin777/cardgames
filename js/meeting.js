@@ -543,7 +543,9 @@ function tallyVotes() {
   const max = Math.max(...counts);
   s.ejected = counts.map((c, i) => (c === max && max > 0 ? i : -1)).filter((i) => i >= 0);
   s.counts = counts;
-  s.ejected.forEach((i) => s.players[i].sus++);
+  // A tie means nobody is ejected (that is what the reveal screen says), so
+  // only credit a sus point when there is a single clear top vote-getter.
+  if (s.ejected.length === 1) s.players[s.ejected[0]].sus++;
   s.phase = "reveal";
 }
 

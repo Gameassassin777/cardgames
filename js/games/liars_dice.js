@@ -675,12 +675,24 @@ function handleRelay(action, sender) {
   } else if (action.type === "place_bid") {
     gState.currentBid = action.bid;
     gState.activePlayerIdx = action.nextPlayerIdx;
+    // The host resolves challenges from masterState (the only copy with
+    // unmasked dice), so it has to track the live bid too. Without this
+    // masterState.currentBid stays null and the first "LIAR!" throws,
+    // stranding every client on the bidding screen forever.
+    if (isHost && masterState) {
+      masterState.currentBid = action.bid;
+      masterState.activePlayerIdx = action.nextPlayerIdx;
+    }
     playClickTone(600, 0.08);
     renderBiddingScreen(gState);
   } else if (action.type === "call_liar") {
     if (isHost) {
       // Host evaluates the challenge with unmasked masterState rolls
-      const bid = masterState.currentBid;
+      const bid = masterState && masterState.currentBid;
+      if (!bid) {
+        toast("No bid to challenge yet.");
+        return;
+      }
       let totalMatch = 0;
       masterState.players.forEach(pl => {
         if (pl.diceCount > 0) {
@@ -690,6 +702,7 @@ function handleRelay(action, sender) {
       const didBidderWin = totalMatch >= bid.count;
       const loserName = didBidderWin ? action.challenger : bid.bidder;
       const loser = masterState.players.find(p => p.name === loserName);
+      if (!loser) { toast("Could not resolve the challenge."); return; }
       loser.diceCount--;
 
       relay({

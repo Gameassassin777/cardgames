@@ -1017,7 +1017,9 @@ function handleRelay(action, sender) {
           if (voteItem.votes[vName] === 2) count2++;
         });
 
-        const multiplier = gState.round === 2 ? 200 : 100;
+        // Escalating ladder: R1 100x, R2 200x, R3 (The Last Lash) 300x.
+      // Previously R3 fell back to 100x — the finale scored less than R2.
+      const multiplier = Math.max(1, gState.round) * 100;
         const pts1 = count1 * multiplier;
         const pts2 = count2 * multiplier;
 
@@ -1390,7 +1392,9 @@ function renderStandardVoteScreen(item) {
         if (activeVotes[v] === 2) count2++;
       });
 
-      const multiplier = gState.round === 2 ? 200 : 100;
+      // Escalating ladder: R1 100x, R2 200x, R3 (The Last Lash) 300x.
+      // Previously R3 fell back to 100x — the finale scored less than R2.
+      const multiplier = Math.max(1, gState.round) * 100;
       const pts1 = count1 * multiplier;
       const pts2 = count2 * multiplier;
       

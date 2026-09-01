@@ -603,6 +603,9 @@ function handleRelay(action, sender) {
     gState.round = action.round;
     gState.players = action.players;
     gState.words = action.words;
+    // Must clear history like the local path does — otherwise each new
+    // guesser is scored for every previous round's correct answers too.
+    gState.history = [];
     gState.wordIdx = 0;
     gState.timeLeft = 60;
     gState.countdownLeft = 3;

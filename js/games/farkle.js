@@ -22,6 +22,8 @@ let setupMode = "passplay"; // "passplay" or "online"
 
 let gState = null;
 
+const FARKLE_TARGET = 10000;
+
 function diceTopbar(title, onBack) {
   return el("div", { className: "topbar" }, [
     el("button", { className: "back", onClick: onBack }, [
@@ -553,7 +555,50 @@ function handleRelay(action, sender) {
 }
 
 // ── Board Renderer & Sovereign turn controls ───────────────────────────────
+function renderFarkleGameOver(state) {
+  const ranked = state.players
+    .map((name, pIdx) => ({ name, total: state.states[pIdx].total }))
+    .sort((a, b) => b.total - a.total);
+  const top = ranked.length ? ranked[0].total : 0;
+  const winners = ranked.filter((r) => r.total === top);
+
+  const rows = ranked.map((r, i) => el("div", {
+    style: `display:flex; justify-content:space-between; align-items:center; padding:12px 16px; margin-bottom:8px; border-radius:12px; border:1px solid ${i === 0 ? "var(--sunset-soft)" : "rgba(255,255,255,0.06)"}; background:${i === 0 ? "rgba(255,145,100,0.06)" : "rgba(255,255,255,0.01)"};`
+  }, [
+    el("span", { style: "font-weight:700;", text: `${["🥇", "🥈", "🥉"][i] || (i + 1) + "."} ${r.name}` }),
+    el("span", { style: "font-weight:700; color:var(--sunset-soft);", text: `${r.total} pts` })
+  ]));
+
+  const leave = () => { if (isOnline) relay({ type: "quit" }); resetAll(); goHome(); };
+
+  mount(
+    diceTopbar("Farkle — Final Results", leave),
+    el("div", { className: "panel center", style: "max-width:520px; margin:0 auto;" }, [
+      el("h2", {
+        style: "margin-top:0;",
+        text: winners.length > 1
+          ? `Tie at ${top} points!`
+          : `${winners[0] ? winners[0].name : "Nobody"} wins!`
+      }),
+      el("p", {
+        className: "muted",
+        text: winners.length > 1 ? winners.map((w) => w.name).join(" & ") : `${top} points`
+      }),
+      el("div", { style: "margin:16px 0; text-align:left;" }, rows),
+      !isOnline
+        ? el("button", {
+            className: "btn",
+            text: "Play Again",
+            onClick: () => initLocalGame(state.players, state.piggybackRule)
+          })
+        : null,
+      el("button", { className: "btn ghost", style: "margin-top:8px;", text: "Back to Lobby", onClick: leave })
+    ])
+  );
+}
+
 function renderBoard(state) {
+  if (state.phase === "done") { renderFarkleGameOver(state); return; }
   const players = state.players;
   const states = state.states;
   const activeIdx = state.activePlayerIdx;
@@ -1104,8 +1149,11 @@ function renderBoard(state) {
   }
 
   function checkWinAndPass() {
-    if (activeState.total >= 10000) {
-      toast(`🏆🏆🏆 ${activePlayerName} wins the game with ${activeState.total} points!`);
+    // Crossing the target starts one final round so every player gets an equal
+    // number of turns; the game ends when play returns to whoever triggered it.
+    if (activeState.total >= FARKLE_TARGET && state.finalRoundFrom == null) {
+      state.finalRoundFrom = activeIdx;
+      toast(`${activePlayerName} passed ${FARKLE_TARGET}! Everyone else gets one final turn.`);
     }
 
     state.turnTempScore = 0;
@@ -1113,8 +1161,13 @@ function renderBoard(state) {
     state.turnIsPiggybacked = false;
     state.turnHasRolled = false;
     state.virtualDice = [];
-    
-    state.activePlayerIdx = (activeIdx + 1) % players.length;
+
+    const nextIdx = (activeIdx + 1) % players.length;
+    if (state.finalRoundFrom != null && nextIdx === state.finalRoundFrom) {
+      state.phase = "done";
+    } else {
+      state.activePlayerIdx = nextIdx;
+    }
 
     if (isOnline) {
       relay({ type: "state_update", state });
