@@ -43,6 +43,25 @@ export default {
         }
       }
 
+      // ── Game history + cross-device rejoin ─────────────────────────────────
+      if (path === "/results/list" && request.method === "GET") {
+        try {
+          const res = await store.fetch(`http://global/results-list?name=${encodeURIComponent(url.searchParams.get("name") || "")}&limit=${encodeURIComponent(url.searchParams.get("limit") || "50")}`);
+          return new Response(await res.text(), { headers: { ...CORS, "Content-Type": "application/json" } });
+        } catch (e) {
+          return new Response("[]", { headers: { ...CORS, "Content-Type": "application/json" } });
+        }
+      }
+
+      if (path === "/session/lookup" && request.method === "GET") {
+        try {
+          const res = await store.fetch(`http://global/session-lookup?name=${encodeURIComponent(url.searchParams.get("name") || "")}`);
+          return new Response(await res.text(), { headers: { ...CORS, "Content-Type": "application/json" } });
+        } catch (e) {
+          return new Response("null", { headers: { ...CORS, "Content-Type": "application/json" } });
+        }
+      }
+
       // ── Gartic gallery ─────────────────────────────────────────────────────
       if (path === "/gartic/gallery" && request.method === "GET") {
         try {
@@ -229,6 +248,52 @@ export class GlobalStore {
     }
 
     // ── Gartic gallery (UNLIMITED — no cap) ───────────────────────────────────
+    // ── Permanent game results ────────────────────────────────────────────────
+    // Stored under a "result:" prefix, one key per game, so the history grows
+    // without ever rewriting a single huge value. Never expired.
+    if (url.pathname === "/results-save" && request.method === "POST") {
+      const rec = await request.json();
+      if (!rec || !rec.code) return new Response("Missing result", { status: 400 });
+      const at = rec.at || Date.now();
+      // Zero-padded timestamp keeps storage.list() in chronological order.
+      const key = `result:${String(at).padStart(15, "0")}:${rec.code}`;
+      if (await this.state.storage.get(key)) {
+        return new Response(JSON.stringify({ ok: true, duplicate: true }), { headers: { "Content-Type": "application/json" } });
+      }
+      await this.state.storage.put(key, { ...rec, at });
+      return new Response(JSON.stringify({ ok: true }), { headers: { "Content-Type": "application/json" } });
+    }
+
+    if (url.pathname === "/results-list") {
+      const who   = (url.searchParams.get("name") || "").trim().toLowerCase();
+      const limit = Math.min(parseInt(url.searchParams.get("limit") || "50", 10) || 50, 200);
+      const map   = await this.state.storage.list({ prefix: "result:", reverse: true, limit: who ? 500 : limit });
+      let out = [...map.values()];
+      if (who) {
+        out = out.filter(r => Array.isArray(r.players) &&
+          r.players.some(p => String(p && p.name != null ? p.name : p).trim().toLowerCase() === who));
+        out = out.slice(0, limit);
+      }
+      return new Response(JSON.stringify(out), { headers: { "Content-Type": "application/json" } });
+    }
+
+    // ── Cross-device rejoin index: name -> the room that player is in ─────────
+    if (url.pathname === "/session-track" && request.method === "POST") {
+      const { name, code, game } = await request.json();
+      if (!name || !code) return new Response("Missing", { status: 400 });
+      await this.state.storage.put(`active:${String(name).trim().toLowerCase()}`, {
+        name, code, game: game || "", at: Date.now()
+      });
+      return new Response(JSON.stringify({ ok: true }), { headers: { "Content-Type": "application/json" } });
+    }
+
+    if (url.pathname === "/session-lookup") {
+      const who = (url.searchParams.get("name") || "").trim().toLowerCase();
+      const rec = who ? await this.state.storage.get(`active:${who}`) : null;
+      const fresh = rec && (Date.now() - (rec.at || 0)) < ROOM_STATE_TTL_MS;
+      return new Response(JSON.stringify(fresh ? rec : null), { headers: { "Content-Type": "application/json" } });
+    }
+
     if (url.pathname === "/gartic-gallery") {
       const games = await this.state.storage.get("gartic_games") || [];
       return new Response(JSON.stringify(games), { headers: { "Content-Type": "application/json" } });
@@ -311,7 +376,33 @@ export class GlobalStore {
 // How long a room's last known state is kept after everyone has gone.
 // Previously state lived only in Durable Object memory, so once the last
 // socket closed the DO was evicted and the game was unrecoverable.
-const ROOM_STATE_TTL_MS = 2 * 60 * 60 * 1000; // 2 hours
+// Pull a small {name, score} list out of whatever shape a game uses, so a
+// permanently-stored result never carries drawings or other bulky state.
+function summarisePlayers(state) {
+  if (!state || typeof state !== "object") return [];
+  const out = [];
+  const src = Array.isArray(state.players) ? state.players : [];
+  src.forEach((p, i) => {
+    if (p == null) return;
+    if (typeof p === "string") {
+      // Parallel score arrays used by the dice games.
+      let score = null;
+      if (Array.isArray(state.states) && state.states[i] && typeof state.states[i].total === "number") score = state.states[i].total;
+      else if (state.scores && typeof state.scores === "object" && !Array.isArray(state.scores) && typeof state.scores[p] === "number") score = state.scores[p];
+      else if (Array.isArray(state.scores) && typeof state.scores[i] === "number") score = state.scores[i];
+      out.push(score == null ? { name: p } : { name: p, score });
+    } else if (typeof p === "object") {
+      const rec = { name: String(p.name != null ? p.name : "") };
+      if (typeof p.score === "number") rec.score = p.score;
+      else if (typeof p.sus === "number") rec.score = p.sus;
+      else if (typeof p.total === "number") rec.score = p.total;
+      out.push(rec);
+    }
+  });
+  return out.slice(0, 24);
+}
+
+const ROOM_STATE_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days — long enough to come back from a crash, a dead battery or a new phone
 
 export class RoomLobby {
   constructor(state, env) {
@@ -356,6 +447,19 @@ export class RoomLobby {
   async handleSession(ws, code, name, game, type) {
     ws.accept();
     this.sessions.set(ws, { name });
+
+    // Index this player so any device can find the room again by name alone.
+    // Doing it here covers every game at once — no per-game wiring needed.
+    if (name && !name.startsWith("__")) {
+      try {
+        const gid = this.env.GLOBAL_STORE.idFromName("global");
+        this.env.GLOBAL_STORE.get(gid).fetch("http://global/session-track", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ name, code, game })
+        });
+      } catch (e) { console.error("DO: session track failed:", e); }
+    }
 
     let customCards = [];
     try {
@@ -416,6 +520,29 @@ export class RoomLobby {
             });
             await this.state.storage.setAlarm(Date.now() + ROOM_STATE_TTL_MS);
           } catch (e) { console.error("DO: state persist failed:", e); }
+        }
+
+        // A game finishing is visible right here, for every game at once, so
+        // results are archived centrally instead of in 15 client code paths.
+        const aType  = String(data.action?.type || "");
+        const aPhase = data.action?.state?.phase;
+        const isStart = /start_game|START|_NEXT_ROUND/i.test(aType);
+        if (isStart) this.resultSaved = false;
+        const terminal = /game_?over/i.test(aType) ||
+          ["done", "gameover", "game_over", "over", "final"].includes(String(aPhase || "").toLowerCase());
+        if (terminal && !this.resultSaved) {
+          this.resultSaved = true;
+          const players = summarisePlayers(data.action?.state);
+          if (players.length) {
+            try {
+              const gid = this.env.GLOBAL_STORE.idFromName("global");
+              this.env.GLOBAL_STORE.get(gid).fetch("http://global/results-save", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ code, game, players, at: Date.now() })
+              });
+            } catch (e) { console.error("DO: result save failed:", e); }
+          }
         }
 
         const payload = JSON.stringify({ type: "relay", sender: data.sender || name, action: data.action });

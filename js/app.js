@@ -69,6 +69,27 @@ const cozyMeeting = meeting.makeGame({ title: "Cabin Most Likely To", source: CO
 const zestyMeeting = meeting.makeGame({ title: "Zesty Most Likely To", source: MOST_LIKELY, saveKey: "meeting.game.v1" });
 
 
+const GAME_STARTERS = {
+          scribblio: startScribblio, gartic: h => gartic.start(h),
+          chronicles: startChronicles, quiplash: startQuiplash,
+          telestrations: startTelestrations, blank_slate: startBlankSlate,
+          farkle: startFarkle, headsup: startHeadsup, charades: startCharades,
+          liars_dice: startLiarsDice, yahtzee: startYahtzee,
+          catchphrase: catchphrase.start,
+          // Cozy and Zesty Most Likely To are separate decks — routing every
+          // "meeting" room to the Zesty one silently swapped the deck.
+          meeting: h => zestyMeeting(h), cabin_meeting: h => cozyMeeting(h),
+          // Listed in GAME_LABELS but previously had no handler, so joining a
+          // Cards Against Monkeys / Cabin Fever room was always refused.
+          cam: monkeys, cabin: cabin,
+          // Deck games are reachable from the browser now too.
+          rizz: rizzRoulette,
+          cabin_wyr: cozyWouldYouRather, wyr: zestyWouldYouRather,
+          cabin_flags: cozyRedGreen, flags: zestyRedGreen,
+          truths: cozyTruths, zesty_truths: zestyTruths,
+          cabin_roasts: cozyRoasts, roasts: zestyRoasts,
+        };
+
 const GAMES = [
   {
     id: "cabin", icon: icons.cabin, title: "Cabin Fever",
@@ -494,6 +515,99 @@ const GAME_LABELS = {
   cabin_roasts: "Cabin Roasts", roasts: "Zesty Roasts",
 };
 
+/* ── Rejoin from anywhere, and permanent game history ─────────────────────────
+ * The relay indexes every player by name when they join a room, and archives a
+ * result whenever a game finishes. So the same name on ANY device can find its
+ * way back into a live game, and past results are kept indefinitely. */
+
+async function rejoinMyGame() {
+  const name = (localStorage.getItem("lakehouse.playerName") || "").trim();
+  if (!name) { toast("Enter your name above first."); return; }
+  toast("Looking for your game…");
+  let rec = null;
+  try {
+    rec = await fetch(`${HTTP_BASE}/session/lookup?name=${encodeURIComponent(name)}`).then(r => r.json());
+  } catch (_) { toast("Couldn't reach the server."); return; }
+  if (!rec || !rec.code) { toast(`No active game found for "${name}".`); return; }
+  const startFn = GAME_STARTERS[rec.game];
+  if (!startFn) { toast(`Found room ${rec.code}, but can't reopen that game automatically.`); return; }
+  // Hand off through the same token every game's auto-join already understands.
+  sessionStorage.setItem("lakehouse.pendingJoin",
+    JSON.stringify({ code: rec.code, game: rec.game, ts: Date.now() }));
+  toast(`Rejoining room ${rec.code}…`);
+  startFn(home);
+}
+
+function renderGameHistory() {
+  const name = (localStorage.getItem("lakehouse.playerName") || "").trim();
+  let mineOnly = !!name;
+  const listEl = el("div", { style: "display:flex; flex-direction:column; gap:8px; margin-top:10px;" });
+
+  const load = async () => {
+    listEl.replaceChildren(el("p", { className: "muted center", text: "Loading…" }));
+    let rows = [];
+    try {
+      const q = mineOnly && name ? `?name=${encodeURIComponent(name)}&limit=50` : "?limit=50";
+      rows = await fetch(`${HTTP_BASE}/results/list${q}`).then(r => r.json());
+    } catch (_) {
+      listEl.replaceChildren(el("p", { className: "muted center", text: "Couldn't reach the server." }));
+      return;
+    }
+    if (!Array.isArray(rows) || rows.length === 0) {
+      listEl.replaceChildren(el("p", { className: "muted center",
+        text: mineOnly ? `No finished games yet for "${name}".` : "No finished games recorded yet." }));
+      return;
+    }
+    listEl.replaceChildren();
+    rows.forEach(r => {
+      const players = Array.isArray(r.players) ? r.players.slice() : [];
+      const scored = players.filter(p => typeof p.score === "number");
+      if (scored.length) scored.sort((a, b) => b.score - a.score);
+      const ranked = scored.length ? scored : players;
+      const when = r.at ? new Date(r.at).toLocaleString() : "";
+      listEl.appendChild(el("div", { className: "panel", style: "padding:12px; margin:0;" }, [
+        el("div", { style: "display:flex; justify-content:space-between; gap:8px; align-items:baseline;" }, [
+          el("strong", { style: "color:var(--sunset-soft);", text: GAME_LABELS[r.game] || r.game || "Game" }),
+          el("span", { className: "muted", style: "font-size:0.72rem;", text: when })
+        ]),
+        el("div", { style: "margin-top:6px; display:flex; flex-direction:column; gap:2px;" },
+          ranked.map((p, i) => el("div", {
+            style: `display:flex; justify-content:space-between; font-size:0.85rem; ${i === 0 && scored.length ? "font-weight:700; color:var(--sunset-soft);" : ""}`
+          }, [
+            el("span", { text: `${i === 0 && scored.length ? "🏆 " : ""}${p.name || "?"}` }),
+            el("span", { text: typeof p.score === "number" ? String(p.score) : "" })
+          ]))
+        )
+      ]));
+    });
+  };
+
+  const toggle = el("button", {
+    className: "btn ghost small",
+    style: "width:100%; margin-bottom:4px;",
+    text: mineOnly ? "Showing your games — show everyone's" : "Showing all games — show only mine",
+    onClick: () => {
+      mineOnly = !mineOnly;
+      toggle.textContent = mineOnly ? "Showing your games — show everyone's" : "Showing all games — show only mine";
+      load();
+    }
+  });
+
+  mount(
+    el("div", { className: "topbar" }, [
+      el("button", { className: "back", text: "‹ Home", onClick: home }),
+      el("div", { className: "title", text: "Game History" }),
+      el("span", { style: "width:64px" })
+    ]),
+    el("div", { className: "panel" }, [
+      el("p", { className: "muted", style: "margin-top:0;", text: "Finished games are kept indefinitely." }),
+      name ? toggle : null,
+      listEl
+    ])
+  );
+  load();
+}
+
 function renderLobbyBrowser() {
   let refreshTimer = null;
   const listEl = el("div", { style: "display:flex; flex-direction:column; gap:8px;" });
@@ -510,26 +624,7 @@ function renderLobbyBrowser() {
       }
       live.forEach(r => {
         const gameLabel = GAME_LABELS[r.game] || r.game;
-        const startFn = {
-          scribblio: startScribblio, gartic: h => gartic.start(h),
-          chronicles: startChronicles, quiplash: startQuiplash,
-          telestrations: startTelestrations, blank_slate: startBlankSlate,
-          farkle: startFarkle, headsup: startHeadsup, charades: startCharades,
-          liars_dice: startLiarsDice, yahtzee: startYahtzee,
-          catchphrase: catchphrase.start,
-          // Cozy and Zesty Most Likely To are separate decks — routing every
-          // "meeting" room to the Zesty one silently swapped the deck.
-          meeting: h => zestyMeeting(h), cabin_meeting: h => cozyMeeting(h),
-          // Listed in GAME_LABELS but previously had no handler, so joining a
-          // Cards Against Monkeys / Cabin Fever room was always refused.
-          cam: monkeys, cabin: cabin,
-          // Deck games are reachable from the browser now too.
-          rizz: rizzRoulette,
-          cabin_wyr: cozyWouldYouRather, wyr: zestyWouldYouRather,
-          cabin_flags: cozyRedGreen, flags: zestyRedGreen,
-          truths: cozyTruths, zesty_truths: zestyTruths,
-          cabin_roasts: cozyRoasts, roasts: zestyRoasts,
-        }[r.game];
+        const startFn = GAME_STARTERS[r.game];
         const row = el("div", { className: "room-row" }, [
           el("div", { style: "text-align:left; flex:1; min-width:0;" }, [
             el("div", {}, [
@@ -688,11 +783,23 @@ function home() {
     }),
     el("button", {
       className: "btn ghost small",
-      style: "width:100%; margin-bottom:10px; display:flex; align-items:center; justify-content:center; gap:6px;",
+      style: "width:100%; margin-bottom:8px; display:flex; align-items:center; justify-content:center; gap:6px;",
       onClick: () => renderLobbyBrowser()
     }, [
       el("span", { text: "→" }),
       el("span", { text: "Browse Open Rooms" })
+    ]),
+    el("div", { style: "display:flex; gap:8px; margin-bottom:10px;" }, [
+      el("button", {
+        className: "btn ghost small",
+        style: "flex:1; display:flex; align-items:center; justify-content:center; gap:6px;",
+        onClick: () => rejoinMyGame()
+      }, [el("span", { text: "↺" }), el("span", { text: "Rejoin My Game" })]),
+      el("button", {
+        className: "btn ghost small",
+        style: "flex:1; display:flex; align-items:center; justify-content:center; gap:6px;",
+        onClick: () => renderGameHistory()
+      }, [el("span", { text: "🏆" }), el("span", { text: "Game History" })])
     ]),
     el("hr", { style: "border:none; border-top:1px solid rgba(255,255,255,0.06); margin: 4px 0 10px;" }),
     el("div", { style: "display:flex; gap:10px; flex-wrap:wrap; margin-bottom:10px;" }, [
