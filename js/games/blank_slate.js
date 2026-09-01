@@ -552,6 +552,12 @@ function handleRelay(action, sender) {
     renderRevealScreen();
   }
 
+  else if (action.type === "BLANK_SLATE_GAME_OVER") {
+    gState.phase = "gameover";
+    if (Array.isArray(action.players)) gState.players = action.players;
+    renderGameOverScreen(action.ranked || []);
+  }
+
   else if (action.type === "BLANK_SLATE_NEXT_ROUND") {
     gState.phase = "select";
     gState.promptIndex = action.promptIndex;
@@ -765,13 +771,18 @@ function renderOnlineInput() {
         toast("Must be a single word!");
         return;
       }
+      const phaseBefore = gState.phase;
       relay({
         type: "BLANK_SLATE_SUBMIT_WORD",
         player: myName,
         answer: val
       });
       gState.answers[myName] = val;
-      renderOnlineInput();
+      // relay() echoes synchronously into handleRelay, so the host's own
+      // all-in check may already have advanced the room to the reveal.
+      // Re-rendering the input screen here painted over it and stranded the
+      // host on "Slate submitted! Waiting… 3/3 answered".
+      if (gState.phase === phaseBefore) renderOnlineInput();
     }
   });
 
@@ -922,7 +933,10 @@ function renderRevealScreen() {
     style: "width:100%; margin-top:20px;",
     onClick: () => {
       if (isWinnerFound) {
-        renderGameOverScreen(ranked);
+        // Online this used to transition only the tapping client, leaving
+        // everyone else stuck on the reveal. Let the host relay it instead.
+        if (!isOnline) { renderGameOverScreen(ranked); return; }
+        if (isHost) relay({ type: "BLANK_SLATE_GAME_OVER", ranked });
         return;
       }
 

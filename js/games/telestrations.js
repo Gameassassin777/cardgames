@@ -1263,9 +1263,16 @@ function startLocalReview() {
 }
 
 function renderReviewBook(bookIdx, stepIdx) {
+  // "Finish Game Review" advances past the last book, so bookIdx can be out of
+  // range here. Guard it before dereferencing — otherwise every client crashes
+  // on the final slide and the results screen is never reached.
   const book = gState.books[bookIdx];
+  if (!book) {
+    renderFinalScreen();
+    return;
+  }
   const step = book.steps[stepIdx];
-  
+
   if (!step) {
     if (bookIdx + 1 < gState.books.length) {
       renderReviewBook(bookIdx + 1, 0);

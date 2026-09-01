@@ -559,8 +559,11 @@ function renderOnlineLobby() {
   ]);
 
   // Team Players mapping
-  const bluePlayers = onlinePlayers.filter(p => playerTeams[p.name] === 1);
-  const greenPlayers = onlinePlayers.filter(p => playerTeams[p.name] === 2);
+  // onlinePlayers is an array of name strings (see the assignment at
+  // player_joined), so keying by p.name was always undefined and both team
+  // rosters rendered empty.
+  const bluePlayers = onlinePlayers.filter(p => playerTeams[p] === 1);
+  const greenPlayers = onlinePlayers.filter(p => playerTeams[p] === 2);
 
   const team1List = el("div", { className: "scoreboard", style: "background:rgba(26,122,140,0.15); min-height:80px; padding:10px; border-radius:12px; margin-bottom:8px;" }, [
     el("div", { style: "display:flex; align-items:center; gap:8px; margin-bottom:6px;" }, [
@@ -774,11 +777,15 @@ function setupSocketListeners() {
           startHeartbeat(data.players.length);
           syncLobbySettings();
         }
-        renderSetup();
+        // renderSetup() calls resetGame(), which zeroes both teams' scores and
+        // kills the round timer. Only go back to the lobby screen when we are
+        // actually in the lobby; mid-game the SYNC_FULL_GAME above brings the
+        // joiner up to speed without disturbing anyone already playing.
+        if (activePhase === "lobby") renderSetup();
       } else if (data.type === "player_left") {
         onlinePlayers = data.players;
         toast(`${data.name} left the room.`);
-        renderSetup();
+        if (activePhase === "lobby") renderSetup();
       } else if (data.type === "error") {
         toast(data.message);
         resetOnlineState();
