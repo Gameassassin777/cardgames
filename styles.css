@@ -1212,6 +1212,27 @@ hr.divider {
   pointer-events: none;
 }
 
+
+/* ---------- Responsive two-column areas ---------- */
+/* `grid-template-columns: 1fr 1fr` was hardcoded inline in the Farkle board and
+   three Quiplash screens. `1fr` resolves to minmax(auto, 1fr) and will NOT
+   shrink below its content's min-width, so on a phone the second column pushed
+   past the viewport — and `body { overflow-x: hidden }` clipped it, leaving the
+   turn panel (Roll Dice, Bank, Quit) physically unreachable rather than merely
+   scrolled off. auto-fit + minmax collapses to a single column when there is
+   not room for two. */
+.responsive-cols {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 16px;
+}
+/* Grid/flex children default to min-width:auto and refuse to shrink; this is
+   what actually lets long button labels and dice rows reflow instead of
+   overflowing. */
+.responsive-cols > * { min-width: 0; }
+.farkle-board-layout { min-width: 0; }
+.farkle-board-layout * { max-width: 100%; }
+
 /* Farkle Scoring Highlights */
 .dice-box.scoring {
   border-color: #00ffaa !important;

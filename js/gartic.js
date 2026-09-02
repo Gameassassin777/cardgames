@@ -32,6 +32,8 @@ let timerHandle   = null;
 let autoAdvHandle = null;
 let hasSubmitted  = false;
 let heartbeatInt  = null;   // room browser heartbeat
+let wsKeepaliveInt = null; // was used in three places but never declared —
+                          // a hard ReferenceError under ES module strict mode
 let artBgEl       = null;   // background art slideshow element
 let artBgImages   = [];     // pool of image URLs from gallery
 let artBgIdx      = 0;
