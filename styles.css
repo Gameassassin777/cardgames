@@ -1193,6 +1193,7 @@ hr.divider {
   opacity: 0.75;
 }
 .dice-box.held {
+  /* Real held styling lives after .scoring below — see the note there. */
   border-color: var(--sunset-soft) !important;
 }
 
@@ -1219,6 +1220,20 @@ hr.divider {
 .dice-box.noscoring {
   opacity: 0.4;
   border-color: rgba(255, 255, 255, 0.05) !important;
+}
+
+/* A held die has to stay unmistakable. `.dice-box.scoring` sets border-color
+   with !important and is declared above, so a die that is BOTH held and
+   scoring — the normal case, since you hold scoring dice — lost its held
+   styling entirely and tapping a die looked like it did nothing. Held is
+   therefore given its own filled treatment and declared last so it wins.
+   (Before the restyle this was carried by a scale + glow that .scoring never
+   overrode; flattening those removed the only visible held state.) */
+.dice-box.held {
+  border-color: var(--sunset-soft) !important;
+  background: rgba(238, 155, 83, 0.22) !important;
+  box-shadow: inset 0 0 0 2px var(--sunset-soft) !important;
+  opacity: 1 !important; /* never let .noscoring dim a die you are holding */
 }
 
 .farkle-breakdown {
