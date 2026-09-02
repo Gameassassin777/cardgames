@@ -1509,7 +1509,7 @@ function renderStandardVoteScreen(item) {
 
   const layout = el("div", { className: "panel center", style: "max-width: 600px; margin: 0 auto;" }, [
     el("blockquote", { text: `"${item.promptText}"`, style: "font-size: 1.4rem; font-weight: bold; padding: 0; border: none; margin-bottom: 24px;" }),
-    el("div", { style: "display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 20px;" }, [
+    el("div", { className: "responsive-cols", style: "margin-bottom: 20px;" }, [
       el("div", {
         className: "panel center",
         style: "background: rgba(255, 145, 100, 0.03); border: 1px solid rgba(255,145,100,0.1); border-radius: 12px; padding: 16px;"
@@ -1562,7 +1562,7 @@ function renderSynchedRevealScreen(action) {
 
   const layout = el("div", { className: "panel center", style: "max-width: 600px; margin: 0 auto; text-align: center;" }, [
     el("blockquote", { text: `"${item.promptText}"`, style: "font-size: 1.3rem; border: none; padding: 0; font-weight: bold; margin-bottom: 24px;" }),
-    el("div", { style: "display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 24px;" }, [
+    el("div", { className: "responsive-cols", style: "margin-bottom: 24px;" }, [
       el("div", {
         className: "panel center",
         style: `border: 2px solid ${count1 >= count2 ? "var(--sunset-soft)" : "rgba(255,255,255,0.05)"}; background: rgba(255,255,255,0.01); border-radius: 12px; padding: 16px;`
@@ -1591,7 +1591,7 @@ function renderSynchedRevealScreen(action) {
 function renderLocalStandardReveal(item, c1, c2, pts1, pts2, q1, q2) {
   const container = el("div", { className: "panel center", style: "max-width: 600px; margin: 0 auto; text-align: center;" }, [
     el("blockquote", { text: `"${item.promptText}"`, style: "font-size: 1.3rem; border: none; padding: 0; font-weight: bold; margin-bottom: 24px;" }),
-    el("div", { style: "display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 24px;" }, [
+    el("div", { className: "responsive-cols", style: "margin-bottom: 24px;" }, [
       el("div", {
         className: "panel center",
         style: `border: 2px solid ${c1 >= c2 ? "var(--sunset-soft)" : "rgba(255,255,255,0.05)"}; background: rgba(255,255,255,0.01); border-radius: 12px; padding: 16px;`

@@ -1350,7 +1350,7 @@ function renderBoard(state) {
       className: "farkle-board-layout",
       style: "display: flex; flex-direction: column; gap: 20px; max-width: 800px; margin: 0 auto; padding: 12px;"
     }, [
-      el("div", { style: "display: grid; grid-template-columns: 1fr 1fr; gap: 16px; flex-wrap: wrap;" }, [
+      el("div", { className: "responsive-cols" }, [
         el("div", {}, [
           el("h2", { text: "Standings", style: "font-size: 1.1rem; margin-top: 0; letter-spacing: 0.5px;" }),
           ...playerBlocks,
