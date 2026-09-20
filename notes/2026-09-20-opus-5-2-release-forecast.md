@@ -148,3 +148,45 @@ The reframe: **broad pre-launch consumer routing is not part of either recent la
 That is why the call stays Sep 29 rather than Sep 22.
 
 **Tripwire:** a Bedrock 404 on any `claude-opus-5-*` identifier → launch inside 24–72 hours, and Sep 22 takes the lead.
+
+---
+
+## 9. Correction — the absence evidence is not yet load-bearing, and the call moves to Sep 22
+
+Section 8b overstated its case, and §6's anchor was weaker than it read.
+
+**1. Almost every precursor in 8b has zero lead time.** The Bedrock flip was T-1 (Aug 31 → Sep 1 GA). OpenRouter, the model card, the docs entry, the pricing row, the Foundry table, the partner blog posts and the first Anthropic employee word were all T-0. For a Tuesday Sep 22 launch the flip would happen **Monday Sep 21**. Today is Sunday. There is no artifact we should expect to see yet, so seeing none says nothing. The checklist in 8b is a *tripwire*, not a *forecast input* — it was wrong to score it as evidence for a later date.
+
+**2. The 15-day Honeycomb anchor conflates two different quantities.** `Honeycomb EAP` surfaced in Cursor on Jul 8–9 because someone shipped a picker entry by accident, not because Anthropic's launch process began that day. Mapping Sep 14 + 15 = Sep 29 treats an accidental leak interval as a process duration. It isn't one.
+
+**3. The better-matched reference class is stealth duration, and it points at this week.** Fable 5.1 ran subset/shadow testing from roughly Aug 26–28, registered on Bedrock Aug 31, shipped Sep 1 — **~4–7 days of stealth**. Opus-Next has been serving since Sep 14. Day 6–7 lands on **Sep 20–23**.
+
+**4. The August "false start" reads differently on a second look.** Opus was in stealth in late August *while Fable 5.1 was ahead of it in the release train*. Fable shipped; Opus waited. That is a queue, not a cancellation — and the queue ahead of Opus is now empty.
+
+**5. Sep 22 is a Tuesday.** The weekday argument used to support Sep 29 supports Sep 22 identically.
+
+What genuinely still holds mass later: a bundled three-tier launch gated by Fable 5.2's new pretrain (its own leak slipped to late Sep/early Oct); the Sep 17 pull proving an unresolved issue existed 72 hours ago; and Reuters sourcing "considering" to three people on Sep 18 — an odd way for insiders to describe a launch four days out.
+
+### Revised distribution
+
+| Date | Was | Now |
+|---|---|---|
+| Mon Sep 21 | 6% | 7% |
+| **Tue Sep 22** | 13% | **19%** ← mode |
+| Wed Sep 23 | 6% | 8% |
+| Thu Sep 24 | 8% | 9% |
+| Fri Sep 25 | 2% | 2% |
+| Mon Sep 28 | 5% | 4% |
+| Tue Sep 29 | **16%** | 13% |
+| Wed Sep 30 | 8% | 7% |
+| Thu Oct 1 | 5% | 4% |
+| Oct 5–9 | 12% | 11% |
+| Oct 12–16 | 8% | 7% |
+| Oct 17–31 | 6% | 5% |
+| Nov+ / none pre-IPO | 5% | 4% |
+
+By Sep 30: 64% → **69%**.
+
+**Revised call: Tuesday, 22 September 2026**, with Sep 29 the main alternative.
+
+**This resolves itself within ~24 hours.** Monday Sep 21 is when the absence starts carrying weight: a Bedrock 400 → 404 flip on any `claude-opus-5-*`, a Foundry or Vertex catalog entry, or the identifier landing in a Claude Code build means Tuesday. Monday closing with all three still empty kills Sep 22, and the mass moves to Sep 24 and Sep 29.
