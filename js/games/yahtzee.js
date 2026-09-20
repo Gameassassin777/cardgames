@@ -166,7 +166,7 @@ function renderSetup() {  const savedName = localStorage.getItem("lakehouse.play
           el("li", { text: "Yahtzee is a strategic dice rolling game where players take turns filling in a scorecard of 13 categories." }),
           el("li", { text: "Objective: On your turn, roll the 5 dice up to 3 times. You can hold any number of dice between rolls." }),
           el("li", { text: "Scoring: Assign your final roll to one of the 13 categories (Upper section: Aces through Sixes; Lower section: 3-of-a-kind, 4-of-a-kind, Full House, Straights, Chance, or YAHTZEE)." }),
-          el("li", { text: "Scratching: Each category can only be scored ONCE. If your roll doesn't qualify for an open category, you must select one to 'scratch' (score 0)." }),
+          el("li", { text: "Taking a zero: Each category can only be scored ONCE. If your roll doesn't qualify for any open category, pick one anyway — it simply locks in at 0. There is no separate 'scratch' button to mis-tap." }),
           el("li", { text: "Upper Bonus: Score 63+ in the Upper section to gain an additional +35 point bonus!" }),
           el("li", { text: "Yahtzee Bonus: If you roll another YAHTZEE after scoring your first 50, gain +100 bonus points!" })
         ])
@@ -685,12 +685,27 @@ function initOnlineGame() {
   renderBoard(gState);
 }
 
+// Which seat this client holds in the LIVE game. applyLobby derives it from
+// the room's session list, which is only the same thing until somebody drops:
+// a reconnecting player is appended to the end of that list while the game's
+// roster stays frozen, so their seat number drifted and they were locked out
+// of their own turn (and pointed at a stranger's column). The game state is
+// the authority, so re-derive from it every time one arrives.
+function syncMySeat(state) {
+  if (!isOnline || !state || !Array.isArray(state.players)) return;
+  // -1 is meaningful: someone who was not in the roster when the game started
+  // watches rather than inheriting whatever seat the lobby list gave them.
+  myPlayerIdx = state.players.indexOf(myName);
+}
+
 function handleRelay(action, sender) {
   if (action.type === "start_game") {
     gState = action.state;
+    syncMySeat(gState);
     renderBoard(gState);
   } else if (action.type === "state_update") {
     gState = action.state;
+    syncMySeat(gState);
     renderBoard(gState);
   } else if (action.type === "trigger_roll") {
     triggerOnlineRollAnimation(action.diceValues);
@@ -831,7 +846,11 @@ function renderBoard(yState) {
           const diceVals = yState.virtualDice.map(d => d.val);
           const pot = getSuggestedYahtzeeScore(cat.id, diceVals);
           if (pot !== null) {
-            previewText = String(pot * (colIdx + 1));
+            // The preview must be the number that actually gets written. Cells
+            // store the raw score and the column multiplier is applied once, to
+            // the column subtotal — so multiplying here too showed a potential
+            // score up to 3x higher than the value the cell locked in.
+            previewText = String(pot);
             isPreview = true;
           }
         }
@@ -946,7 +965,9 @@ function renderBoard(yState) {
             const diceVals = yState.virtualDice.map(d => d.val);
             const pot = getSuggestedYahtzeeScore(cat.id, diceVals);
             if (pot !== null) {
-              previewText = String(pot * (colIdx + 1));
+              // Raw score, same as the upper section: the x1/x2/x3 multiplier
+              // is applied to the column subtotal, not to each cell.
+              previewText = String(pot);
               isPreview = true;
             }
           }
@@ -1094,8 +1115,15 @@ function renderBoard(yState) {
     rollerPanel.appendChild(typeSelector);
 
     if (yState.usePhysicalDice) {
+      // The virtual roller announces whose turn it is in its title; physical
+      // mode hides the roller entirely, so without this the only clue was
+      // which column happened to be tappable — easy to score on the wrong turn.
+      rollerPanel.appendChild(el("h4", {
+        text: `${activePlayerName}'s Turn`,
+        style: "margin: 4px 0 0; font-size: 1rem; color: var(--sunset-soft);"
+      }));
       rollerPanel.appendChild(el("p", {
-        style: "font-size: 0.85rem; font-weight: 700; color: var(--sunset-soft); margin: 12px 0 4px;",
+        style: "font-size: 0.85rem; font-weight: 700; color: var(--sunset-soft); margin: 8px 0 4px;",
         text: "🎲 Physical Dice Mode Active"
       }));
       rollerPanel.appendChild(el("p", {
@@ -1103,6 +1131,13 @@ function renderBoard(yState) {
         style: "font-size: 0.75rem; margin: 0 0 10px; line-height: 1.4;",
         text: "Roll your real-life dice, then tap any empty scorecard cell to record your score."
       }));
+      if (!isMyTurn) {
+        rollerPanel.appendChild(el("p", {
+          className: "muted anim-pulse center",
+          style: "margin: 0; font-weight:bold; font-size:0.85rem;",
+          text: `Waiting for ${activePlayerName} to record a score...`
+        }));
+      }
       return;
     }
 
@@ -1346,6 +1381,14 @@ function activePlayerNameMatchesMe() {
 function openScoreSelector(yState, pIdx, category, colIdx = null) {
   const isPhysical = !!yState.usePhysicalDice;
 
+  // The roll animation only repaints the roller panel, so the scorecard cells
+  // stay tappable while the dice are still tumbling — and the score they
+  // offered was read off a mid-animation frame, not the dice that came to rest.
+  if (!isPhysical && yState.virtualRolling) {
+    toast("Let the dice land first.");
+    return;
+  }
+
   const currentVal = colIdx !== null 
     ? yState.scores[pIdx][category.id]?.[colIdx]
     : yState.scores[pIdx][category.id];
@@ -1391,6 +1434,14 @@ function openScoreSelector(yState, pIdx, category, colIdx = null) {
     style: "font-size: 2.2rem; font-weight: 900; color: var(--sunset-soft); text-align: center; padding: 16px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; margin: 12px 0;"
   });
 
+  // What "Save Score" will actually write. Physical mode trusts the numpad;
+  // virtual mode always locks in the mathematically correct value.
+  function effectiveValue() {
+    if (!isPhysical) return suggestedScore !== null ? suggestedScore : 0;
+    const parsed = parseInt(inputVal, 10);
+    return isNaN(parsed) ? 0 : parsed;
+  }
+
   function pressKey(k) {
     if (k === "C") {
       inputVal = "";
@@ -1401,6 +1452,7 @@ function openScoreSelector(yState, pIdx, category, colIdx = null) {
       inputVal += k;
     }
     inputDisplay.textContent = inputVal || "0";
+    syncZeroNotice();
   }
 
   const quickOptions = [];
@@ -1416,6 +1468,11 @@ function openScoreSelector(yState, pIdx, category, colIdx = null) {
     if (category.id === "sm_straight") [0, 30].forEach(v => quickOptions.push(v));
     if (category.id === "lg_straight") [0, 40].forEach(v => quickOptions.push(v));
     if (category.id === "yahtzee") [0, 50].forEach(v => quickOptions.push(v));
+    // Sum-of-dice categories have no fixed values to suggest, but taking the
+    // zero still needs to be one tap now that the Scratch button is gone.
+    if (category.id === "three_kind" || category.id === "four_kind" || category.id === "chance") {
+      quickOptions.push(0);
+    }
   } else {
     // Virtual Mode: Cheat-proof suggestions. The only option is the mathematically correct suggested score!
     if (suggestedScore !== null) {
@@ -1434,6 +1491,7 @@ function openScoreSelector(yState, pIdx, category, colIdx = null) {
       onClick: () => {
         inputVal = String(opt);
         inputDisplay.textContent = inputVal;
+        syncZeroNotice();
       }
     }));
   });
@@ -1505,16 +1563,25 @@ function openScoreSelector(yState, pIdx, category, colIdx = null) {
     }
   }
 
+  // There is no separate "Scratch (0)" button any more — a category that the
+  // roll doesn't qualify for already saves as 0, and having a second button
+  // sitting next to Save that silently zeroed a scoring roll was one mis-tap
+  // away from a ruined scorecard. Taking the zero is now the same action as
+  // any other score, so the only thing left to do is say so before it locks.
+  const zeroNotice = el("div", {
+    style: "display:none; background: rgba(255, 120, 120, 0.08); border: 1px dashed rgba(255, 120, 120, 0.5); border-radius: 10px; padding: 8px 10px; margin: 4px 0 12px; font-size: 0.75rem; line-height: 1.4; color: #ff9c9c;",
+    text: `⚠️ This locks ${category.name} at 0 for the rest of the game.`
+  });
+
   const saveBtn = el("button", {
     className: "btn",
     text: "Save Score",
     onClick: () => {
-      const parsed = parseInt(inputVal, 10);
-      let valToSave = isNaN(parsed) ? 0 : parsed;
-      
-      // Cheat-proofing: if not physical, clamp to mathematically correct score
-      if (!isPhysical) {
-        valToSave = suggestedScore !== null ? suggestedScore : 0;
+      const valToSave = effectiveValue();
+
+      if (isPhysical) {
+        const problem = physicalScoreProblem(category.id, valToSave);
+        if (problem) { toast(problem); return; }
       }
 
       // Check for Yahtzee Bonus
@@ -1559,52 +1626,11 @@ function openScoreSelector(yState, pIdx, category, colIdx = null) {
     }
   });
 
-  const scratchBtn = el("button", {
-    className: "btn error ghost",
-    text: "Scratch (0)",
-    style: "margin-top: 8px;",
-    onClick: () => {
-      // Check for Yahtzee Bonus (even when scratching, bonuses can still apply if conditions met)
-      let earnedBonus = false;
-      if (canGetYahtzeeBonus) {
-        if (!isPhysical) {
-          const rolledDice = yState.virtualDice.map(d => d.val);
-          const isYahtzeeRoll = rolledDice.length === 5 && rolledDice.every(v => v === rolledDice[0]);
-          if (isYahtzeeRoll) earnedBonus = true;
-        } else {
-          if (physicalBonusChecked) earnedBonus = true;
-        }
-      }
-
-      if (earnedBonus) {
-        if (colIdx !== null) {
-          yState.scores[pIdx]["bonus_yahtzee"][colIdx] = (yState.scores[pIdx]["bonus_yahtzee"][colIdx] || 0) + 100;
-        } else {
-          yState.scores[pIdx]["bonus_yahtzee"] = (yState.scores[pIdx]["bonus_yahtzee"] || 0) + 100;
-        }
-        toast("🎉 Yahtzee Bonus +100 recorded!");
-      }
-
-      if (colIdx !== null) {
-        yState.scores[pIdx][category.id][colIdx] = 0;
-      } else {
-        yState.scores[pIdx][category.id] = 0;
-      }
-      
-      yState.rollsLeft = 3;
-      yState.virtualDice = Array(5).fill(null).map(() => ({ val: 1, held: false }));
-      yState.virtualRolling = false;
-      yState.activePlayerIdx = (yState.activePlayerIdx + 1) % yState.players.length;
-
-      modal.remove();
-
-      if (isOnline) {
-        relay({ type: "state_update", state: yState });
-      } else {
-        renderBoard(yState);
-      }
-    }
-  });
+  function syncZeroNotice() {
+    const isZero = effectiveValue() === 0;
+    zeroNotice.style.display = isZero ? "block" : "none";
+    saveBtn.textContent = isZero ? "Save 0 & Lock Category" : "Save Score";
+  }
 
   const cancelBtn = el("button", {
     className: "btn ghost",
@@ -1644,10 +1670,8 @@ function openScoreSelector(yState, pIdx, category, colIdx = null) {
     }));
   }
 
+  modalContentChildren.push(zeroNotice);
   modalContentChildren.push(saveBtn);
-  if (suggestedScore !== 0) {
-    modalContentChildren.push(scratchBtn);
-  }
   modalContentChildren.push(cancelBtn);
 
   const modalContent = el("div", {
@@ -1660,7 +1684,40 @@ function openScoreSelector(yState, pIdx, category, colIdx = null) {
     style: "position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.8); z-index: 100000; display: flex; align-items: center; justify-content: center;"
   }, [modalContent]);
 
+  syncZeroNotice();
   document.body.appendChild(modal);
+}
+
+// ── Physical-dice sanity check ───────────────────────────────────────────────
+// The virtual roller locks in the calculated score, so it can't be wrong.
+// Physical mode trusts you to read your own dice — but it used to trust the
+// numpad too, so a slipped extra digit (300 instead of 30, or a stray tap
+// during someone else's turn) landed on the scorecard with no complaint.
+// Returns a message when five dice simply cannot produce the value, else null.
+function physicalScoreProblem(catId, val) {
+  if (!Number.isInteger(val) || val < 0) return "Enter a whole number of points.";
+
+  const face = { ones: 1, twos: 2, threes: 3, fours: 4, fives: 5, sixes: 6 }[catId];
+  if (face) {
+    if (val > face * 5 || val % face !== 0) {
+      return `${val} isn't possible there — count only your ${face}s (0 to ${face * 5}, in steps of ${face}).`;
+    }
+    return null;
+  }
+
+  const fixed = { full_house: 25, sm_straight: 30, lg_straight: 40, yahtzee: 50 }[catId];
+  if (fixed !== undefined) {
+    if (val !== 0 && val !== fixed) return `That category scores 0 or ${fixed} — nothing in between.`;
+    return null;
+  }
+
+  if (catId === "three_kind" || catId === "four_kind" || catId === "chance") {
+    // Five dice total between 5 and 30; 0 means the category didn't qualify.
+    if (val > 30 || (val > 0 && val < 5)) return `${val} isn't a possible five-dice total (5 to 30, or 0).`;
+    return null;
+  }
+
+  return null;
 }
 
 // ── Yahtzee Score computation helper for roller suggestions ──────────────────

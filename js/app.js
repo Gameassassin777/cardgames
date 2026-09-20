@@ -233,7 +233,7 @@ const GAMES = [
   },
   {
     id: "yahtzee", icon: icons.dice, title: "Yahtzee Scorecard",
-    blurb: "Roll virtual dice to score full houses, straights, and Yahtzees on your scoreboard! 1-8 players.",
+    blurb: "Roll virtual dice to score full houses, straights, and Yahtzees on your scoreboard! 1-6 players.",
     start: startYahtzee,
     familyFriendly: true,
     badgeColor: "linear-gradient(145deg, hsl(270,60%,58%), hsl(270,52%,40%))",
