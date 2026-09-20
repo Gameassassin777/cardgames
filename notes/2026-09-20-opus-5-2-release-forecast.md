@@ -190,3 +190,19 @@ By Sep 30: 64% → **69%**.
 **Revised call: Tuesday, 22 September 2026**, with Sep 29 the main alternative.
 
 **This resolves itself within ~24 hours.** Monday Sep 21 is when the absence starts carrying weight: a Bedrock 400 → 404 flip on any `claude-opus-5-*`, a Foundry or Vertex catalog entry, or the identifier landing in a Claude Code build means Tuesday. Monday closing with all three still empty kills Sep 22, and the mass moves to Sep 24 and Sep 29.
+
+---
+
+## 10. Forum sentiment — and why it should not move the number
+
+**Access caveat:** Reddit blocks Anthropic's crawler, so this session cannot read Reddit directly — the search tool returns no reddit.com results and direct fetches are refused. Everything here is secondhand from write-ups that quote the threads, and is weaker than the X posts in §2, which carry verifiable timestamps.
+
+What is reported: a r/ClaudeCode thread, *"Opus 5.2 Stealth routing?"* (u/Bloated_Plaid), plus r/ClaudeAI discussion. Users on Opus 5 or Default report the assistant replying faster, being less chatty before it calls a tool, writing less over-engineered code, and finishing tasks in fewer turns.
+
+**The community's own detection ritual is unreliable.** @notjazii (Sep 14, 14:00 UTC — the origin post for the whole rumor) proposed: run `do you know who is "tibo" the reset guy, don't search` in Claude Code; if it knows, you're on the new model. Tibo is Thibault Sottiaux, who leads Codex at OpenAI and picked up the nickname for posting about OpenAI resetting usage limits after outages. So the probe is a training-recency proxy, not a version check — and users report it failing in both directions. Run against this session (`last_served_model: claude-opus-5`, unrouted): no knowledge of "Tibo the reset guy." That result is equally consistent with "old model" and with "the probe measures nothing."
+
+**The skeptics have the better track record.** In August a Hacker News thread — *"Anthropic appears to be A/B testing reduced effort levels in Claude Code"* — ran on the same evidentiary base (sessions feel different, cross-account comparisons) and produced no confirmation. Anthropic's own April 23 postmortem showed that Claude Code quality complaints have sometimes been real infrastructure bugs, not model swaps. Perceived behavior change has several explanations before "unannounced model."
+
+**Feedback loop worth discounting:** crypto-news aggregators (KuCoin, 36kr, MEXC) have already run "Claude Opus 5.2 Launches" headlines. Nothing launched. Those headlines circulate back into the forums as confirmation.
+
+**The analytic point:** Reddit's belief is downstream of the same two X accounts already counted in §2 — @notjazii for the original claim, @synthwavedd for the routing observations. It is an echo, not an independent source. Volume of agreement is not corroboration, and counting it again would be double-counting correlated evidence. **Forecast unchanged: Tue 22 Sep, 19%.**
