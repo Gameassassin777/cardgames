@@ -109,3 +109,42 @@ Cumulative: **by Sep 30 ≈ 64%**, by Oct 31 ≈ 90%.
 | Anthropic publicly flips the S-1 | → anything unshipped moves behind the roadshow |
 | A *Fable* 5.2 card appears first | → confirms lineup launch; Opus rides the same day |
 | Another Opus-tier false start (test ends, nothing ships) | → the Aug pattern repeats; push mass into late Oct |
+
+---
+
+## 8. Addendum — the two lists, separated
+
+### 8a. Signals present now that argue *sooner*
+
+1. **The routing widened after being killed.** Cut Sep 17 night, back Sep 18 07:28 on most/all paid accounts and on three surfaces instead of one. Serving a candidate to full-price traffic costs real money; widening it after a pull means something was fixed and cleared, not shelved.
+2. **Three tiers at once.** Fable + Opus + Sonnet in stealth on Sep 18 implies an assembled release train, not one experiment.
+3. **Testers report an eval-grade delta**, not a research checkpoint: "a biiig step up over Opus 5," benchmarked head-to-head against Grok 4.7 at max effort.
+4. **Cadence is due.** Day 58 after Opus 5; prior Opus gaps 70 / 42 / 57.
+5. **Reuters ran it on three sources (Sep 18).** Wire stories of this shape land weeks, not months, ahead.
+6. **A hard commercial clock.** Astra ~13% of Ramp-tracked enterprise AI spend vs ~8% for Claude; November IPO; a likely October S-1 flip.
+7. **Markets agree on the month** (~81% September) even if their day is wrong.
+
+### 8b. Precursors that fired on the last two launches and have *not* fired here
+
+| Precursor | Opus 5 (Jul 24) | Fable 5.1 (Sep 1) | Now |
+|---|---|---|---|
+| Bedrock identifier flips **400 → 404** (registered, unprovisioned) | — | 400 on Aug 24 → **404 on Aug 31** → GA Sep 1 | **not reported for any Opus 5.x** |
+| A real identifier in a shipping product | `Honeycomb EAP` in Cursor's picker Jul 8–9, pulled in hours → GA ~15d later | Bedrock entry | **none anywhere**; the stealth build serves under the unchanged `Opus 5` label |
+| Identifier in a Claude Code build | on launch | on launch | **absent in 2.1.278** (dumped directly) |
+| Day-one multi-cloud (API + Bedrock + Vertex + Foundry) | yes | yes | Foundry's Claude table (upd. Sep 11) lists `claude-opus-5` only |
+| OpenRouter listing | same day | same day | no Opus 5.x |
+| Model card / docs / pricing row / changelog | launch day | launch day | **nothing as of Sep 18–19** |
+| Any named Anthropic employee saying anything | yes | yes | **zero** |
+| Anonymous Arena checkpoint | — | — | the current Arena mystery model is Google's `gemini-3.8-flash`, not Anthropic's |
+
+**The 400/404 probe is the one validated discriminator we have.** In its only head-to-head test it called both outcomes right: `claude-fable-5-1` flipped to 404 and shipped the next day; `claude-opus-5-1` stayed at 400 and never shipped at all.
+
+### 8c. The asymmetry, and the thing that reframes it
+
+Everything in 8a is **upstream** — training finished, candidate serving, business pressure. Everything in 8b is **downstream** — catalog registration, partner provisioning, docs. Downstream precursors have 0–2 day lead times, so their absence cannot rule out Sep 22; it only means **nothing has crossed the point of no return.** Discount it further for the calendar: nobody runs the Bedrock probe on a Sunday.
+
+The reframe: **broad pre-launch consumer routing is not part of either recent launch pattern.** Fable 5.1 was first seen in Claude Code at 17:33 UTC *on launch day* — there was no consumer-visible stealth phase at all. The only recent Opus-tier precedent for what we're watching now is the late-August test that produced no Opus release. So the loudest signal in 8a is the one with the worst track record, and the quiet checklist in 8b is the one that has never been wrong.
+
+That is why the call stays Sep 29 rather than Sep 22.
+
+**Tripwire:** a Bedrock 404 on any `claude-opus-5-*` identifier → launch inside 24–72 hours, and Sep 22 takes the lead.
