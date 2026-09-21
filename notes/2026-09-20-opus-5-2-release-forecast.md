@@ -206,3 +206,31 @@ What is reported: a r/ClaudeCode thread, *"Opus 5.2 Stealth routing?"* (u/Bloate
 **Feedback loop worth discounting:** crypto-news aggregators (KuCoin, 36kr, MEXC) have already run "Claude Opus 5.2 Launches" headlines. Nothing launched. Those headlines circulate back into the forums as confirmation.
 
 **The analytic point:** Reddit's belief is downstream of the same two X accounts already counted in §2 — @notjazii for the original claim, @synthwavedd for the routing observations. It is an echo, not an independent source. Volume of agreement is not corroboration, and counting it again would be double-counting correlated evidence. **Forecast unchanged: Tue 22 Sep, 19%.**
+
+---
+
+## 11. Sep 21 — the rumor renamed itself. The date call holds; the name call does not.
+
+**What changed:** the Sep 17–18 window closed empty, and on **Sep 20 the same rumor respawned as "Opus 5.5" with a Tuesday date** — same single source (@kimmonismus relaying "Lyra"), same absence of a model card, API identifier, price sheet, benchmark or second outlet. Anthropic's models overview, platform release notes, pricing page and OpenRouter's catalog carry neither an Opus 5.2 nor an Opus 5.5.
+
+**That mutation is itself the finding.** A rumor that renames and re-dates after each miss, rather than dying, is unfalsifiable. Three names have now been attached to one unreleased Opus in four weeks — 5.1 (late Aug), 5.2 (Sep 14), 5.5 (Sep 20) — and the only thing that survived each revision is "soon."
+
+**"Tuesday" is nearly free information.** Tuesday is Anthropic's modal release day (5 of the last 13 launches; Thursday 4). A leaker who says "Tuesday" is picking the base-rate favorite, and will look prescient if the launch lands there for reasons having nothing to do with access.
+
+**So do not read the agreement as convergence.** §9's Sep 22 and the leaker's Tuesday are not two independent signals — both contain the same weekday base rate. Strip that shared term and what remains on my side is stealth duration (day 6–7, matching Fable 5.1's 4–7) plus cadence; what remains on theirs is nothing checkable. Correlated, not corroborating.
+
+**A hypothesis that reconciles the names.** The routed behavior — faster, more concise, less lazy, autonomous iteration — is the signature of a **post-train refresh on the same base**, which is a 5.1/5.2-shaped release. "Wafer" is described as a *new checkpoint*, and the Fable 5.2 leak as a *new pretrain*. Those are different objects. If the model serving since Sep 14 is the post-train and wafer is the pretrain, then the near-term ship is the routed model under an uncertain label and 5.5 is an October-or-later thing. Under that reading the naming chaos is expected, not alarming.
+
+### Revised naming distribution (date unchanged)
+
+| Name | §6 | now |
+|---|---|---|
+| Opus 5.2 | 55% | 40% |
+| Opus 5.5 | 10% | 20% |
+| Opus 5.1 | 10% | 8% |
+| Opus 6 | 8% | 7% |
+| Other / renamed | 17% | 25% |
+
+**Date call unchanged: Tue 22 Sep, 19%** — it never rested on the rumor's label, and a rumor mill re-dating itself is noise in both directions.
+
+**Tripwire status, 2026-09-21 04:05 UTC (= Sun 21:05 US Pacific):** no Bedrock 400 → 404 flip, no Foundry or Vertex catalog entry, no identifier in a Claude Code build, no OpenRouter row, nothing from Anthropic. The US working day has not started, so the entire window in which a Tuesday launch would stage is still ahead. Absence remains uninformative until Monday evening Pacific.
