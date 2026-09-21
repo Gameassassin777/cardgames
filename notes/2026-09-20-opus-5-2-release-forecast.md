@@ -287,3 +287,20 @@ That collides with the evidence. The behavior reported from the stealth build �
 So: **either it ships Tuesday and is not 5.5-scale, or it is 5.5-scale and does not ship Tuesday.** The two halves of the same rumor pull against each other, which is itself a reason to treat the pairing as assembled rather than observed.
 
 **Date call unchanged: Tue 22 Sep, 19%.** What ships that day, if it ships, is most likely the routed post-train under a label nobody outside Anthropic has yet seen written down.
+
+---
+
+## 15. Status log
+
+**2026-09-21 14:24 UTC (07:24 US Pacific).** No change on any discriminator.
+
+- Bedrock / Vertex / Foundry: no `claude-opus-5-*` beyond `claude-opus-5`. No 400 → 404 flip reported.
+- OpenRouter Anthropic catalog: Opus 5, Opus 5 (batch), Fable 5.1, back-catalog. Nothing new.
+- Anthropic docs, release notes, news index, status page: nothing.
+- This session: `last_served_model: claude-opus-5`, unrouted.
+
+**The only movement is amplification.** A new post (@pankajkumar_dev, Sun 18:58 UTC) restates the 5.5/`claude-wafer-eap`/Tuesday claim and adds "I think they changed it because Opus 5.5 has significant changes compared with Opus 5.1" — self-marked speculation, referencing an Opus 5.1 that never shipped, with no new source. Some write-ups have begun printing `claude-opus-5-5` as though it were an observed identifier; it is an inference from the rumored name, not a sighting.
+
+This is the echo pattern from §10: repetition raising apparent confidence while the evidence base stays at one account. Forecast unchanged — **Tue 22 Sep 23%, by Sep 30 77%**.
+
+The US working day has only just begun, so today is still the window in which a Tuesday launch would stage. Tripwire re-checks scheduled through the day.
