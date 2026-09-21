@@ -234,3 +234,56 @@ What is reported: a r/ClaudeCode thread, *"Opus 5.2 Stealth routing?"* (u/Bloate
 **Date call unchanged: Tue 22 Sep, 19%** — it never rested on the rumor's label, and a rumor mill re-dating itself is noise in both directions.
 
 **Tripwire status, 2026-09-21 04:05 UTC (= Sun 21:05 US Pacific):** no Bedrock 400 → 404 flip, no Foundry or Vertex catalog entry, no identifier in a Claude Code build, no OpenRouter row, nothing from Anthropic. The US working day has not started, so the entire window in which a Tuesday launch would stage is still ahead. Absence remains uninformative until Monday evening Pacific.
+
+---
+
+## 12. Deep dive: the Opus 5.5 / `claude-wafer-eap` claim
+
+### 12a. What the claim is, exactly
+One post, Sep 20: @kimmonismus relaying a leaker called **Lyra** — the next Opus is **5.5**, internal codename **`claude-wafer-eap`**, could land **Tuesday Sep 22**. No model card, no API identifier, no price sheet, no benchmark, no second outlet. The string appears in the signal text and nowhere else: no repository reference, no API slug, no configuration leak, no screenshot of a shipping product.
+
+### 12b. Source quality, assessed fairly
+@kimmonismus is not a nobody. In 2026 he surfaced `claude-marshmallow-eap` and `claude-melon-eap` (Aug 21–24 — names that **never shipped**) *and* called the Fable 5.1 / Opus 5.1 release-window delay on **Aug 29**, days before Fable 5.1 shipped Sep 1.
+
+**The pattern is the useful part: right about windows, wrong about names.** That is exactly the asymmetry to trade on — weight his Tuesday more than his "5.5." **Lyra** is a handle with no checkable record; the same Lyra sourced his Sep 12 claim that Google DeepMind had reached RSI.
+
+### 12c. The artifact test — three classes of 2026 Anthropic leak
+
+| Class | Example | Outcome |
+|---|---|---|
+| **Anthropic's own data leak** | Mythos / "Capybara", Mar 2026 — a CMS misconfiguration exposed ~3,000 unpublished assets; Anthropic confirmed it | Mythos 5 shipped Jun 9 ✓ |
+| **Sighting in a shipping product's UI** | `Claude Honeycomb EAP` in Cursor's model picker, Jul 9 03:03 UTC (@chetaslua), pulled within hours — "research model with per-turn controls and safety fallbacks, early access preview, 1M context, extra high effort" | Opus 5 shipped Jul 23–24 ✓ |
+| **Relayed word from a leaker** | marshmallow, melon, **wafer** | 0-for-2, wafer pending |
+
+`EAP` is a real Anthropic construct — Mythos ran an Early Access Program for cyber defenders — so `claude-wafer-eap` is *well-formed*. Well-formedness is cheap: the convention is public.
+
+### 12d. Two corrections to my own earlier reasoning
+
+1. **I discounted wafer partly by association, and that was unfair.** §3's debunk was that `marshmallow` and `melon` are words in Claude Code's own bundled wordlists. **`wafer` is not in those lists**, so the wordlist-sampling explanation does not transfer to it.
+2. **Its absence from the CLI binary proves nothing.** Control test on 2.1.278: `capybara` — a confirmed-real internal codename Anthropic acknowledged after their own leak — appears **0 times**. So does `glasswing`, the confirmed Mythos partner-program name. Product names appear heavily (`mythos` 33, `fable` 117). **Internal codenames never reach the shipping binary**, so `wafer` being absent is expected whether or not it is real.
+
+### 12e. The naming question is more interesting than the rumor
+
+Anthropic's convention: **`.5` marks a substantial upgrade within a generation** (3.5, 4.5); **`.6/.7/.8` mark incremental refinements**. So "5.5" is a claim about *magnitude*, not merely sequence.
+
+That collides with the evidence. The behavior reported from the stealth build — faster, more concise, less lazy, autonomous iteration loops — is **post-train polish**, which is 5.1/5.2-shaped. Either the leak describes a different model from the one being routed, or the number is wrong.
+
+**And the 3.6 precedent cuts against "5.2" specifically.** Anthropic skipped 3.6 entirely because the community had already claimed that label for the October 2024 update to 3.5 Sonnet, and went straight to 3.7. The community has now spent a week calling the stealth build "5.2." In the one case on record, Anthropic's revealed preference is to **avoid a number the community has informally taken**. That is a real, if small, argument for a shipped name that is not 5.2 — and it is the same manoeuvre as jumping to 5.5.
+
+### 12f. Revised naming distribution
+
+| Name | §6 | §11 | now |
+|---|---|---|---|
+| Opus 5.2 | 55% | 40% | **33%** |
+| Opus 5.5 | 10% | 20% | **25%** |
+| Opus 5.1 | 10% | 8% | 8% |
+| Opus 6 | 8% | 7% | 7% |
+| Other / renamed | 17% | 25% | 27% |
+
+### 12g. The internal tension that matters most
+
+**"5.5 on Tuesday" is self-undermining.** A `.5` name asserts a substantial upgrade — realistically a new pretrain, which needs a model card, a full safety write-up under the embedded-evaluator commitment made Sep 12, and staged provisioning across three clouds. The Fable 5.2 pretrain leak already slipped from "very soon" to late Sep / early Oct for exactly those reasons.
+
+So: **either it ships Tuesday and is not 5.5-scale, or it is 5.5-scale and does not ship Tuesday.** The two halves of the same rumor pull against each other, which is itself a reason to treat the pairing as assembled rather than observed.
+
+**Date call unchanged: Tue 22 Sep, 19%.** What ships that day, if it ships, is most likely the routed post-train under a label nobody outside Anthropic has yet seen written down.
